@@ -30,6 +30,7 @@ springdoc:
 server:
   port: 80
 
+<<<<<<< HEAD
 wechat:
   token: zhuxiaoyizxy123456789
   appid: wx82436d7e59251ede
@@ -45,3 +46,6 @@ wechat:
     cert-serial-no: 576B13569E2D30856E8A8017D496FE1BF072EEC0
     notify-url: http://dsaol.asia/api/payment/callback
     #notify-url: https://dsaol.asia/api/payment/callback
+=======
+
+>>>>>>> 12af3be7773747d94473f03ffbc4803df62d8987
