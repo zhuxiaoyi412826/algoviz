@@ -543,22 +543,21 @@ public class AdminController {
 
     @PostMapping("/extension/announcement")
     public ApiResponse<Announcement> createAnnouncement(@RequestBody Announcement announcement) {
-        announcement.setId(UUID.randomUUID().toString());
         announcement.setStatus("draft");
         announcementMapper.insert(announcement);
-        return ApiResponse.success(announcementMapper.findById(announcement.getId()));
+        return ApiResponse.success(announcement);
     }
 
     @PutMapping("/extension/announcement/{id}")
-    public ApiResponse<Announcement> updateAnnouncement(@PathVariable String id, @RequestBody Announcement announcement) {
+    public ApiResponse<Announcement> updateAnnouncement(@PathVariable Long id, @RequestBody Announcement announcement) {
         announcement.setId(id);
         announcementMapper.update(announcement);
-        return ApiResponse.success(announcementMapper.findById(id));
+        return ApiResponse.success(announcementMapper.findById(String.valueOf(id)));
     }
 
     @DeleteMapping("/extension/announcement/{id}")
-    public ApiResponse<Void> deleteAnnouncement(@PathVariable String id) {
-        boolean success = announcementMapper.deleteById(id) > 0;
+    public ApiResponse<Void> deleteAnnouncement(@PathVariable Long id) {
+        boolean success = announcementMapper.deleteById(String.valueOf(id)) > 0;
         return success ? ApiResponse.success(null) : ApiResponse.error("删除失败");
     }
 
@@ -583,10 +582,10 @@ public class AdminController {
     }
 
     @PutMapping("/extension/feedback/{id}")
-    public ApiResponse<Feedback> updateFeedback(@PathVariable String id, @RequestBody Feedback feedback) {
+    public ApiResponse<Feedback> updateFeedback(@PathVariable Long id, @RequestBody Feedback feedback) {
         feedback.setId(id);
         feedbackMapper.update(feedback);
-        return ApiResponse.success(feedbackMapper.findById(id));
+        return ApiResponse.success(feedbackMapper.findById(String.valueOf(id)));
     }
 
     @DeleteMapping("/extension/feedback/{id}")

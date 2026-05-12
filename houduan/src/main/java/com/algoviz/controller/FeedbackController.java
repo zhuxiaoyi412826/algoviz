@@ -17,6 +17,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/feedback")
 @Tag(name = "反馈管理", description = "用户反馈相关接口")
+@CrossOrigin(origins = "*")
 public class FeedbackController {
 
     private static final Logger logger = LoggerFactory.getLogger(FeedbackController.class);
@@ -70,7 +71,7 @@ public class FeedbackController {
         logger.info("获取反馈详情：{}", id);
         
         Map<String, Object> result = new HashMap<>();
-        Feedback feedback = feedbackMapper.getFeedbackById(id);
+        Feedback feedback = feedbackMapper.findById(String.valueOf(id));
         
         if (feedback != null) {
             result.put("success", true);
@@ -102,7 +103,7 @@ public class FeedbackController {
             feedback.setCreateTime(LocalDateTime.now());
             feedback.setUpdateTime(LocalDateTime.now());
             
-            feedbackMapper.insertFeedback(feedback);
+            feedbackMapper.insert(feedback);
             
             result.put("success", true);
             result.put("message", "反馈提交成功");
@@ -125,7 +126,7 @@ public class FeedbackController {
         String reply = body.get("reply");
         
         try {
-            Feedback feedback = feedbackMapper.getFeedbackById(id);
+            Feedback feedback = feedbackMapper.findById(String.valueOf(id));
             if (feedback == null) {
                 result.put("success", false);
                 result.put("message", "反馈不存在");
@@ -154,14 +155,14 @@ public class FeedbackController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            Feedback feedback = feedbackMapper.getFeedbackById(id);
+            Feedback feedback = feedbackMapper.findById(String.valueOf(id));
             if (feedback == null) {
                 result.put("success", false);
                 result.put("message", "反馈不存在");
                 return result;
             }
             
-            feedbackMapper.deleteFeedback(id);
+            feedbackMapper.deleteById(String.valueOf(id));
             
             result.put("success", true);
             result.put("message", "删除成功");

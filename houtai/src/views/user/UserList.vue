@@ -32,7 +32,7 @@ const loadData = async () => {
     const params = new URLSearchParams()
     if (searchForm.keyword) params.append('keyword', searchForm.keyword)
     
-    const response = await fetch(`http://dsaol.asia/api/users?${params.toString()}`)
+    const response = await fetch(`http://localhost/api/users?${params.toString()}`)
     const data = await response.json()
     
     if (data.success) {
@@ -82,7 +82,7 @@ const handleDelete = async (row: User) => {
   try {
     await ElMessageBox.confirm('确定要删除该用户吗？', '提示', { type: 'warning' })
     
-    const response = await fetch(`http://dsaol.asia/api/users/${row.id}`, {
+    const response = await fetch(`http://localhost/api/users/${row.id}`, {
       method: 'DELETE'
     })
     const data = await response.json()

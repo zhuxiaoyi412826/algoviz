@@ -470,7 +470,7 @@
         }
     </style>
 </head>
-<body onload="initTheme()">
+<body>
     <nav class="nav">
         <div class="nav-container">
             <a href="../index.html" class="nav-logo">
@@ -744,7 +744,7 @@
             }
         }
         
-        function submitForm(e) {
+        async function submitForm(e) {
             e.preventDefault();
             
             const form = e.target;
@@ -761,14 +761,38 @@
             document.getElementById('submitBtn').disabled = true;
             document.getElementById('submitBtn').textContent = '提交中...';
             
-            setTimeout(() => {
-                document.getElementById('successModal').classList.add('show');
-                form.reset();
-                document.getElementById('fileLabel').innerHTML = '📎 点击选择文件或拖拽文件到此处<br><small>支持 JPG、PNG、PDF、Word 格式</small>';
+            try {
+                const response = await fetch('http://localhost:80/api/feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: formData.get('name'),
+                        email: formData.get('contact'),
+                        type: formData.get('type'),
+                        title: '用户留言',
+                        content: formData.get('content')
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('successModal').classList.add('show');
+                    form.reset();
+                    document.getElementById('fileLabel').innerHTML = '📎 点击选择文件或拖拽文件到此处<br><small>支持 JPG、PNG、PDF、Word 格式</small>';
+                } else {
+                    alert('提交失败：' + (data.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('提交失败:', error);
+                alert('网络异常，请稍后重试');
+            } finally {
                 refreshCaptcha();
                 document.getElementById('submitBtn').disabled = false;
                 document.getElementById('submitBtn').textContent = '提交留言';
-            }, 1500);
+            }
         }
         
         function closeSuccessModal() {

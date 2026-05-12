@@ -78,7 +78,7 @@ const loadData = async () => {
     if (searchForm.keyword) params.append('keyword', searchForm.keyword)
     if (searchForm.difficulty) params.append('difficulty', searchForm.difficulty)
     
-    const response = await fetch(`http://dsaol.asia/api/problems?${params.toString()}`)
+    const response = await fetch(`http://localhost/api/problems?${params.toString()}`)
     const data = await response.json()
     
     if (data.success) {
@@ -143,7 +143,7 @@ const handleDelete = async (row: OJProblem) => {
   try {
     await ElMessageBox.confirm('确定要删除该题目吗？', '提示', { type: 'warning' })
     
-    const response = await fetch(`http://dsaol.asia/api/problems/${row.id}`, {
+    const response = await fetch(`http://localhost/api/problems/${row.id}`, {
       method: 'DELETE'
     })
     const data = await response.json()
@@ -162,7 +162,7 @@ const handleToggleStatus = async (row: OJProblem) => {
   try {
     await ElMessageBox.confirm(`确定要${newStatus === 'online' ? '上线' : '下线'}该题目吗？`, '提示', { type: 'warning' })
     
-    const response = await fetch(`http://dsaol.asia/api/problems/${row.id}`, {
+    const response = await fetch(`http://localhost/api/problems/${row.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus === 'online' ? 'ACTIVE' : 'INACTIVE' })
@@ -197,14 +197,14 @@ const handleSubmit = async () => {
       let response
       if (formData.id) {
         // 更新题目
-        response = await fetch(`http://dsaol.asia/api/problems/${formData.id}`, {
+        response = await fetch(`http://localhost/api/problems/${formData.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(submitData)
         })
       } else {
         // 新增题目
-        response = await fetch('http://dsaol.asia/api/problems', {
+        response = await fetch('http://localhost/api/problems', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(submitData)

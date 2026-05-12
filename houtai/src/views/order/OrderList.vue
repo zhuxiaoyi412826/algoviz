@@ -3,9 +3,9 @@ import { ref, reactive, onMounted } from 'vue'
 import { 
   ElTable, ElTableColumn, ElButton, ElTag, ElDialog, ElMessage, 
   ElPagination, ElInput, ElSelect, ElOption, ElMessageBox, ElForm,
-  ElFormItem, ElTextarea
+  ElFormItem
 } from 'element-plus'
-import { Search, Refresh, Eye, Check, X } from '@element-plus/icons-vue'
+import { Search, Refresh, Edit, Check, Delete } from '@element-plus/icons-vue'
 
 interface Order {
   id: number
@@ -58,7 +58,7 @@ const loadData = async () => {
     if (searchForm.status) params.append('status', searchForm.status)
     if (searchForm.refundStatus) params.append('refundStatus', searchForm.refundStatus)
     
-    const response = await fetch(`http://dsaol.asia/api/orders?${params.toString()}`)
+    const response = await fetch(`http://localhost/api/orders?${params.toString()}`)
     const data = await response.json()
     
     if (data.success) {
@@ -89,7 +89,7 @@ const loadData = async () => {
 
 const loadStats = async () => {
   try {
-    const response = await fetch('http://dsaol.asia/api/orders/stats')
+    const response = await fetch('http://localhost/api/orders/stats')
     const data = await response.json()
     if (data.success) {
       stats.value = data
@@ -122,7 +122,7 @@ const handleApproveRefund = (row: Order) => {
     type: 'warning'
   }).then(async () => {
     try {
-      const response = await fetch(`http://dsaol.asia/api/orders/${row.orderId}/refund/approve`, {
+      const response = await fetch(`http://localhost/api/orders/${row.orderId}/refund/approve`, {
         method: 'PUT'
       })
       const data = await response.json()
@@ -149,7 +149,7 @@ const confirmReject = async () => {
   if (!currentOrder.value) return
   
   try {
-    const response = await fetch(`http://dsaol.asia/api/orders/${currentOrder.value.orderId}/refund/reject`, {
+    const response = await fetch(`http://localhost/api/orders/${currentOrder.value.orderId}/refund/reject`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason: rejectReason.value })
@@ -176,8 +176,8 @@ const getStatusLabel = (status: string) => {
   return map[status] || status
 }
 
-const getStatusType = (status: string) => {
-  const map: Record<string, string> = {
+const getStatusType = (status: string): 'success' | 'warning' | 'info' | 'danger' => {
+  const map: Record<string, 'success' | 'warning' | 'info'> = {
     'PENDING': 'warning',
     'SUCCESS': 'success',
     'REFUNDED': 'info'
@@ -196,8 +196,8 @@ const getRefundStatusLabel = (status: string) => {
   return map[status] || status
 }
 
-const getRefundStatusType = (status: string) => {
-  const map: Record<string, string> = {
+const getRefundStatusType = (status: string): 'success' | 'warning' | 'info' | 'danger' => {
+  const map: Record<string, 'success' | 'warning' | 'info' | 'danger'> = {
     'NONE': 'info',
     'APPLIED': 'warning',
     'REFUNDED': 'success',
@@ -281,10 +281,10 @@ const getRefundStatusType = (status: string) => {
         <el-table-column prop="createTime" label="创建时间" width="150" />
         <el-table-column label="操作" width="200">
           <template #default="{row}">
-            <el-button type="primary" link :icon="Eye" @click="handleView(row)">详情</el-button>
+            <el-button type="primary" link :icon="Edit" @click="handleView(row)">详情</el-button>
             <template v-if="row.refundStatus === 'APPLIED'">
               <el-button type="success" link :icon="Check" @click="handleApproveRefund(row)">同意退款</el-button>
-              <el-button type="danger" link :icon="X" @click="handleRejectRefund(row)">拒绝</el-button>
+              <el-button type="danger" link :icon="Delete" @click="handleRejectRefund(row)">拒绝</el-button>
             </template>
           </template>
         </el-table-column>
@@ -322,7 +322,7 @@ const getRefundStatusType = (status: string) => {
     <el-dialog v-model="refundDialogVisible" title="拒绝退款申请" width="400px">
       <el-form>
         <el-form-item label="拒绝原因" required>
-          <el-textarea v-model="rejectReason" rows="4" placeholder="请输入拒绝原因" />
+          <el-input v-model="rejectReason" type="textarea" :rows="4" placeholder="请输入拒绝原因" />
         </el-form-item>
       </el-form>
       <template #footer>

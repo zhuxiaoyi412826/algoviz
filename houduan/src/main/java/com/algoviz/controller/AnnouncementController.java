@@ -58,7 +58,7 @@ public class AnnouncementController {
         logger.info("获取公告详情：{}", id);
         
         Map<String, Object> result = new HashMap<>();
-        Announcement announcement = announcementMapper.getAnnouncementById(id);
+        Announcement announcement = announcementMapper.findById(String.valueOf(id));
         
         if (announcement != null) {
             result.put("success", true);
@@ -87,7 +87,7 @@ public class AnnouncementController {
             announcement.setCreateTime(LocalDateTime.now());
             announcement.setUpdateTime(LocalDateTime.now());
             
-            announcementMapper.insertAnnouncement(announcement);
+            announcementMapper.insert(announcement);
             
             result.put("success", true);
             result.put("message", "公告创建成功");
@@ -109,7 +109,7 @@ public class AnnouncementController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            Announcement announcement = announcementMapper.getAnnouncementById(id);
+            Announcement announcement = announcementMapper.findById(String.valueOf(id));
             if (announcement == null) {
                 result.put("success", false);
                 result.put("message", "公告不存在");
@@ -122,7 +122,7 @@ public class AnnouncementController {
                 announcement.setSortOrder(Integer.parseInt(body.get("sortOrder")));
             }
             
-            announcementMapper.updateAnnouncement(announcement);
+            announcementMapper.update(announcement);
             
             result.put("success", true);
             result.put("message", "更新成功");
@@ -144,7 +144,7 @@ public class AnnouncementController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            Announcement announcement = announcementMapper.getAnnouncementById(id);
+            Announcement announcement = announcementMapper.findById(String.valueOf(id));
             if (announcement == null) {
                 result.put("success", false);
                 result.put("message", "公告不存在");
@@ -173,7 +173,7 @@ public class AnnouncementController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            Announcement announcement = announcementMapper.getAnnouncementById(id);
+            Announcement announcement = announcementMapper.findById(String.valueOf(id));
             if (announcement == null) {
                 result.put("success", false);
                 result.put("message", "公告不存在");
@@ -202,14 +202,14 @@ public class AnnouncementController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            Announcement announcement = announcementMapper.getAnnouncementById(id);
+            Announcement announcement = announcementMapper.findById(String.valueOf(id));
             if (announcement == null) {
                 result.put("success", false);
                 result.put("message", "公告不存在");
                 return result;
             }
             
-            announcementMapper.deleteAnnouncement(id);
+            announcementMapper.deleteById(String.valueOf(id));
             
             result.put("success", true);
             result.put("message", "删除成功");

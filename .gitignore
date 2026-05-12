@@ -1,4 +1,6 @@
 node_modules
+application.yml
+application.yml/
 
 dist
 .DS_Store

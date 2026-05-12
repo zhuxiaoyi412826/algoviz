@@ -265,15 +265,17 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from) => {
+router.beforeEach((to, from, next) => {
   const title = to.meta.title as string
   if (title) {
     document.title = `${title} - 算法可视化平台管理后台`
   }
   const token = localStorage.getItem('token')
   if (to.path !== '/login' && !token) {
-    return { path: '/login', replace: true }
+    next({ path: '/login', replace: true })
+    return
   }
+  next()
 })
 
 export default router
