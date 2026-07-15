@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>堆排序可视化</title>
+    <link rel="icon" type="image/png" href="../../../images/tubiao.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#6366F1',
+                        accent: '#EC4899',
+                        dark: '#1E293B',
+                        light: '#F8FAFC'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .sort-bar {
+                transition: all 0.3s ease;
+            }
+            .sort-bar-sorted {
+                @apply bg-green-500;
+            }
+            .sort-bar-compare {
+                @apply bg-accent scale-y-105;
+            }
+            .sort-bar-pivot {
+                @apply bg-yellow-500;
+            }
+            .btn-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+            }
+            .glass-effect {
+                @apply bg-white/10 backdrop-blur-md border border-white/20;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-dark to-slate-900 text-light min-h-screen font-inter">
+    <header class="container mx-auto px-4 py-8 text-center">
+        <h1 class="text-[clamp(2rem,5vw,3.5rem)] font-bold bg-gradient-to-r from-primary to-secondary inline-block text-transparent bg-clip-text mb-2">
+            堆排序可视化
+        </h1>
+        <p class="text-lg text-slate-300 max-w-2xl mx-auto">
+            通过交互式动画直观理解堆排序的工作原理。堆排序是一种基于堆数据结构的比较型排序算法，
+            其原理是将数组构建成最大堆，然后依次提取最大值并调整堆结构。
+        </p>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- 控制面板 -->
+        <div class="glass-effect rounded-xl p-6 mb-8 shadow-xl">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">数组大小</label>
+                    <div class="flex items-center">
+                        <input type="range" id="array-size" min="5" max="100" value="30" 
+                            class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary">
+                        <span id="array-size-value" class="ml-4 min-w-[3rem] text-center">30</span>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">排序速度 (ms)</label>
+                    <div class="flex items-center">
+                        <input type="range" id="sort-speed" min="1" max="500" value="100" 
+                            class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary">
+                        <span id="sort-speed-value" class="ml-4 min-w-[3rem] text-center">100</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-end">
+                    <button id="generate-array" class="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg mr-4 btn-hover flex items-center">
+                        <i class="fa-solid fa-refresh mr-2"></i> 生成数组
+                    </button>
+                    <button id="start-sort" class="bg-accent hover:bg-accent/90 text-white px-6 py-2 rounded-lg btn-hover flex items-center">
+                        <i class="fa-solid fa-play mr-2"></i> 开始排序
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 算法信息 -->
+        <div class="glass-effect rounded-xl p-6 mb-8 shadow-xl">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fa-solid fa-info-circle text-primary mr-2"></i> 算法原理
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-lg font-medium mb-2 text-primary">堆排序步骤</h3>
+                    <ol class="list-decimal pl-5 space-y-2 text-slate-300">
+                        <li>将待排序数组构建成最大堆（大顶堆），使每个父节点值大于等于其子节点值</li>
+                        <li>将堆顶元素（最大值）与堆的最后一个元素交换，将最大值放到数组末尾</li>
+                        <li>缩小堆的范围，对剩余元素重新调整为最大堆</li>
+                        <li>重复步骤2-3，直到堆的大小为1，完成排序</li>
+                    </ol>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium mb-2 text-primary">算法特性</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-slate-800/50 rounded-lg p-3">
+                            <p class="text-sm text-slate-400">时间复杂度</p>
+                            <p class="font-bold text-lg">O(n log n)</p>
+                        </div>
+                        <div class="bg-slate-800/50 rounded-lg p-3">
+                            <p class="text-sm text-slate-400">空间复杂度</p>
+                            <p class="font-bold text-lg">O(1)</p>
+                        </div>
+                        <div class="bg-slate-800/50 rounded-lg p-3">
+                            <p class="text-sm text-slate-400">稳定性</p>
+                            <p class="font-bold text-lg">不稳定</p>
+                        </div>
+                        <div class="bg-slate-800/50 rounded-lg p-3">
+                            <p class="text-sm text-slate-400">类型</p>
+                            <p class="font-bold text-lg">比较排序</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 可视化区域 -->
+        <div class="glass-effect rounded-xl p-4 h-[500px] mb-8 shadow-xl overflow-hidden relative">
+            <div id="sorting-visualization" class="w-full h-full flex items-end justify-center space-x-[0.5%]">
+                <!-- 排序条将在这里动态生成 -->
+            </div>
+            <div id="sorting-status" class="absolute top-4 left-4 bg-slate-800/80 text-white px-4 py-2 rounded-lg text-sm">
+                准备就绪
+            </div>
+        </div>
+
+        <!-- 排序过程记录 -->
+        <div class="glass-effect rounded-xl p-6 mb-8 shadow-xl max-h-[300px] overflow-y-auto">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fa-solid fa-history text-primary mr-2"></i> 排序步骤记录
+            </h2>
+            <div id="sorting-steps" class="space-y-2 text-sm text-slate-300">
+                <p>点击"开始排序"按钮开始可视化过程</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="container mx-auto px-4 py-8 text-center text-slate-500">
+        <p>堆排序可视化工具 | 用动画展示算法原理</p>
+    </footer>
+
+    <script>
+        // DOM 元素
+        const arraySizeSlider = document.getElementById('array-size');
+        const arraySizeValue = document.getElementById('array-size-value');
+        const sortSpeedSlider = document.getElementById('sort-speed');
+        const sortSpeedValue = document.getElementById('sort-speed-value');
+        const generateArrayBtn = document.getElementById('generate-array');
+        const startSortBtn = document.getElementById('start-sort');
+        const visualizationContainer = document.getElementById('sorting-visualization');
+        const sortingStatus = document.getElementById('sorting-status');
+        const sortingSteps = document.getElementById('sorting-steps');
+
+        // 全局变量
+        let array = [];
+        let isSorting = false;
+        let animationSpeed = 100; // 毫秒
+        let animationQueue = [];
+        let stepCount = 0;
+
+        // 初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            updateArraySize();
+            updateSortSpeed();
+            generateRandomArray();
+            
+            // 事件监听
+            arraySizeSlider.addEventListener('input', updateArraySize);
+            sortSpeedSlider.addEventListener('input', updateSortSpeed);
+            generateArrayBtn.addEventListener('click', generateRandomArray);
+            startSortBtn.addEventListener('click', startSorting);
+        });
+
+        // 更新数组大小显示
+        function updateArraySize() {
+            arraySizeValue.textContent = arraySizeSlider.value;
+        }
+
+        // 更新排序速度显示
+        function updateSortSpeed() {
+            sortSpeedValue.textContent = sortSpeedSlider.value;
+            animationSpeed = parseInt(sortSpeedSlider.value);
+        }
+
+        // 生成随机数组
+        function generateRandomArray() {
+            if (isSorting) return;
+            
+            const size = parseInt(arraySizeSlider.value);
+            array = [];
+            
+            for (let i = 0; i < size; i++) {
+                // 生成10到450之间的随机高度（数值映射到1-100）
+                const height = Math.floor(Math.random() * 440) + 10;
+                const value = Math.floor((height / 450) * 100) + 1; // 1-100的数值
+                array.push(value);
+            }
+            
+            renderArray();
+            resetSortingStatus();
+        }
+
+        // 渲染数组
+        function renderArray(compareIndices = [], sortedIndices = [], heapSize = array.length) {
+            visualizationContainer.innerHTML = '';
+            
+            array.forEach((value, index) => {
+                const bar = document.createElement('div');
+                bar.className = 'sort-bar bg-primary rounded-t-md';
+                // 映射值到高度
+                const height = Math.floor((value / 100) * 440) + 10;
+                bar.style.height = `${height}px`;
+                bar.style.width = `${100 / array.length - 0.5}%`;
+                
+                // 高亮比较中的元素
+                if (compareIndices.includes(index)) {
+                    bar.classList.add('sort-bar-compare');
+                } 
+                // 高亮已排序的元素
+                else if (sortedIndices.includes(index)) {
+                    bar.classList.add('sort-bar-sorted');
+                }
+                // 标记堆的边界
+                else if (index >= heapSize) {
+                    bar.classList.add('opacity-70');
+                }
+                
+                // 添加数值标签
+                const label = document.createElement('div');
+                label.className = 'text-xs text-center mt-1';
+                label.textContent = value;
+                bar.appendChild(label);
+                
+                visualizationContainer.appendChild(bar);
+            });
+            
+            // 显示堆大小标记
+            if (heapSize < array.length && heapSize > 0) {
+                const heapMarker = document.createElement('div');
+                heapMarker.className = 'absolute top-1/2 left-0 right-0 flex justify-center';
+                heapMarker.innerHTML = `<div class="bg-accent/80 text-white px-3 py-1 rounded-lg text-sm">堆大小: ${heapSize}</div>`;
+                visualizationContainer.appendChild(heapMarker);
+            }
+        }
+
+        // 重置排序状态
+        function resetSortingStatus() {
+            isSorting = false;
+            startSortBtn.innerHTML = '<i class="fa-solid fa-play mr-2"></i> 开始排序';
+            sortingStatus.textContent = '准备就绪';
+            sortingSteps.innerHTML = '<p>点击"开始排序"按钮开始可视化过程</p>';
+            stepCount = 0;
+        }
+
+        // 开始排序
+        function startSorting() {
+            if (isSorting) return;
+            isSorting = true;
+            startSortBtn.innerHTML = '<i class="fa-solid fa-stop mr-2"></i> 停止排序';
+            sortingStatus.textContent = '排序中...';
+            sortingSteps.innerHTML = '';
+            // 禁用相关操作，防止排序过程中重复操作
+            arraySizeSlider.disabled = true;
+            sortSpeedSlider.disabled = true;
+            generateArrayBtn.disabled = true;
+            startSortBtn.disabled = true;
+            
+            animationQueue = [];
+            heapSort([...array]); // 生成动画队列
+            // 执行动画队列
+            executeAnimationQueue().then(() => {
+                // 排序完成后恢复按钮
+                arraySizeSlider.disabled = false;
+                sortSpeedSlider.disabled = false;
+                generateArrayBtn.disabled = false;
+                startSortBtn.disabled = false;
+            });
+        }
+
+        // 堆排序实现（生成动画队列）
+        function heapSort(arr) {
+            const n = arr.length;
+            
+            // 1. 构建最大堆
+            animationQueue.push({
+                type: 'start-heapify',
+                heapSize: n
+            });
+            addStepToLog('开始构建最大堆（大顶堆）');
+            
+            // 从最后一个非叶子节点开始堆化
+            for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+                heapify(arr, n, i);
+            }
+            
+            animationQueue.push({
+                type: 'heapify-complete',
+                heapSize: n
+            });
+            addStepToLog('最大堆构建完成');
+            
+            // 2. 逐个提取元素
+            for (let i = n - 1; i > 0; i--) {
+                // 将当前堆顶元素移到数组末尾
+                animationQueue.push({
+                    type: 'swap-root',
+                    index: i,
+                    heapSize: i + 1
+                });
+                addStepToLog(`交换堆顶元素和最后一个元素 (位置 ${i})`);
+                
+                // 交换数组元素（仅记录到动画队列）
+                [arr[0], arr[i]] = [arr[i], arr[0]];
+                animationQueue.push({
+                    type: 'update-array',
+                    array: [...arr],
+                    sortedIndex: i,
+                    heapSize: i
+                });
+                
+                // 对剩余元素堆化
+                animationQueue.push({
+                    type: 'reheapify',
+                    heapSize: i
+                });
+                addStepToLog(`对剩余 ${i} 个元素重新堆化`);
+                heapify(arr, i, 0);
+            }
+            
+            // 排序完成
+            animationQueue.push({
+                type: 'sort-complete'
+            });
+        }
+
+        // 堆化函数（生成动画队列）
+        function heapify(arr, heapSize, i) {
+            let largest = i; // 初始化最大值为根节点
+            const left = 2 * i + 1; // 左子节点
+            const right = 2 * i + 2; // 右子节点
+            
+            // 记录比较过程
+            animationQueue.push({
+                type: 'compare',
+                indices: [i, left, right],
+                heapSize: heapSize
+            });
+            addStepToLog(`比较节点 ${i} (值: ${arr[i]}) 与其子节点`);
+            
+            // 如果左子节点大于根节点
+            if (left < heapSize && arr[left] > arr[largest]) {
+                largest = left;
+                animationQueue.push({
+                    type: 'mark-larger',
+                    index: left,
+                    heapSize: heapSize
+                });
+                addStepToLog(`左子节点 ${left} (值: ${arr[left]}) 更大`);
+            }
+            
+            // 如果右子节点大于当前最大值
+            if (right < heapSize && arr[right] > arr[largest]) {
+                largest = right;
+                animationQueue.push({
+                    type: 'mark-larger',
+                    index: right,
+                    heapSize: heapSize
+                });
+                addStepToLog(`右子节点 ${right} (值: ${arr[right]}) 更大`);
+            }
+            
+            // 如果最大值不是根节点
+            if (largest !== i) {
+                animationQueue.push({
+                    type: 'swap',
+                    indices: [i, largest],
+                    heapSize: heapSize
+                });
+                addStepToLog(`交换节点 ${i} 和 ${largest}`);
+                
+                // 交换元素
+                [arr[i], arr[largest]] = [arr[largest], arr[i]];
+                animationQueue.push({
+                    type: 'update-array',
+                    array: [...arr],
+                    heapSize: heapSize
+                });
+                
+                // 递归堆化受影响的子树
+                heapify(arr, heapSize, largest);
+            } else {
+                animationQueue.push({
+                    type: 'no-swap',
+                    index: i,
+                    heapSize: heapSize
+                });
+                addStepToLog(`节点 ${i} 已是最大值，无需交换`);
+            }
+        }
+
+        // 执行动画队列
+        async function executeAnimationQueue() {
+            const sortedIndices = new Set();
+            let currentStep = 0;
+            
+            while (isSorting && currentStep < animationQueue.length) {
+                const step = animationQueue[currentStep];
+                switch (step.type) {
+                    case 'start-heapify':
+                        renderArray([], Array.from(sortedIndices), step.heapSize);
+                        await sleep(animationSpeed * 2);
+                        break;
+                        
+                    case 'heapify-complete':
+                        renderArray([], Array.from(sortedIndices), step.heapSize);
+                        await sleep(animationSpeed * 2);
+                        break;
+                        
+                    case 'compare':
+                        renderArray(step.indices, Array.from(sortedIndices), step.heapSize);
+                        await sleep(animationSpeed);
+                        break;
+                        
+                    case 'mark-larger':
+                        renderArray([step.index], Array.from(sortedIndices), step.heapSize);
+                        await sleep(animationSpeed);
+                        break;
+                        
+                    case 'swap':
+                        renderArray(step.indices, Array.from(sortedIndices), step.heapSize);
+                        await sleep(animationSpeed);
+                        break;
+                        
+                    case 'swap-root':
+                        renderArray([0, step.index], Array.from(sortedIndices), step.heapSize);
+                        await sleep(animationSpeed);
+                        break;
+                        
+                    case 'reheapify':
+                        renderArray([], Array.from(sortedIndices), step.heapSize);
+                        await sleep(animationSpeed);
+                        break;
+                        
+                    case 'no-swap':
+                        renderArray([step.index], Array.from(sortedIndices), step.heapSize);
+                        await sleep(animationSpeed / 2);
+                        break;
+                        
+                    case 'update-array':
+                        // 更新全局数组
+                        if (step.array) array = [...step.array];
+                        // 标记已排序的元素
+                        if (step.sortedIndex !== undefined) sortedIndices.add(step.sortedIndex);
+                        renderArray([], Array.from(sortedIndices), step.heapSize);
+                        await sleep(animationSpeed / 2);
+                        break;
+                        
+                    case 'sort-complete':
+                        addStepToLog('排序完成！');
+                        // 标记所有元素为已排序
+                        renderArray([], Array.from({length: array.length}, (_, i) => i));
+                        sortingStatus.textContent = '排序完成';
+                        isSorting = false;
+                        startSortBtn.innerHTML = '<i class="fa-solid fa-play mr-2"></i> 开始排序';
+                        // 闪烁效果
+                        sortingComplete();
+                        break;
+                }
+                currentStep++;
+            }
+        }
+
+        // 添加步骤到日志
+        function addStepToLog(message) {
+            stepCount++;
+            const stepElement = document.createElement('div');
+            stepElement.className = 'p-2 rounded-lg bg-slate-800/30 hover:bg-slate-800/50 transition-colors';
+            stepElement.innerHTML = `<span class="text-primary font-medium">步骤 ${stepCount}:</span> ${message}`;
+            sortingSteps.appendChild(stepElement);
+            sortingSteps.scrollTop = sortingSteps.scrollHeight;
+        }
+
+        // 排序完成处理
+        function sortingComplete() {
+            isSorting = false;
+            startSortBtn.innerHTML = '<i class="fa-solid fa-play mr-2"></i> 开始排序';
+            sortingStatus.textContent = '排序完成!';
+            
+            // 高亮所有元素表示完成
+            renderArray([], array.map((_, i) => i));
+            
+            // 添加完成消息
+            addStepToLog('堆排序已完成！🎉');
+            
+            // 闪烁所有元素以突出完成状态
+            let flashCount = 0;
+            const flashInterval = setInterval(() => {
+                if (flashCount >= 6) {
+                    clearInterval(flashInterval);
+                    renderArray([], array.map((_, i) => i));
+                    return;
+                }
+                
+                if (flashCount % 2 === 0) {
+                    renderArray([], []);
+                } else {
+                    renderArray([], array.map((_, i) => i));
+                }
+                
+                flashCount++;
+            }, 200);
+        }
+
+        // 睡眠函数
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>

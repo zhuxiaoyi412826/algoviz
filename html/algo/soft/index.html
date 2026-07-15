@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SortViz - 排序算法可视化学习平台</title>
+    <link rel="icon" type="image/png" href="../../../images/tubiao.png">
+  <link rel="preconnect" href="https://fonts.googleapis.cn">
+  <link rel="preconnect" href="https://fonts.gstatic.cn" crossorigin>
+  <link href="https://fonts.googleapis.cn/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- 顶部导航栏 -->
+    <header class="header">
+      <div class="header-content">
+        <div class="logo">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="4" height="18" rx="1"/>
+            <rect x="10" y="8" width="4" height="13" rx="1"/>
+            <rect x="17" y="5" width="4" height="16" rx="1"/>
+          </svg>
+          <h1 class="logo-text">SortViz</h1>
+        </div>
+        <p class="tagline">排序算法可视化学习平台 - 交互式掌握十大排序算法</p>
+        <button class="theme-toggle" id="themeToggle" title="切换主题">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+      <!-- 左侧控制面板 -->
+      <aside class="control-panel">
+        <!-- 算法选择 -->
+        <div class="card">
+          <h3 class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+            </svg>
+            算法选择
+          </h3>
+          <div class="algorithm-categories">
+            <div class="algo-category">
+              <span class="category-label">简单排序</span>
+              <div class="algo-buttons">
+                <button class="algo-btn active" data-algo="bubble">冒泡排序</button>
+                <button class="algo-btn" data-algo="selection">选择排序</button>
+                <button class="algo-btn" data-algo="insertion">插入排序</button>
+              </div>
+            </div>
+            <div class="algo-category">
+              <span class="category-label">高级排序</span>
+              <div class="algo-buttons">
+                <button class="algo-btn" data-algo="shell">希尔排序</button>
+                <button class="algo-btn" data-algo="quick">快速排序</button>
+                <button class="algo-btn" data-algo="merge">归并排序</button>
+                <button class="algo-btn" data-algo="heap">堆排序</button>
+              </div>
+            </div>
+            <div class="algo-category">
+              <span class="category-label">线性非比较</span>
+              <div class="algo-buttons">
+                <button class="algo-btn" data-algo="counting">计数排序</button>
+                <button class="algo-btn" data-algo="radix">基数排序</button>
+                <button class="algo-btn" data-algo="bucket">桶排序</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 数据配置 -->
+        <div class="card">
+          <h3 class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            数据配置
+          </h3>
+          <div class="config-group">
+            <label class="config-label">数据生成方式</label>
+            <select id="dataType" class="select">
+              <option value="random">随机数组</option>
+              <option value="sorted">顺序数组</option>
+              <option value="reversed">逆序数组</option>
+              <option value="nearly">近乎有序</option>
+              <option value="manual">手动输入</option>
+            </select>
+          </div>
+          <div class="config-group" id="manualInputGroup" style="display: none;">
+            <label class="config-label">输入数组（逗号分隔）</label>
+            <input type="text" id="manualInput" class="input" placeholder="例如: 5,3,8,1,9,2">
+          </div>
+          <div class="config-group">
+            <label class="config-label">数组数量: <span id="arraySizeValue">20</span></label>
+            <input type="range" id="arraySize" class="slider" min="5" max="60" value="20">
+          </div>
+          <button class="btn btn-secondary" id="generateBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+            </svg>
+            生成新数据
+          </button>
+        </div>
+
+        <!-- 播放控制 -->
+        <div class="card">
+          <h3 class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            播放控制
+          </h3>
+          <div class="playback-controls">
+            <button class="btn btn-primary btn-large" id="playPauseBtn">
+              <svg class="icon-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              <svg class="icon-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                <rect x="6" y="4" width="4" height="16"/>
+                <rect x="14" y="4" width="4" height="16"/>
+              </svg>
+              <span id="playPauseText">开始</span>
+            </button>
+            <div class="step-controls">
+              <button class="btn btn-outline" id="prevStepBtn" title="上一步">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="19" y1="5" x2="19" y2="19"/>
+                  <polygon points="19 4 9 12 19 20 19 4"/>
+                </svg>
+                上一步
+              </button>
+              <button class="btn btn-outline" id="nextStepBtn" title="下一步">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 4 15 12 5 20 5 4"/>
+                  <line x1="5" y1="5" x2="5" y2="19"/>
+                </svg>
+                下一步
+              </button>
+              <button class="btn btn-warning btn-outline" id="resetBtn" title="重置">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                </svg>
+                重置
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 速度调节 -->
+        <div class="card">
+          <h3 class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            动画速度
+          </h3>
+          <div class="speed-presets">
+            <button class="speed-btn" data-speed="1000">极慢</button>
+            <button class="speed-btn" data-speed="500">慢</button>
+            <button class="speed-btn active" data-speed="200">中</button>
+            <button class="speed-btn" data-speed="50">快</button>
+            <button class="speed-btn" data-speed="10">极快</button>
+          </div>
+          <div class="config-group">
+            <label class="config-label">自定义延迟: <span id="speedValue">200</span>ms</label>
+            <input type="range" id="speedSlider" class="slider" min="1" max="2000" value="200">
+          </div>
+          <div class="config-group">
+            <label class="config-label">播放倍速</label>
+            <div class="speed-multipliers">
+              <button class="speed-multiplier-btn active" data-multiplier="1">1x</button>
+              <button class="speed-multiplier-btn" data-multiplier="2">2x</button>
+              <button class="speed-multiplier-btn" data-multiplier="4">4x</button>
+              <button class="speed-multiplier-btn" data-multiplier="8">8x</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 算法参数 -->
+        <div class="card" id="algoParamsCard">
+          <h3 class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            算法参数
+          </h3>
+          <div class="param-group" id="quickPivotGroup">
+            <label class="config-label">快排基准选择</label>
+            <select id="pivotType" class="select">
+              <option value="last">末尾元素</option>
+              <option value="first">首元素</option>
+              <option value="random">随机元素</option>
+              <option value="median">三数取中</option>
+            </select>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 中心可视化区域 -->
+      <section class="visualization-area">
+        <div class="viz-header">
+          <div class="current-algo">
+            <span class="algo-badge" id="currentAlgoName">冒泡排序</span>
+            <span class="algo-badge category" id="currentAlgoCategory">简单排序</span>
+          </div>
+          <div class="viz-stats">
+            <div class="stat-item">
+              <span class="stat-label">比较次数</span>
+              <span class="stat-value" id="comparisons">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">交换次数</span>
+              <span class="stat-value" id="swaps">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">当前步骤</span>
+              <span class="stat-value" id="currentStep">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 主可视化区域 -->
+        <div class="bars-container" id="barsContainer">
+          <!-- 状态标签 -->
+          <div class="sort-status ready" id="sortStatus">
+            <span class="status-dot"></span>
+            <span class="status-text">准备就绪</span>
+          </div>
+
+          <!-- 播放进度条 -->
+          <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar">
+              <div class="progress-fill" id="progressFill"></div>
+              <div class="progress-handle" id="progressHandle"></div>
+            </div>
+            <div class="progress-labels">
+              <span class="progress-label">步骤 <span id="progressStepStart">0</span></span>
+              <span class="progress-label">步骤 <span id="progressStepEnd">0</span></span>
+            </div>
+          </div>
+
+          <div class="bars-wrapper" id="barsWrapper"></div>
+        </div>
+
+        <!-- 辅助信息区 -->
+        <div class="auxiliary-info" id="auxiliaryInfo">
+          <div class="aux-section" id="arrayDisplay">
+            <h4 class="aux-title">当前数组</h4>
+            <div class="array-values" id="arrayValues"></div>
+          </div>
+          <div class="aux-section" id="stepDescription">
+            <h4 class="aux-title">排序步骤</h4>
+            <div class="step-desc-list" id="stepDescList">
+              <div class="step-desc-hint">点击"开始"按钮开始排序</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 辅助视图（堆排序树形图、归并分区等） -->
+        <div class="aux-views" id="auxViews"></div>
+      </section>
+    </main>
+
+    <!-- 底部信息栏 -->
+    <footer class="footer">
+      <div class="footer-section complexity-info">
+        <h4 class="footer-title">复杂度分析</h4>
+        <div class="complexity-badges">
+          <span class="complexity-badge">
+            <span class="badge-label">时间</span>
+            <span class="badge-value" id="timeComplexity">O(n²)</span>
+          </span>
+          <span class="complexity-badge">
+            <span class="badge-label">空间</span>
+            <span class="badge-value" id="spaceComplexity">O(1)</span>
+          </span>
+          <span class="complexity-badge">
+            <span class="badge-label">稳定</span>
+            <span class="badge-value" id="isStable">是</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="footer-section code-section" style="display: flex; gap: 20px;">
+        <div style="flex: 2; display: flex; flex-direction: column;">
+          <div class="code-header">
+            <h4 class="footer-title">伪代码</h4>
+            <button class="btn-copy" id="copyCode" title="复制代码">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            </button>
+          </div>
+          <pre class="code-block" id="codeBlock" style="flex: 1;"></pre>
+        </div>
+        
+        <div style="flex: 1; display: flex; flex-direction: column; background: var(--bg-dark); border-radius: 8px; border: 1px solid var(--border); overflow: hidden;">
+          <div class="code-header" style="background: var(--bg-elevated); padding: 8px 12px; border-bottom: 1px solid var(--border);">
+            <h4 class="footer-title" style="margin: 0; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              Watch 监控区
+            </h4>
+          </div>
+          <div class="variables-watch-panel" id="variables" style="padding: 12px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1;">
+            <div class="variable-hint" style="color:var(--text-secondary); font-size:0.85rem; font-style:italic;">点击播放查看变量...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-section description-section">
+        <h4 class="footer-title">算法简介</h4>
+        <p class="algo-description" id="algoDescription"></p>
+      </div>
+    </footer>
+
+    <!-- 知识点提示弹窗 -->
+    <div class="tip-modal" id="tipModal">
+      <div class="tip-content">
+        <button class="tip-close" id="tipClose">&times;</button>
+        <h3 class="tip-title" id="tipTitle"></h3>
+        <p class="tip-body" id="tipBody"></p>
+        <div class="tip-footer">
+          <span class="tip-tag" id="tipTag"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.algoviz.mapper.AnnouncementMapper">
+    
+    <resultMap id="AnnouncementResultMap" type="com.algoviz.entity.Announcement">
+        <id column="id" property="id" />
+        <result column="title" property="title" />
+        <result column="content" property="content" />
+        <result column="status" property="status" />
+        <result column="sort_order" property="sortOrder" />
+        <result column="publish_time" property="publishTime" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+    
+    <select id="findByPage" resultMap="AnnouncementResultMap">
+        SELECT * FROM announcement ORDER BY sort_order ASC, create_time DESC LIMIT #{offset}, #{pageSize}
+    </select>
+    
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM announcement
+    </select>
+    
+    <select id="getAllAnnouncements" resultMap="AnnouncementResultMap">
+        SELECT * FROM announcement ORDER BY sort_order ASC, create_time DESC
+    </select>
+    
+    <select id="getPublishedAnnouncements" resultMap="AnnouncementResultMap">
+        SELECT * FROM announcement WHERE status = 'PUBLISHED' ORDER BY sort_order ASC, create_time DESC
+    </select>
+    
+    <select id="findById" resultMap="AnnouncementResultMap">
+        SELECT * FROM announcement WHERE id = #{id}
+    </select>
+    
+    <insert id="insert">
+        INSERT INTO announcement (title, content, status, sort_order, publish_time, create_time, update_time)
+        VALUES (#{title}, #{content}, #{status}, #{sortOrder}, #{publishTime}, #{createTime}, #{updateTime})
+    </insert>
+    
+    <update id="update">
+        UPDATE announcement SET 
+            title = #{title},
+            content = #{content},
+            status = #{status},
+            sort_order = #{sortOrder},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+    
+    <update id="updateAnnouncementStatus">
+        UPDATE announcement SET 
+            status = #{status},
+            publish_time = CASE WHEN #{status} = 'PUBLISHED' THEN CURRENT_TIMESTAMP ELSE publish_time END,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteById">
+        DELETE FROM announcement WHERE id = #{id}
+    </delete>
+    
+    <select id="getMaxSortOrder" resultType="int">
+        SELECT COALESCE(MAX(sort_order), 0) FROM announcement
+    </select>
+</mapper>

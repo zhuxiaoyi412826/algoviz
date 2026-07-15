@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线OJ - AlgoViz</title>
+    <link rel="icon" type="image/png" href="../images/tubiao.png">
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/oj.css">
+    <script src="../js/main.js"></script>
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+</head>
+
+<body onload="initTheme()">
+    <!-- Top Control Bar -->
+    <div class="oj-top-bar">
+
+
+
+
+        <!-- Center Section -->
+        <div class="oj-top-center">
+            <button id="ojBackBtn" class="oj-top-btn" title="返回首页">
+                <span>←</span>
+            </button>
+            <button id="ojProblemsBtn" class="oj-top-btn" title="题库">
+                <span>☰</span> 题库
+            </button>
+            <button id="ojFormatBtn" class="oj-top-btn" title="格式化代码">
+                <span>🎨</span>
+            </button>
+            <button id="ojRunBtn" class="oj-top-btn oj-run-btn" title="运行代码">
+                <span>▶</span> 运行
+            </button>
+            <button id="ojSubmitBtn" class="oj-top-btn oj-submit-btn" title="提交代码">
+                <span>📤</span> 提交
+            </button>
+            <button id="ojCopyBtn" class="oj-top-btn" title="复制代码">
+                <span>📋</span>
+            </button>
+            <button id="ojClearBtn" class="oj-top-btn" title="清空代码">
+                <span>🗑️</span>
+            </button>
+
+            <button id="ojFullscreenBtn" class="oj-top-btn" title="全屏编辑">
+                <span>⛶</span>
+            </button>
+        </div>
+
+    </div>
+
+
+
+    <!-- Main Content -->
+    <div class="oj-container" id="ojContainer">
+        <!-- Resizable Layout -->
+        <div class="oj-resizable-layout">
+            <!-- Left: Problem Description -->
+            <div class="oj-resizable-left" id="ojResizableLeft">
+                <div class="oj-problem-desc" id="ojProblemDesc">
+                    <div class="oj-panel-header">
+                        <div class="oj-problem-tabs">
+                            <button class="oj-problem-tab active" data-tab="description">题目描述</button>
+                            <button class="oj-problem-tab" data-tab="solution">题解</button>
+                            <button class="oj-problem-tab" data-tab="submissions">提交记录</button>
+                        </div>
+                        <span class="oj-problem-difficulty" id="ojProblemDifficulty"></span>
+                    </div>
+                    <div class="oj-problem-content" id="ojProblemContent">
+                        <div class="oj-loading">
+                            <div class="oj-spinner"></div>
+                            <span>加载题目中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resize Handle -->
+            <div class="oj-resize-handle" id="ojResizeHandle"></div>
+
+            <!-- Right: Editor + Result -->
+            <div class="oj-resizable-right" id="ojResizableRight">
+                <!-- Editor Header -->
+                <div class="oj-editor-header">
+                    <div class="oj-lang-selector">
+                        <label>C++</label>
+                        <select id="ojLangSelect" class="form-select">
+                            <option value="java">Java</option>
+                            <option value="python">Python</option>
+                            <option value="cpp" selected>C++</option>
+                            <option value="javascript">JavaScript</option>
+                        </select>
+                    </div>
+                    <div class="oj-editor-actions">
+                        <button class="oj-btn oj-btn-icon" id="ojFormatBtn" title="格式化">
+                            <span>🎨</span>
+                        </button>
+                        <button class="oj-btn oj-btn-icon" id="ojClearBtn" title="清空">
+                            <span>🗑️</span>
+                        </button>
+                        <button class="oj-btn oj-btn-icon" id="ojCopyBtn" title="复制">
+                            <span>📋</span>
+                        </button>
+                        <button class="oj-btn oj-btn-icon" id="ojFullscreenBtn" title="全屏">
+                            <span>⛶</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Resizable Vertical Layout -->
+                <div class="oj-vertical-layout" id="ojVerticalLayout">
+                    <!-- Code Editor (80%) -->
+                    <div class="oj-vertical-top" id="ojVerticalTop">
+                        <div class="oj-editor-container" id="ojEditorContainer">
+                            <textarea id="ojCodeEditor">class Solution {
+public:
+    double findMedianSortedArrays(vector<int>& nums1, vector<int>& nums2) {
+        
+    }
+};</textarea>
+                        </div>
+                    </div>
+
+                    <!-- Vertical Resize Handle -->
+                    <div class="oj-vertical-resize-handle" id="ojVerticalResizeHandle"></div>
+
+                    <!-- Bottom Panel: Test Input (20%) -->
+                    <div class="oj-vertical-bottom" id="ojVerticalBottom">
+                        <div class="oj-test-input-panel">
+                            <div class="oj-panel-header">
+                                <span>测试输入</span>
+                            </div>
+                            <textarea id="ojCustomInput" class="oj-test-input" placeholder="输入测试数据..."></textarea>
+                        </div>
+                        <div class="oj-result-panel" id="ojResultPanel">
+                            <div class="oj-result-header">
+                                <div class="oj-result-tabs">
+                                    <button class="oj-result-tab active" data-tab="output">运行结果</button>
+                                    <button class="oj-result-tab" data-tab="testcase">测试用例</button>
+                                </div>
+                            </div>
+                            <div class="oj-result-body" id="ojResultBody">
+                                <div class="oj-empty-state">
+                                    <span>点击运行查看结果</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Overlay -->
+    <div class="oj-fullscreen-overlay" id="ojFullscreenOverlay">
+        <div class="oj-fullscreen-header">
+            <div class="oj-lang-selector">
+                <label>C++</label>
+                <select id="ojFullscreenLangSelect" class="form-select">
+                    <option value="java">Java</option>
+                    <option value="python">Python</option>
+                    <option value="cpp" selected>C++</option>
+                    <option value="javascript">JavaScript</option>
+                </select>
+            </div>
+            <div class="oj-fullscreen-actions">
+                <button class="oj-btn oj-btn-icon" id="ojFullscreenFormatBtn" title="格式化">
+                    <span>🎨</span>
+                </button>
+                <button class="oj-btn oj-btn-icon" id="ojFullscreenClearBtn" title="清空">
+                    <span>🗑️</span>
+                </button>
+                <button class="oj-btn oj-btn-icon" id="ojFullscreenCopyBtn" title="复制">
+                    <span>📋</span>
+                </button>
+                <button class="oj-btn oj-btn-icon" id="ojExitFullscreenBtn" title="退出全屏">
+                    <span>⛶</span>
+                </button>
+            </div>
+        </div>
+
+
+    </div>
+
+    
+
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+
+    <script src="../js/oj.js"></script>
+</body>
+
+</html>

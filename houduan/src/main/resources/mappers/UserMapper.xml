@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algoviz.mapper.UserMapper">
+    <select id="findByUsername" resultType="com.algoviz.entity.User">
+        SELECT * FROM user WHERE username = #{username}
+    </select>
+
+    <select id="findByEmail" resultType="com.algoviz.entity.User">
+        SELECT * FROM user WHERE email = #{email}
+    </select>
+
+    <insert id="insert" parameterType="com.algoviz.entity.User">
+        INSERT INTO user (username, email, password, avatar, gender, nickname, created_at, updated_at, last_login_at)
+        VALUES (#{username}, #{email}, #{password}, #{avatar}, #{gender}, #{nickname}, #{createdAt}, #{updatedAt}, #{lastLoginAt})
+    </insert>
+
+    <update id="update" parameterType="com.algoviz.entity.User">
+        UPDATE user
+        SET username = #{username}, email = #{email}, password = #{password}, avatar = #{avatar},
+            gender = #{gender}, nickname = #{nickname}, updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateLastLoginAt">
+        UPDATE user SET last_login_at = CURRENT_TIMESTAMP WHERE id = #{id}
+    </update>
+</mapper>

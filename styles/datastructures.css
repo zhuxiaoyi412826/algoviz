@@ -1,0 +1,939 @@
+/* ===================================
+   Data Structures Page Styles
+   =================================== */
+
+/* Data Structure Selector */
+.ds-selector {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+}
+
+.ds-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-md);
+}
+
+.ds-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-lg) var(--spacing-md);
+    background: var(--bg-dark);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-lg);
+    color: var(--text-secondary);
+    transition: all var(--transition-normal);
+    cursor: pointer;
+}
+
+.ds-btn:hover {
+    border-color: var(--primary);
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+}
+
+.ds-btn.active {
+    border-color: var(--primary);
+    background: rgba(102, 126, 234, 0.15);
+    color: var(--primary-light);
+    box-shadow: var(--shadow-glow);
+}
+
+.ds-icon {
+    font-size: 2rem;
+}
+
+/* File Upload */
+.file-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--bg-card-hover);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 0.875rem;
+}
+
+.file-upload-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary-light);
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.file-name {
+    flex: 1;
+    margin-left: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Input Presets */
+.input-presets {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.preset-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.preset-btn {
+    padding: 0.25rem 0.75rem;
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.preset-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary-light);
+}
+
+.ds-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* Main Layout */
+.main-layout {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: var(--spacing-xl);
+}
+
+.left-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.right-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+/* Panel Styles */
+.panel-title {
+    font-size: 1.25rem;
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border);
+}
+
+/* Visualization Area */
+.viz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.viz-header h3 {
+    margin-bottom: 0;
+}
+
+.viz-status {
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: rgba(72, 199, 142, 0.2);
+    color: var(--success);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.viz-status.running {
+    background: rgba(251, 191, 36, 0.2);
+    color: var(--warning);
+}
+
+.viz-status.completed {
+    background: rgba(102, 126, 234, 0.2);
+    color: var(--primary-light);
+}
+
+/* ===================================
+   Array Visualization
+   =================================== */
+
+.array-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+.array-indices {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) 0;
+}
+
+.array-index {
+    width: 50px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.array-elements {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-md) 0;
+    position: relative;
+}
+
+.array-element {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--array-color);
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-normal);
+    position: relative;
+}
+
+.array-element.highlight-current {
+    background: var(--highlight-current);
+    color: var(--bg-dark);
+    transform: scale(1.1);
+    box-shadow: 0 0 20px var(--highlight-current);
+    z-index: 10;
+}
+
+.array-element.highlight-swapping {
+    background: var(--highlight-swapping);
+    transform: scale(1.15);
+    box-shadow: 0 0 20px var(--highlight-swapping);
+    z-index: 10;
+}
+
+.array-element.highlight-visited {
+    background: var(--highlight-visited);
+}
+
+.array-pointer {
+    position: absolute;
+    font-size: 0.7rem;
+    color: var(--primary-light);
+    font-weight: 600;
+}
+
+.array-pointer.bottom {
+    bottom: -25px;
+}
+
+.array-pointer.top {
+    top: -25px;
+}
+
+/* ===================================
+   Linked List Visualization
+   =================================== */
+
+.linkedlist-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+    padding: var(--spacing-xl);
+    overflow-x: auto;
+    min-height: 150px;
+}
+
+.linkedlist-node {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.linkedlist-box {
+    display: flex;
+    border: 2px solid var(--linked-list-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: all var(--transition-normal);
+}
+
+.linkedlist-box.highlight-current {
+    border-color: var(--highlight-current);
+    box-shadow: 0 0 15px var(--highlight-current);
+}
+
+.linkedlist-box.highlight-visited {
+    border-color: var(--highlight-visited);
+}
+
+.linkedlist-data {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--linked-list-color);
+    color: white;
+    font-weight: 600;
+}
+
+.linkedlist-arrow {
+    width: 40px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    position: relative;
+}
+
+.linkedlist-arrow::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 30px;
+    height: 2px;
+    background: var(--text-muted);
+}
+
+.linkedlist-arrow::before {
+    content: '';
+    position: absolute;
+    right: 5px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid var(--text-muted);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+}
+
+.linkedlist-null {
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--text-muted);
+    font-style: italic;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-md);
+}
+
+/* ===================================
+   Stack Visualization
+   =================================== */
+
+.stack-container {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-xl);
+    padding: var(--spacing-xl);
+    min-height: 300px;
+}
+
+.stack-visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.stack-frame {
+    position: relative;
+    display: flex;
+    flex-direction: column-reverse;
+    border: 3px solid var(--stack-color);
+    border-top: none;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    min-width: 120px;
+    min-height: 250px;
+    padding: var(--spacing-xs);
+}
+
+.stack-label {
+    position: absolute;
+    top: 50%;
+    left: -40px;
+    transform: translateY(-50%) rotate(-90deg);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.stack-item {
+    width: 100%;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--stack-color);
+    color: white;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    margin-top: var(--spacing-xs);
+    transition: all var(--transition-normal);
+}
+
+.stack-item.highlight-current {
+    background: var(--highlight-current);
+    color: var(--bg-dark);
+    transform: scale(1.05);
+    box-shadow: 0 0 15px var(--highlight-current);
+}
+
+.stack-item.highlight-push {
+    animation: pushAnimation 0.3s ease-out;
+}
+
+.stack-item.highlight-pop {
+    animation: popAnimation 0.3s ease-out;
+}
+
+@keyframes pushAnimation {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes popAnimation {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.8);
+    }
+}
+
+.stack-pointer {
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--highlight-current);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.stack-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.stack-info-item {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-lg);
+}
+
+.stack-info-label {
+    color: var(--text-secondary);
+}
+
+.stack-info-value {
+    font-weight: 600;
+    color: var(--stack-color);
+}
+
+/* ===================================
+   Queue Visualization
+   =================================== */
+
+.queue-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xl);
+    padding: var(--spacing-xl);
+    min-height: 300px;
+}
+
+.queue-visual {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    position: relative;
+}
+
+.queue-frame {
+    display: flex;
+    border: 3px solid var(--queue-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-sm);
+    min-width: 400px;
+    min-height: 80px;
+    position: relative;
+    overflow: hidden;
+}
+
+.queue-items {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.queue-item {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--queue-color);
+    color: white;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-normal);
+}
+
+.queue-item.highlight-current {
+    background: var(--highlight-current);
+    color: var(--bg-dark);
+    box-shadow: 0 0 15px var(--highlight-current);
+}
+
+.queue-item.highlight-enqueue {
+    animation: enqueueAnimation 0.3s ease-out;
+}
+
+.queue-item.highlight-dequeue {
+    animation: dequeueAnimation 0.3s ease-out;
+}
+
+@keyframes enqueueAnimation {
+    from {
+        opacity: 0;
+        transform: translateX(30px) scale(0.5);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes dequeueAnimation {
+    from {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-30px) scale(0.5);
+    }
+}
+
+.queue-pointer {
+    position: absolute;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--highlight-current);
+}
+
+.queue-pointer.front {
+    top: -25px;
+    left: 10px;
+}
+
+.queue-pointer.rear {
+    top: -25px;
+    right: 10px;
+}
+
+.queue-labels {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 var(--spacing-md);
+}
+
+.queue-label {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+/* ===================================
+   Tree Visualization
+   =================================== */
+
+.tree-container {
+    width: 100%;
+    height: 350px;
+    position: relative;
+    overflow: auto;
+}
+
+.tree-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.tree-node {
+    cursor: pointer;
+}
+
+.tree-node-circle {
+    fill: var(--tree-color);
+    stroke: none;
+    transition: all var(--transition-normal);
+}
+
+.tree-node.highlight-current .tree-node-circle {
+    fill: var(--highlight-current);
+    stroke: var(--highlight-current);
+    filter: drop-shadow(0 0 10px var(--highlight-current));
+}
+
+.tree-node.highlight-visited .tree-node-circle {
+    fill: var(--highlight-visited);
+}
+
+.tree-node-text {
+    fill: white;
+    font-weight: 600;
+    font-size: 14px;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+.tree-edge {
+    stroke: var(--text-muted);
+    stroke-width: 2;
+    fill: none;
+    transition: all var(--transition-normal);
+}
+
+.tree-edge.highlight {
+    stroke: var(--highlight-current);
+    stroke-width: 3;
+}
+
+/* ===================================
+   Hash Table Visualization
+   =================================== */
+
+.hash-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+    padding: var(--spacing-xl);
+    min-height: 350px;
+}
+
+.hash-table {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.hash-bucket {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-dark);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-normal);
+}
+
+.hash-bucket.highlight {
+    border-color: var(--highlight-current);
+    background: rgba(251, 191, 36, 0.1);
+}
+
+.hash-index {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--hash-color);
+    color: white;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+}
+
+.hash-values {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex: 1;
+}
+
+.hash-value {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    transition: all var(--transition-normal);
+}
+
+.hash-value.highlight {
+    background: var(--highlight-current);
+    color: var(--bg-dark);
+    border-color: var(--highlight-current);
+}
+
+.hash-empty {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.hash-function-info {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-xl);
+    padding: var(--spacing-md);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+.hash-calc {
+    font-family: 'Fira Code', monospace;
+    color: var(--text-secondary);
+}
+
+.hash-calc-highlight {
+    color: var(--highlight-current);
+    font-weight: 600;
+}
+
+/* ===================================
+   Graph Visualization
+   =================================== */
+
+.graph-container {
+    width: 100%;
+    height: 400px;
+    position: relative;
+    overflow: hidden;
+}
+
+.graph-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.graph-node {
+    cursor: pointer;
+}
+
+.graph-node-circle {
+    fill: var(--graph-color);
+    stroke: none;
+    transition: all var(--transition-normal);
+}
+
+.graph-node.highlight-current .graph-node-circle {
+    fill: var(--highlight-current);
+    stroke: var(--highlight-current);
+    filter: drop-shadow(0 0 10px var(--highlight-current));
+}
+
+.graph-node.highlight-visited .graph-node-circle {
+    fill: var(--highlight-visited);
+}
+
+.graph-node.highlight-path .graph-node-circle {
+    fill: var(--highlight-comparing);
+}
+
+.graph-node-text {
+    fill: white;
+    font-weight: 600;
+    font-size: 14px;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+.graph-edge {
+    stroke: var(--text-muted);
+    stroke-width: 2;
+    fill: none;
+    transition: all var(--transition-normal);
+}
+
+.graph-edge.highlight {
+    stroke: var(--highlight-current);
+    stroke-width: 3;
+}
+
+.graph-edge.path {
+    stroke: var(--highlight-comparing);
+    stroke-width: 4;
+}
+
+.graph-edge-weight {
+    fill: var(--text-muted);
+    font-size: 12px;
+    font-family: 'Fira Code', monospace;
+    text-anchor: middle;
+}
+
+.graph-legend {
+    position: absolute;
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: rgba(26, 26, 46, 0.9);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+}
+
+.graph-legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.graph-legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+}
+
+/* ===================================
+   Heap Visualization
+   =================================== */
+
+.heap-container {
+    width: 100%;
+    height: 400px;
+    position: relative;
+    overflow: auto;
+}
+
+.heap-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.heap-node {
+    cursor: pointer;
+}
+
+.heap-node-circle {
+    fill: var(--heap-color);
+    stroke: none;
+    transition: all var(--transition-normal);
+}
+
+.heap-node.highlight-current .heap-node-circle {
+    fill: var(--highlight-current);
+    stroke: var(--highlight-current);
+    filter: drop-shadow(0 0 10px var(--highlight-current));
+}
+
+.heap-node.highlight-swapping .heap-node-circle {
+    fill: var(--highlight-swapping);
+}
+
+.heap-node.highlight-visited .heap-node-circle {
+    fill: var(--highlight-visited);
+}
+
+.heap-node-text {
+    fill: white;
+    font-weight: 600;
+    font-size: 14px;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+.heap-edge {
+    stroke: var(--text-muted);
+    stroke-width: 2;
+    fill: none;
+    transition: all var(--transition-normal);
+}
+
+.heap-edge.highlight {
+    stroke: var(--highlight-current);
+    stroke-width: 3;
+}
+
+.heap-index {
+    fill: var(--text-muted);
+    font-size: 11px;
+    font-family: 'Fira Code', monospace;
+    text-anchor: middle;
+}
+
+/* ===================================
+   Responsive Design
+   =================================== */
+
+@media (max-width: 1200px) {
+    .ds-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 1024px) {
+    .main-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .ds-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .ds-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .stack-container {
+        flex-direction: column;
+    }
+    
+    .stack-info {
+        width: 100%;
+    }
+}

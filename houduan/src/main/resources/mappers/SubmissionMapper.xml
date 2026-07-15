@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.algoviz.mapper.SubmissionMapper">
+    
+    <resultMap id="SubmissionResultMap" type="com.algoviz.entity.Submission">
+        <id column="id" property="id" />
+        <result column="submission_id" property="submissionId" />
+        <result column="problem_id" property="problemId" />
+        <result column="problem_title" property="problemTitle" />
+        <result column="user_id" property="userId" />
+        <result column="username" property="username" />
+        <result column="code" property="code" />
+        <result column="language" property="language" />
+        <result column="status" property="status" />
+        <result column="runtime" property="runtime" />
+        <result column="memory" property="memory" />
+        <result column="error_message" property="errorMessage" />
+        <result column="judge_log" property="judgeLog" />
+        <result column="submit_time" property="submitTime" />
+        <result column="judge_time" property="judgeTime" />
+    </resultMap>
+    
+    <select id="getAllSubmissions" resultMap="SubmissionResultMap">
+        SELECT * FROM submission ORDER BY submit_time DESC
+    </select>
+    
+    <select id="getSubmissionsByUserId" resultMap="SubmissionResultMap">
+        SELECT * FROM submission WHERE user_id = #{userId} ORDER BY submit_time DESC
+    </select>
+    
+    <select id="getSubmissionsByProblemId" resultMap="SubmissionResultMap">
+        SELECT * FROM submission WHERE problem_id = #{problemId} ORDER BY submit_time DESC
+    </select>
+    
+    <select id="getSubmissionsByStatus" resultMap="SubmissionResultMap">
+        SELECT * FROM submission WHERE status = #{status} ORDER BY submit_time DESC
+    </select>
+    
+    <select id="getSubmissionById" resultMap="SubmissionResultMap">
+        SELECT * FROM submission WHERE submission_id = #{submissionId}
+    </select>
+    
+    <insert id="insertSubmission">
+        INSERT INTO submission (submission_id, problem_id, problem_title, user_id, username, code, language, status, submit_time)
+        VALUES (#{submissionId}, #{problemId}, #{problemTitle}, #{userId}, #{username}, #{code}, #{language}, #{status}, #{submitTime})
+    </insert>
+    
+    <update id="updateSubmissionStatus">
+        UPDATE submission SET 
+            status = #{status},
+            runtime = #{runtime},
+            memory = #{memory},
+            error_message = #{errorMessage},
+            judge_log = #{judgeLog},
+            judge_time = CURRENT_TIMESTAMP
+        WHERE submission_id = #{submissionId}
+    </update>
+    
+    <delete id="deleteSubmission">
+        DELETE FROM submission WHERE submission_id = #{submissionId}
+    </delete>
+    
+    <select id="countByUserId" resultType="int">
+        SELECT COUNT(*) FROM submission WHERE user_id = #{userId}
+    </select>
+    
+    <select id="countByProblemId" resultType="int">
+        SELECT COUNT(*) FROM submission WHERE problem_id = #{problemId}
+    </select>
+    
+    <select id="countACByUserId" resultType="int">
+        SELECT COUNT(*) FROM submission WHERE user_id = #{userId} AND status = 'AC'
+    </select>
+    
+    <select id="getRecentSubmissionsByUserId" resultMap="SubmissionResultMap">
+        SELECT * FROM submission WHERE user_id = #{userId} ORDER BY submit_time DESC LIMIT #{limit}
+    </select>
+</mapper>

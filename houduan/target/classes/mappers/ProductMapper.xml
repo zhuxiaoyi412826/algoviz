@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.algoviz.mapper.ProductMapper">
+    
+    <resultMap id="ProductResultMap" type="com.algoviz.entity.Product">
+        <id column="product_id" property="productId" />
+        <result column="product_name" property="productName" />
+        <result column="description" property="description" />
+        <result column="price" property="price" />
+        <result column="category" property="category" />
+        <result column="icon" property="icon" />
+    </resultMap>
+    
+    <select id="getAllProducts" resultMap="ProductResultMap">
+        SELECT * FROM product ORDER BY category, product_name
+    </select>
+    
+    <select id="getProductById" resultMap="ProductResultMap">
+        SELECT * FROM product WHERE product_id = #{productId}
+    </select>
+    
+    <select id="getProductsByCategory" resultMap="ProductResultMap">
+        SELECT * FROM product WHERE category = #{category} ORDER BY product_name
+    </select>
+    
+    <insert id="insertProduct">
+        INSERT INTO product (product_id, product_name, description, price, category, icon)
+        VALUES (#{productId}, #{productName}, #{description}, #{price}, #{category}, #{icon})
+    </insert>
+    
+    <update id="updateProduct">
+        UPDATE product SET 
+            product_name = #{productName},
+            description = #{description},
+            price = #{price},
+            category = #{category},
+            icon = #{icon},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE product_id = #{productId}
+    </update>
+    
+    <delete id="deleteProduct">
+        DELETE FROM product WHERE product_id = #{productId}
+    </delete>
+</mapper>

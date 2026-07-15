@@ -1,0 +1,782 @@
+/* ===================================
+   Online Judge Styles
+   =================================== */
+
+/* Top Control Bar */
+.oj-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    height: 36px;
+    background: #252526;
+    border-bottom: 1px solid #3c3c3c;
+    flex-shrink: 0;
+}
+
+.oj-top-left {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.oj-top-center {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.oj-top-right {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+/* Top Buttons */
+.oj-top-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: #cccccc;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    min-width: 26px;
+    height: 26px;
+}
+
+.oj-top-btn:hover {
+    background: #3c3c3c;
+    color: #ffffff;
+}
+
+.oj-top-btn:active {
+    background: #094771;
+}
+
+.oj-top-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.oj-top-btn span {
+    font-size: 13px;
+}
+
+/* Navigation Buttons */
+.oj-nav-buttons {
+    display: flex;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-left: 2px;
+}
+
+.oj-nav-btn {
+    border-radius: 0;
+    border-left: 1px solid #3c3c3c;
+    min-width: 24px;
+}
+
+.oj-nav-btn:first-child {
+    border-left: none;
+}
+
+/* Run Button */
+.oj-run-btn {
+    color: #4ec9b0;
+}
+
+.oj-run-btn:hover {
+    background: rgba(78, 201, 176, 0.2);
+    color: #4ec9b0;
+}
+
+/* Submit Button */
+.oj-submit-btn {
+    color: #4ec9b0;
+    padding: 4px 12px;
+}
+
+.oj-submit-btn:hover {
+    background: rgba(78, 201, 176, 0.2);
+    color: #4ec9b0;
+}
+
+/* OJ Container */
+.oj-container {
+    width: 100%;
+    height: calc(100vh - 36px);
+    display: flex;
+    flex-direction: column;
+    background: #1e1e1e;
+}
+
+/* Resizable Layout */
+.oj-resizable-layout {
+    display: flex;
+    flex: 1;
+    min-height: 500px;
+    overflow: hidden;
+}
+
+/* Resizable Left Panel */
+.oj-resizable-left {
+    flex: 0 0 45%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #1e1e1e;
+    border-right: 1px solid #3c3c3c;
+}
+
+/* Resize Handle */
+.oj-resize-handle {
+    width: 4px;
+    background: #3c3c3c;
+    cursor: col-resize;
+    position: relative;
+    z-index: 100;
+    flex-shrink: 0;
+}
+
+.oj-resize-handle::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -4px;
+    right: -4px;
+    bottom: 0;
+}
+
+.oj-resize-handle:hover {
+    background: #007acc;
+}
+
+.oj-resize-handle:active {
+    background: #007acc;
+}
+
+/* Resizable Right Panel */
+.oj-resizable-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #1e1e1e;
+}
+
+/* Vertical Layout */
+.oj-vertical-layout {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Vertical Top Panel (Editor) */
+.oj-vertical-top {
+    flex: 0 0 80%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #1e1e1e;
+    border-bottom: 1px solid #3c3c3c;
+}
+
+/* Vertical Resize Handle */
+.oj-vertical-resize-handle {
+    height: 6px;
+    background: #3c3c3c;
+    cursor: row-resize;
+    position: relative;
+    z-index: 100;
+    flex-shrink: 0;
+}
+
+.oj-vertical-resize-handle::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 0;
+    right: 0;
+    bottom: -4px;
+}
+
+.oj-vertical-resize-handle:hover {
+    background: #007acc;
+}
+
+.oj-vertical-resize-handle:active {
+    background: #007acc;
+    height: 8px;
+}
+
+/* Vertical Bottom Panel (Test Input) */
+.oj-vertical-bottom {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #252526;
+    border-top: 1px solid #3c3c3c;
+}
+
+/* OJ Panels */
+.oj-problem-desc {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #1e1e1e;
+}
+
+/* Problem Tabs */
+.oj-problem-tabs {
+    display: flex;
+    gap: 2px;
+}
+
+.oj-problem-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: #858585;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.oj-problem-tab:hover {
+    background: #2d2d30;
+    color: #cccccc;
+}
+
+.oj-problem-tab.active {
+    background: #3c3c3c;
+    color: #ffffff;
+}
+
+/* Panel Header */
+.oj-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid #3c3c3c;
+    background: #252526;
+}
+
+/* Problem Title */
+.oj-problem-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 10px 0;
+    color: #ffffff;
+}
+
+/* Problem Tags */
+.oj-problem-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.oj-tag {
+    padding: 2px 8px;
+    background: #2d2d30;
+    border-radius: 10px;
+    font-size: 11px;
+    color: #858585;
+    border: 1px solid #3c3c3c;
+}
+
+.oj-tag-hard {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f14c4c;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.oj-tag-medium {
+    background: rgba(251, 191, 36, 0.15);
+    color: #cca700;
+    border-color: rgba(251, 191, 36, 0.3);
+}
+
+.oj-tag-easy {
+    background: rgba(72, 199, 142, 0.15);
+    color: #6a9955;
+    border-color: rgba(72, 199, 142, 0.3);
+}
+
+/* Problem Content */
+.oj-problem-content {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.oj-problem-body {
+    color: #cccccc;
+}
+
+.oj-problem-body p {
+    margin: 0 0 10px 0;
+}
+
+.oj-problem-body code {
+    padding: 2px 6px;
+    background: #2d2d30;
+    border-radius: 3px;
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    color: #ce9178;
+}
+
+/* Sample Section */
+.oj-sample-section {
+    margin-bottom: 12px;
+}
+
+.oj-sample-section h4 {
+    margin: 0 0 6px 0;
+    color: #9cdcfe;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Sample Block */
+.oj-sample-block {
+    background: #2d2d30;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    padding: 10px;
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.oj-sample-label {
+    color: #858585;
+    font-size: 11px;
+    font-family: 'Inter', sans-serif;
+    margin-bottom: 3px;
+    display: block;
+}
+
+/* Hint Section */
+.oj-hint-section {
+    margin-top: 12px;
+}
+
+.oj-hint-section h4 {
+    margin: 0 0 6px 0;
+    color: #9cdcfe;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.oj-hint-section ul {
+    margin: 0;
+    padding-left: 16px;
+}
+
+.oj-hint-section li {
+    margin-bottom: 4px;
+    color: #cccccc;
+}
+
+/* Difficulty Badge */
+.oj-problem-difficulty {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.oj-difficulty-easy {
+    background: rgba(72, 199, 142, 0.15);
+    color: #6a9955;
+}
+
+.oj-difficulty-medium {
+    background: rgba(251, 191, 36, 0.15);
+    color: #cca700;
+}
+
+.oj-difficulty-hard {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f14c4c;
+}
+
+/* Editor Container */
+.oj-editor-container {
+    flex: 1;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    background: #1e1e1e;
+}
+
+.oj-editor-container .CodeMirror {
+    flex: 1;
+    height: 100% !important;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    background: #1e1e1e;
+    color: #d4d4d4;
+}
+
+.oj-editor-container .CodeMirror-gutters {
+    background: #252526;
+    border-right: 1px solid #3c3c3c;
+}
+
+.oj-editor-container .CodeMirror-linenumber {
+    color: #6a6a6a;
+}
+
+.oj-editor-container .CodeMirror-activeline-background {
+    background: #2d2d30;
+}
+
+/* Editor Footer */
+.oj-editor-footer {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    padding: 6px 10px;
+    background: #252526;
+    border-top: 1px solid #3c3c3c;
+}
+
+.oj-custom-input {
+    flex: 1;
+}
+
+.oj-custom-input label {
+    display: block;
+    color: #858585;
+    font-size: 11px;
+    margin-bottom: 3px;
+}
+
+.oj-custom-input textarea {
+    width: 100%;
+    height: 40px;
+    padding: 6px 8px;
+    background: #1e1e1e;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    color: #d4d4d4;
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    resize: none;
+}
+
+.oj-custom-input textarea:focus {
+    outline: none;
+    border-color: #007acc;
+}
+
+.oj-custom-input textarea::placeholder {
+    color: #4a4a4a;
+}
+
+/* Result Panel */
+.oj-result-panel {
+    background: #252526;
+    border-top: 1px solid #3c3c3c;
+}
+
+.oj-result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    border-bottom: 1px solid #3c3c3c;
+}
+
+.oj-result-header h3 {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #858585;
+}
+
+.oj-result-tabs {
+    display: flex;
+    gap: 2px;
+}
+
+.oj-result-tab {
+    padding: 3px 8px;
+    background: transparent;
+    border: 1px solid #3c3c3c;
+    border-radius: 3px;
+    color: #858585;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.oj-result-tab:hover {
+    background: #3c3c3c;
+}
+
+.oj-result-tab.active {
+    background: #094771;
+    border-color: #007acc;
+    color: #9cdcfe;
+}
+
+.oj-result-content {
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.oj-result-body {
+    padding: 10px;
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* Empty State */
+.oj-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 25px;
+    color: #6a6a6a;
+}
+
+.oj-empty-icon {
+    font-size: 20px;
+    margin-bottom: 6px;
+    opacity: 0.5;
+}
+
+.oj-empty-state p {
+    margin: 0;
+    font-size: 11px;
+}
+
+/* Loading Spinner */
+.oj-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 35px;
+    color: #858585;
+}
+
+.oj-spinner {
+    width: 25px;
+    height: 25px;
+    border: 2px solid #3c3c3c;
+    border-top-color: #007acc;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 10px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 拖拽时禁止文本选中 */
+body.is-resizing {
+    user-select: none !important;
+    cursor: inherit !important;
+}
+
+body.is-resizing * {
+    cursor: inherit !important;
+}
+
+/* Fullscreen Overlay */
+.oj-fullscreen-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #1e1e1e;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    display: none;
+}
+
+.oj-fullscreen-overlay.active {
+    display: flex;
+}
+
+.oj-fullscreen-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #252526;
+    border-bottom: 1px solid #3c3c3c;
+}
+
+.oj-fullscreen-editor-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #1e1e1e;
+}
+
+.oj-fullscreen-editor-container .CodeMirror {
+    flex: 1;
+    height: 100% !important;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    background: #1e1e1e;
+    color: #d4d4d4;
+}
+
+.oj-fullscreen-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 12px;
+    background: #252526;
+    border-top: 1px solid #3c3c3c;
+}
+
+/* Result Status */
+.oj-result-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #2d2d30;
+    border-radius: 4px;
+}
+
+.oj-status-icon {
+    font-size: 16px;
+}
+
+.oj-status-info {
+    flex: 1;
+}
+
+.oj-status-label {
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.oj-status-detail {
+    font-size: 11px;
+    color: #858585;
+    margin-top: 2px;
+}
+
+/* Status Colors */
+.oj-status-accepted {
+    border-left: 3px solid #4ec9b0;
+}
+
+.oj-status-accepted .oj-status-icon { color: #4ec9b0; }
+.oj-status-accepted .oj-status-label { color: #4ec9b0; }
+
+.oj-status-wrong {
+    border-left: 3px solid #f14c4c;
+}
+
+.oj-status-wrong .oj-status-icon { color: #f14c4c; }
+.oj-status-wrong .oj-status-label { color: #f14c4c; }
+
+.oj-status-error {
+    border-left: 3px solid #cca700;
+}
+
+.oj-status-error .oj-status-icon { color: #cca700; }
+.oj-status-error .oj-status-label { color: #cca700; }
+
+/* Error Output */
+.oj-error-output {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 4px;
+    padding: 10px;
+    color: #f14c4c;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .oj-top-bar {
+        padding: 6px 8px;
+        flex-wrap: wrap;
+        height: auto;
+    }
+    
+    .oj-top-btn {
+        padding: 3px 6px;
+        min-width: 22px;
+        height: 24px;
+    }
+    
+    .oj-top-btn span {
+        font-size: 11px;
+    }
+    
+    .oj-resizable-layout {
+        flex-direction: column;
+    }
+    
+    .oj-resizable-left {
+        flex: 0 0 35%;
+        border-right: none;
+        border-bottom: 1px solid #3c3c3c;
+    }
+    
+    .oj-resize-handle {
+        display: none;
+    }
+}
+
+/* Scrollbar */
+.oj-problem-content::-webkit-scrollbar,
+.oj-result-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.oj-problem-content::-webkit-scrollbar-track,
+.oj-result-content::-webkit-scrollbar-track {
+    background: #252526;
+}
+
+.oj-problem-content::-webkit-scrollbar-thumb,
+.oj-result-content::-webkit-scrollbar-thumb {
+    background: #3c3c3c;
+    border-radius: 3px;
+}
+
+.oj-problem-content::-webkit-scrollbar-thumb:hover,
+.oj-result-content::-webkit-scrollbar-thumb:hover {
+    background: #4a4a4a;
+}
