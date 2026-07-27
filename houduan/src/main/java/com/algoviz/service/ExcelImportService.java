@@ -96,15 +96,17 @@ public class ExcelImportService {
             }
             logger.info("Excel 表头: {}", colIndex.keySet());
 
-            // 校验必填列
-            if (!colIndex.containsKey("题号") && !colIndex.containsKey("problemNo")) {
+            // 校验必填列（支持别名）
+            boolean hasProblemNo = colIndex.containsKey("题号") || colIndex.containsKey("problemNo") || colIndex.containsKey("编号");
+            boolean hasTitle = colIndex.containsKey("标题") || colIndex.containsKey("title") || colIndex.containsKey("题目名称") || colIndex.containsKey("题目");
+            if (!hasProblemNo) {
                 response.setSuccess(false);
-                response.setMessage("Excel 缺少必填列：题号");
+                response.setMessage("Excel 缺少必填列：题号（支持别名：problemNo/编号）");
                 return response;
             }
-            if (!colIndex.containsKey("标题") && !colIndex.containsKey("title")) {
+            if (!hasTitle) {
                 response.setSuccess(false);
-                response.setMessage("Excel 缺少必填列：标题");
+                response.setMessage("Excel 缺少必填列：标题（支持别名：title/题目名称/题目）");
                 return response;
             }
 
@@ -118,17 +120,17 @@ public class ExcelImportService {
 
                 try {
                     AIGenerateProblemResponse.GeneratedProblem gp = new AIGenerateProblemResponse.GeneratedProblem();
-                    gp.setProblemNo(getByCol(row, colIndex, "题号", "problemNo"));
-                    gp.setTitle(getByCol(row, colIndex, "标题", "title"));
-                    gp.setDifficulty(getByCol(row, colIndex, "难度", "difficulty", "medium"));
+                    gp.setProblemNo(getByCol(row, colIndex, "题号", "problemNo", ""));
+                    gp.setTitle(getMultiCol(row, colIndex, new String[]{"标题", "title", "题目名称", "题目"}));
+                    gp.setDifficulty(normalizeDifficulty(getByCol(row, colIndex, "难度", "difficulty", "medium")));
                     gp.setTags(getByCol(row, colIndex, "标签", "tags", ""));
                     gp.setDescription(getByCol(row, colIndex, "题目描述", "description", ""));
                     gp.setInputFormat(getByCol(row, colIndex, "输入格式", "inputFormat", ""));
                     gp.setOutputFormat(getByCol(row, colIndex, "输出格式", "outputFormat", ""));
                     gp.setSampleInput(getByCol(row, colIndex, "样例输入", "sampleInput", ""));
                     gp.setSampleOutput(getByCol(row, colIndex, "样例输出", "sampleOutput", ""));
-                    gp.setHint(getByCol(row, colIndex, "解题提示", "hint", ""));
-                    gp.setTemplate(getByCol(row, colIndex, "代码模板", "template", ""));
+                    gp.setHint(getMultiCol(row, colIndex, new String[]{"解题提示", "hint", "解答", "解析"}));
+                    gp.setTemplate(getMultiCol(row, colIndex, new String[]{"代码模板", "template", "代码实现", "代码"}));
                     problems.add(gp);
                 } catch (Exception ex) {
                     failedCount++;
@@ -302,5 +304,42 @@ public class ExcelImportService {
             sb.append("\n\n**解题提示**\n\n").append(gp.getHint());
         }
         return sb.toString();
+    }
+
+    /**
+     * 多表头别名匹配：依次尝试多个可能的列名，返回第一个找到的值
+     */
+    private String getMultiCol(Row row, Map<String, Integer> colIndex, String[] possibleNames) {
+        for (String name : possibleNames) {
+            Integer idx = colIndex.get(name);
+            if (idx != null) {
+                Cell cell = row.getCell(idx);
+                String val = getCellString(cell).trim();
+                if (!val.isEmpty()) {
+                    return val;
+                }
+            }
+        }
+        return "";
+    }
+
+    /**
+     * 难度归一化：将各种难度描述统一为 easy/medium/hard
+     */
+    private String normalizeDifficulty(String difficulty) {
+        if (difficulty == null || difficulty.isEmpty()) {
+            return "medium";
+        }
+        String d = difficulty.trim().toLowerCase();
+        if (d.contains("简") || d.contains("eas") || d.contains("1") || d.equals("士")) {
+            return "easy";
+        }
+        if (d.contains("困") || d.contains("hard") || d.contains("3") || d.equals("将")) {
+            return "hard";
+        }
+        if (d.contains("中") || d.contains("medi") || d.contains("2") || d.equals("尉")) {
+            return "medium";
+        }
+        return "medium";
     }
 }

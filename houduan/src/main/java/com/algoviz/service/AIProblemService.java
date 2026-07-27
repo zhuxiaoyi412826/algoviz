@@ -36,7 +36,7 @@ public class AIProblemService {
     private String apiKey;
 
     private static final String API_URL = "https://api.deepseek.com/v1/chat/completions";
-    private static final String MODEL = "deepseek-chat";
+    private static final String MODEL = "deepseek-v4-pro";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 

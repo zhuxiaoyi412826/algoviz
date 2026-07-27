@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // 改为调用后端API
-            const API_URL = 'http://localhost:8080/api/ai/chat';
+            const API_URL = 'http://localhost:80/api/ai/chat';
             console.log('[AI Debug] 请求URL:', API_URL);
             
             // 准备对话历史上下文
@@ -357,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('[AI Debug] API Error:', error);
                 loadingMsg.remove();
                 addAIMessage(`抱歉，请求出错：${error.message}。请检查：
-1. 后端是否已在8080端口启动
+1. 后端是否已在80端口启动
 2. 网络连接是否正常
 3. API Key是否正确配置`);
             }

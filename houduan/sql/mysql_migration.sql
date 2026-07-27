@@ -441,7 +441,38 @@ INSERT INTO `oj_problem` (`id`, `problem_no`, `title`, `difficulty`, `tags`, `de
 ('9', '3',     '合并区间',                 'medium', NULL,                  NULL, NULL, 'ACTIVE', 0, 0.00, '2026-06-11 00:34:56', '2026-06-11 00:34:56');
 
 -- ============================================================================
--- 4. 验证
+-- 4. VARCHAR 长度修复（适配 UUID 36 字符）
+-- 把所有可能存 UUID 的 VARCHAR(32) 主键统一扩到 VARCHAR(40)
+-- 幂等：可重复执行
+-- ============================================================================
+
+-- 题目相关
+ALTER TABLE `test_case`      MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+ALTER TABLE `test_case`      MODIFY COLUMN `problem_id` VARCHAR(40) NOT NULL;
+
+-- 管理员 / 日志
+ALTER TABLE `admin`          MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+ALTER TABLE `login_log`      MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+ALTER TABLE `login_log`      MODIFY COLUMN `user_id`    VARCHAR(40) NOT NULL;
+ALTER TABLE `operation_log`  MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+ALTER TABLE `operation_log`  MODIFY COLUMN `user_id`    VARCHAR(40) NOT NULL;
+
+-- 内容相关
+ALTER TABLE `data_structure` MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+ALTER TABLE `algorithm`      MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+ALTER TABLE `ai_prompt`      MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+ALTER TABLE `app_user`       MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+ALTER TABLE `statistics`     MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+
+-- 支付 / 文件 / 日志
+ALTER TABLE `payment_record` MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+ALTER TABLE `file_storage`   MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+ALTER TABLE `api_log`        MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+
+SELECT 'VARCHAR 长度修复完成' AS message;
+
+-- ============================================================================
+-- 5. 验证
 -- ============================================================================
 SELECT 'algoviz 数据库迁移完成' AS message;
 SELECT COUNT(*) AS user_count      FROM `user`;

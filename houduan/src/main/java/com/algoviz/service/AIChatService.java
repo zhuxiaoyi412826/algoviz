@@ -18,7 +18,7 @@ public class AIChatService {
     private String apiKey;
 
     private static final String API_URL = "https://api.deepseek.com/v1/chat/completions";
-    private static final String MODEL = "deepseek-chat";
+    private static final String MODEL = "deepseek-v4-pro";
 
     public HttpURLConnection chat(ChatRequest chatRequest, boolean stream) throws Exception {
         URL url = new URL(API_URL);
