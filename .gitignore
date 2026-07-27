@@ -3,6 +3,7 @@ node_modules/
 application.yml
 application.yml/
 avi
+application.yml
 avi/
 dist
 .DS_Store
