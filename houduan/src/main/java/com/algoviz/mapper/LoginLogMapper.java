@@ -16,10 +16,10 @@ public interface LoginLogMapper {
     @Select("SELECT COUNT(*) FROM login_log")
     int count();
 
-    @Select("SELECT COUNT(*) FROM login_log WHERE login_time >= date('now', '-1 day')")
+    @Select("SELECT COUNT(*) FROM login_log WHERE login_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY)")
     int countToday();
 
-    @Select("SELECT COUNT(*) FROM login_log WHERE login_time >= date('now', '-7 day')")
+    @Select("SELECT COUNT(*) FROM login_log WHERE login_time >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")
     int countWeek();
 
     @Select("SELECT COUNT(*) FROM login_log WHERE status = 'failed'")

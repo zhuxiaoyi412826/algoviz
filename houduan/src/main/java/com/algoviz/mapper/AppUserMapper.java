@@ -7,7 +7,7 @@ import java.util.List;
 @Mapper
 public interface AppUserMapper {
     @Insert("INSERT INTO app_user (id, openid, nickname, avatar, bind_time, status, ds_visits, algo_visits, oj_visits, ai_dialogues) " +
-            "VALUES (#{id}, #{openid}, #{nickname}, #{avatar}, datetime('now'), #{status}, #{dsVisits}, #{algoVisits}, #{ojVisits}, #{aiDialogues})")
+            "VALUES (#{id}, #{openid}, #{nickname}, #{avatar}, NOW(), #{status}, #{dsVisits}, #{algoVisits}, #{ojVisits}, #{aiDialogues})")
     int insert(AppUser appUser);
 
     @Select("SELECT * FROM app_user ORDER BY bind_time DESC LIMIT #{limit} OFFSET #{offset}")

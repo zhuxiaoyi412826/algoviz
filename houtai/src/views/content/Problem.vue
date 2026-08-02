@@ -15,10 +15,11 @@ const dialogVisible = ref(false)
 const detailVisible = ref(false)
 const dialogTitle = ref('新增题目')
 
-/** Excel 批量导入 */
-const excelImportVisible = ref(false)
-const excelImportLoading = ref(false)
-const excelImportOverwrite = ref(false)
+/** 批量导入（支持 Excel / MD / JSON） */
+const importVisible = ref(false)
+const importLoading = ref(false)
+const importOverwrite = ref(false)
+const importFormat = ref<'excel' | 'md' | 'json'>('excel')
 
 const searchForm = reactive({
   keyword: '',
@@ -241,16 +242,21 @@ const handleSubmit = async () => {
 }
 
 const handleBatchImport = () => {
-  excelImportVisible.value = true
+  importFormat.value = 'excel'
+  importVisible.value = true
 }
 
-/** Excel 文件选择回调（el-upload :on-change） */
-const handleExcelFileChange = async (uploadFile: any) => {
+/** 通用导入处理器：根据格式分发 */
+const handleFileChange = async (uploadFile: any) => {
   if (!uploadFile || !uploadFile.raw) return
   const raw: File = uploadFile.raw
-  // 客户端粗校验
-  if (!/\.(xlsx|xls)$/i.test(raw.name)) {
-    ElMessage.error('仅支持 .xlsx / .xls 文件')
+
+  const format = importFormat.value
+  const extMap: Record<string, string> = { excel: 'xlsx|xls', md: 'md|markdown', json: 'json' }
+  const ext = extMap[format]
+  if (!new RegExp(`\\.(${ext})$`, 'i').test(raw.name)) {
+    const labels: Record<string, string> = { excel: '.xlsx / .xls', md: '.md / .markdown', json: '.json' }
+    ElMessage.error(`仅支持 ${labels[format]} 文件`)
     return
   }
   if (raw.size > 10 * 1024 * 1024) {
@@ -258,12 +264,18 @@ const handleExcelFileChange = async (uploadFile: any) => {
     return
   }
 
-  excelImportLoading.value = true
+  importLoading.value = true
   try {
     const fd = new FormData()
     fd.append('file', raw)
-    fd.append('overwriteOnConflict', String(excelImportOverwrite.value))
-    const res = await fetch('http://localhost/api/problems/import-excel', {
+    fd.append('overwriteOnConflict', String(importOverwrite.value))
+
+    const epMap: Record<string, string> = {
+      excel: '/api/problems/import-excel',
+      md: '/api/problems/import-md',
+      json: '/api/problems/import-json'
+    }
+    const res = await fetch(`http://localhost${epMap[format]}`, {
       method: 'POST',
       body: fd
     })
@@ -274,8 +286,7 @@ const handleExcelFileChange = async (uploadFile: any) => {
       if (data.failedReasons && data.failedReasons.length > 0) {
         console.warn('导入失败原因：', data.failedReasons)
       }
-      excelImportVisible.value = false
-      // 刷新列表
+      importVisible.value = false
       loadProblems()
     } else {
       ElMessage.error(data.message || '导入失败')
@@ -283,11 +294,175 @@ const handleExcelFileChange = async (uploadFile: any) => {
   } catch (e) {
     ElMessage.error('导入异常：' + (e as Error).message)
   } finally {
-    excelImportLoading.value = false
+    importLoading.value = false
   }
 }
 
-/** 下载 Excel 模板（直接下载 public/CSV模板.xlsx 静态文件） */
+/** 下载对应格式模板 */
+const downloadTemplate = () => {
+  const format = importFormat.value
+  const templates: Record<string, { name: string; content: string; type: string }> = {
+    excel: { name: 'CSV模板.xlsx', content: '/CSV模板.xlsx', type: 'file' },
+    md: {
+      name: '题目模板.md',
+      type: 'text',
+      content: `# 题号: 1500
+# 标题: 设计一个有getMin功能的栈
+# 难度: easy
+# 标签: 栈,数据结构
+# 题目描述:
+实现一个特殊的栈，在实现栈的基本功能的基础上，再实现返回栈中最小元素的操作。
+# 输入格式:
+第一行输入操作数 n，接下来每行输入操作。
+# 输出格式:
+根据操作输出对应结果。
+# 样例输入:
+push 3
+push 2
+getMin
+# 样例输出:
+3
+2
+# 解题提示:
+使用两个栈，一个存储数据，一个存储当前最小值。
+# 代码模板:
+public class Solution {
+    public void push(int x) {}
+    public void pop() {}
+    public int top() {}
+    public int getMin() {}
+}
+---
+# 题号: 1501
+# 标题: 用两个栈实现队列
+# 难度: easy
+# 标签: 栈,队列
+# 题目描述:
+用两个栈来实现一个队列，完成队列的 Push 和 Pop 操作。
+# 代码模板:
+public class Solution {
+    public void push(int node) {}
+    public int pop() {}
+}
+`
+    },
+    json: {
+      name: '题目模板.json',
+      type: 'text',
+      content: JSON.stringify({
+        "version": "1.0",
+        "generatedAt": "2026-08-01",
+        "totalProblems": 2,
+        "problemRange": { "from": 1, "to": 2 },
+        "problems": [
+          {
+            "id": 1,
+            "title": "合并两个有序链表",
+            "difficulty": "简单",
+            "category": "链表",
+            "problem": {
+              "description": "将两个升序链表合并为一个新的升序链表并返回。",
+              "inputFormat": "l1: 第一个升序链表的头节点\nl2: 第二个升序链表的头节点",
+              "outputFormat": "合并后的升序链表的头节点",
+              "constraints": ["两个链表的节点数目范围：[0, 50]", "节点值范围：[-100, 100]", "l1 和 l2 均按非递减顺序排列"],
+              "examples": [
+                { "input": "l1=[1,2,4], l2=[1,3,4]", "output": "[1,1,2,3,4,4]", "explanation": "两个有序链表交替合并" },
+                { "input": "l1=[], l2=[]", "output": "[]", "explanation": "两个空链表" }
+              ]
+            },
+            "solutions": [
+              {
+                "name": "虚拟头节点+双指针",
+                "approach": "使用虚拟头节点简化边界处理，双指针依次比较两个链表当前节点的值，将较小的接入结果链表。",
+                "code": "class Solution {\n    public ListNode mergeTwoLists(ListNode l1, ListNode l2) {\n        ListNode dummy = new ListNode(-1), cur = dummy;\n        while (l1 != null && l2 != null) {\n            if (l1.val <= l2.val) { cur.next = l1; l1 = l1.next; }\n            else { cur.next = l2; l2 = l2.next; }\n            cur = cur.next;\n        }\n        cur.next = (l1 != null) ? l1 : l2;\n        return dummy.next;\n    }\n}",
+                "timeComplexity": "O(m + n)",
+                "spaceComplexity": "O(1)",
+                "tags": ["双指针", "链表"]
+              }
+            ],
+            "comparison": null,
+            "testCases": [
+              { "id": 1, "description": "正常合并两个有序链表", "input": "[1,2,4], [1,3,4]", "expectedOutput": "[1,1,2,3,4,4]" },
+              { "id": 2, "description": "两个空链表合并", "input": "null, null", "expectedOutput": "[]" }
+            ],
+            "testResult": { "total": 10, "passed": 10, "allPassed": true, "crossVerified": false, "solutionCount": 1 },
+            "summary": "本题核心是虚拟头节点+双指针模式，易错点在于忘记处理某个链表先遍历完的情况。"
+          },
+          {
+            "id": 2,
+            "title": "全排列",
+            "difficulty": "中等",
+            "category": "回溯",
+            "problem": {
+              "description": "给定一个没有重复数字的序列，返回其所有可能的全排列。",
+              "inputFormat": "nums: 整数数组",
+              "outputFormat": "所有全排列组成的列表",
+              "constraints": ["数组长度范围：[0, 6]", "数组元素互不相同"],
+              "examples": [
+                { "input": "[1,2,3]", "output": "[[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]]", "explanation": "共 6 种排列" }
+              ]
+            },
+            "solutions": [
+              {
+                "name": "used数组回溯",
+                "approach": "维护 used 数组标记已选元素，逐位确定放哪个数。",
+                "code": "class Solution {\n    public List<List<Integer>> permute(int[] nums) {\n        List<List<Integer>> res = new ArrayList<>();\n        backtrack(nums, new boolean[nums.length], new ArrayList<>(), res);\n        return res;\n    }\n    void backtrack(int[] nums, boolean[] used, List<Integer> path, List<List<Integer>> res) {\n        if (path.size() == nums.length) { res.add(new ArrayList<>(path)); return; }\n        for (int i = 0; i < nums.length; i++) {\n            if (used[i]) continue;\n            used[i] = true; path.add(nums[i]);\n            backtrack(nums, used, path, res);\n            path.remove(path.size() - 1); used[i] = false;\n        }\n    }\n}",
+                "timeComplexity": "O(n × n!)",
+                "spaceComplexity": "O(n)",
+                "tags": ["回溯", "used数组"]
+              },
+              {
+                "name": "交换元素法",
+                "approach": "通过交换数组元素固定位置，不需要 used 数组，空间更优。",
+                "code": "class Solution {\n    public List<List<Integer>> permute(int[] nums) {\n        List<List<Integer>> res = new ArrayList<>();\n        dfs(nums, 0, res);\n        return res;\n    }\n    void dfs(int[] nums, int start, List<List<Integer>> res) {\n        if (start == nums.length) { List<Integer> path = new ArrayList<>(); for (int x : nums) path.add(x); res.add(path); return; }\n        for (int i = start; i < nums.length; i++) {\n            swap(nums, start, i); dfs(nums, start + 1, res); swap(nums, start, i);\n        }\n    }\n    void swap(int[] nums, int a, int b) { int t = nums[a]; nums[a] = nums[b]; nums[b] = t; }\n}",
+                "timeComplexity": "O(n × n!)",
+                "spaceComplexity": "O(1)",
+                "tags": ["回溯", "in-place"]
+              }
+            ],
+            "comparison": {
+              "table": [
+                { "solution": "used数组回溯", "timeComplexity": "O(n × n!)", "spaceComplexity": "O(n)", "useCase": "逻辑清晰，适合初学者理解回溯框架", "limitation": "额外 O(n) 布尔数组" },
+                { "solution": "交换元素法", "timeComplexity": "O(n × n!)", "spaceComplexity": "O(1)", "useCase": "追求空间最优，代码更简洁", "limitation": "需要转为 List 操作" }
+              ],
+              "performanceNote": "时间复杂度相同，交换法省去 used 数组 O(n) 空间。",
+              "interviewTip": "先写 used 数组法，再提出交换法作为空间优化。"
+            },
+            "testCases": [
+              { "id": 1, "description": "三元素全排列", "input": "[1,2,3]", "expectedOutput": "6 种排列" },
+              { "id": 2, "description": "空数组", "input": "[]", "expectedOutput": "[[]]" }
+            ],
+            "testResult": { "total": 24, "passed": 24, "allPassed": true, "crossVerified": true, "solutionCount": 2 },
+            "summary": "回溯经典题，掌握 used 数组法与交换法两种写法。"
+          }
+        ]
+      }, null, 2)
+    }
+  }
+
+  const t = templates[format]
+  if (t.type === 'file') {
+    const a = document.createElement('a')
+    a.href = t.content
+    a.download = t.name
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  } else {
+    const blob = new Blob([t.content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = t.name
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+  ElMessage.success('模板已开始下载')
+}
+
+/** 下载 Excel/CSV 模板文件（静态 xlsx） */
 const downloadExcelTemplate = () => {
   const a = document.createElement('a')
   a.href = '/CSV模板.xlsx'
@@ -1012,23 +1187,43 @@ const saveAIEdit = () => {
       </template>
     </el-dialog>
 
-    <!-- ============ Excel 批量导入弹窗 ============ -->
+    <!-- ============ 批量导入弹窗（支持 Excel / MD / JSON） ============ -->
     <el-dialog
-      v-model="excelImportVisible"
-      title="批量导入 Excel 题目"
-      width="600px"
+      v-model="importVisible"
+      title="批量导入题目"
+      width="640px"
       :close-on-click-modal="false"
     >
+      <!-- 格式选择 -->
       <el-alert type="info" :closable="false" style="margin-bottom: 16px">
         <template #title>
-          <span>请按 <b>导入规则</b> 准备 Excel 文件（.xlsx / .xls）</span>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span>请选择导入格式：</span>
+            <el-radio-group v-model="importFormat" size="default">
+              <el-radio-button value="excel">
+                <span style="display:flex;align-items:center;gap:4px">
+                  <el-icon><Upload /></el-icon> Excel
+                </span>
+              </el-radio-button>
+              <el-radio-button value="md">
+                <span style="display:flex;align-items:center;gap:4px">
+                  <el-icon><View /></el-icon> MD 文档
+                </span>
+              </el-radio-button>
+              <el-radio-button value="json">
+                <span style="display:flex;align-items:center;gap:4px">
+                  <el-icon><MagicStick /></el-icon> JSON
+                </span>
+              </el-radio-button>
+            </el-radio-group>
+          </div>
         </template>
       </el-alert>
 
       <el-form label-width="120px" size="default">
         <el-form-item label="题号冲突处理">
           <el-switch
-            v-model="excelImportOverwrite"
+            v-model="importOverwrite"
             active-text="覆盖（题号冲突时更新）"
             inactive-text="自动重新分配（题号冲突时新建）"
           />
@@ -1036,21 +1231,65 @@ const saveAIEdit = () => {
             推荐保持 <b>关闭</b>：避免误覆盖已有题目
           </div>
         </el-form-item>
-        <el-form-item label="选择 Excel">
+
+        <!-- Excel 上传 -->
+        <el-form-item v-if="importFormat === 'excel'" label="选择 Excel">
           <el-upload
             action=""
             :auto-upload="false"
             :show-file-list="true"
             :limit="1"
             accept=".xlsx,.xls"
-            :on-change="handleExcelFileChange"
+            :on-change="handleFileChange"
             :on-exceed="() => ElMessage.warning('只支持 1 个文件')"
           >
             <el-button type="primary" :icon="Upload">点击选择 Excel 文件</el-button>
             <template #tip>
               <div style="color:#909399;font-size:12px;margin-top:8px">
                 支持 .xlsx / .xls，最大 10MB。<b>不知道格式？</b>
-                <el-button type="primary" link size="small" @click="downloadExcelTemplate">下载模板</el-button>
+                <el-button type="primary" link size="small" @click="downloadTemplate">下载模板</el-button>
+              </div>
+            </template>
+          </el-upload>
+        </el-form-item>
+
+        <!-- MD 上传 -->
+        <el-form-item v-if="importFormat === 'md'" label="选择 MD">
+          <el-upload
+            action=""
+            :auto-upload="false"
+            :show-file-list="true"
+            :limit="1"
+            accept=".md,.markdown"
+            :on-change="handleFileChange"
+            :on-exceed="() => ElMessage.warning('只支持 1 个文件')"
+          >
+            <el-button type="primary" :icon="Upload">点击选择 MD 文件</el-button>
+            <template #tip>
+              <div style="color:#909399;font-size:12px;margin-top:8px">
+                支持 .md / .markdown，最大 10MB。格式说明见模板。
+                <el-button type="primary" link size="small" @click="downloadTemplate">下载模板</el-button>
+              </div>
+            </template>
+          </el-upload>
+        </el-form-item>
+
+        <!-- JSON 上传 -->
+        <el-form-item v-if="importFormat === 'json'" label="选择 JSON">
+          <el-upload
+            action=""
+            :auto-upload="false"
+            :show-file-list="true"
+            :limit="1"
+            accept=".json"
+            :on-change="handleFileChange"
+            :on-exceed="() => ElMessage.warning('只支持 1 个文件')"
+          >
+            <el-button type="primary" :icon="Upload">点击选择 JSON 文件</el-button>
+            <template #tip>
+              <div style="color:#909399;font-size:12px;margin-top:8px">
+                支持 .json 格式（数组或 { problems: [...] } 包装对象），最大 10MB。
+                <el-button type="primary" link size="small" @click="downloadTemplate">下载模板</el-button>
               </div>
             </template>
           </el-upload>
@@ -1058,15 +1297,7 @@ const saveAIEdit = () => {
       </el-form>
 
       <template #footer>
-        <el-button @click="excelImportVisible = false" :disabled="excelImportLoading">取消</el-button>
-        <el-button
-          v-if="false"
-          type="primary"
-          :loading="excelImportLoading"
-          @click="submitExcelImport"
-        >
-          开始导入
-        </el-button>
+        <el-button @click="importVisible = false" :disabled="importLoading">取消</el-button>
       </template>
     </el-dialog>
   </div>

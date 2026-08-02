@@ -5,6 +5,8 @@ import com.algoviz.dto.BatchAddProblemsRequest;
 import com.algoviz.dto.BatchAddProblemsResponse;
 import com.algoviz.entity.OJProblem;
 import com.algoviz.service.ExcelImportService;
+import com.algoviz.service.MdImportService;
+import com.algoviz.service.JsonImportService;
 import com.algoviz.service.OJProblemService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,6 +34,12 @@ public class OJProblemController {
 
     @Autowired
     private ExcelImportService excelImportService;
+
+    @Autowired
+    private MdImportService mdImportService;
+
+    @Autowired
+    private JsonImportService jsonImportService;
 
     @GetMapping
     @Operation(summary = "获取题目列表", description = "获取所有题目或按条件筛选")
@@ -349,5 +357,33 @@ public class OJProblemController {
         logger.info("收到 Excel 导入请求：filename={}, size={} bytes, overwrite={}",
                 file.getOriginalFilename(), file.getSize(), overwriteOnConflict);
         return excelImportService.importFromExcel(file, overwriteOnConflict);
+    }
+
+    /**
+     * Markdown 批量导入题目
+     * 接收 .md 文件，解析后批量入库
+     */
+    @PostMapping("/import-md")
+    @Operation(summary = "MD 批量导入题目", description = "上传 .md 文件批量入库")
+    public BatchAddProblemsResponse importFromMd(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "overwriteOnConflict", defaultValue = "false") boolean overwriteOnConflict) {
+        logger.info("收到 MD 导入请求：filename={}, size={} bytes, overwrite={}",
+                file.getOriginalFilename(), file.getSize(), overwriteOnConflict);
+        return mdImportService.importFromMd(file, overwriteOnConflict);
+    }
+
+    /**
+     * JSON 批量导入题目
+     * 接收 .json 文件，解析后批量入库
+     */
+    @PostMapping("/import-json")
+    @Operation(summary = "JSON 批量导入题目", description = "上传 .json 文件批量入库")
+    public BatchAddProblemsResponse importFromJson(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "overwriteOnConflict", defaultValue = "false") boolean overwriteOnConflict) {
+        logger.info("收到 JSON 导入请求：filename={}, size={} bytes, overwrite={}",
+                file.getOriginalFilename(), file.getSize(), overwriteOnConflict);
+        return jsonImportService.importFromJson(file, overwriteOnConflict);
     }
 }

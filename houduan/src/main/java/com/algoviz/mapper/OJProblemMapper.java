@@ -55,7 +55,7 @@ public interface OJProblemMapper {
     @Select("SELECT * FROM oj_problem ORDER BY created_at DESC LIMIT #{limit} OFFSET #{offset}")
     List<OJProblem> findByPage(@Param("offset") int offset, @Param("limit") int limit);
 
-    @Select("COUNT(*) FROM oj_problem")
+    @Select("SELECT COUNT(*) FROM oj_problem")
     int count();
 
     @Select("SELECT * FROM oj_problem WHERE id = #{id}")

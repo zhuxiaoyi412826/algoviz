@@ -19,13 +19,13 @@ public interface AdminMapper {
     int count();
 
     @Insert("INSERT INTO admin (id, username, nickname, password, role, status, created_at, updated_at) " +
-            "VALUES (#{id}, #{username}, #{nickname}, #{password}, #{role}, #{status}, datetime('now'), datetime('now'))")
+            "VALUES (#{id}, #{username}, #{nickname}, #{password}, #{role}, #{status}, NOW(), NOW())")
     int insert(Admin admin);
 
-    @Update("UPDATE admin SET nickname=#{nickname}, email=#{email}, phone=#{phone}, role=#{role}, status=#{status}, updated_at=datetime('now') WHERE id=#{id}")
+    @Update("UPDATE admin SET nickname=#{nickname}, email=#{email}, phone=#{phone}, role=#{role}, status=#{status}, updated_at=NOW() WHERE id=#{id}")
     int update(Admin admin);
 
-    @Delete("DELETE FROM admin WHERE id=#{id}")
+    @Delete("DELETE FROM admin WHERE id = #{id}")
     int deleteById(String id);
 
     @Update("UPDATE admin SET password=#{password} WHERE id=#{id}")
@@ -34,6 +34,6 @@ public interface AdminMapper {
     @Update("UPDATE admin SET status=#{status} WHERE id=#{id}")
     int updateStatus(@Param("id") String id, @Param("status") String status);
 
-    @Update("UPDATE admin SET last_login_time=datetime('now'), last_login_ip=#{ip} WHERE id=#{id}")
+    @Update("UPDATE admin SET last_login_time=NOW(), last_login_ip=#{ip} WHERE id=#{id}")
     int updateLastLogin(@Param("id") String id, @Param("ip") String ip);
 }

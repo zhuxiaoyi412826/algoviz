@@ -18,7 +18,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/payment")
-@Tag(name = "支付管理", description = "微信支付相关接口")
+@Tag(name = "支付接口(前端)", description = "前端微信支付接口")
 public class PaymentController {
     
     private static final Logger logger = LoggerFactory.getLogger(PaymentController.class);

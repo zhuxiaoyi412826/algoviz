@@ -31,13 +31,13 @@ public interface PaymentRecordMapper {
     @Select("SELECT IFNULL(SUM(amount), 0) FROM payment_record WHERE status = 'paid'")
     Integer sumTotalIncome();
 
-    @Select("SELECT IFNULL(SUM(amount), 0) FROM payment_record WHERE status = 'paid' AND date(create_time) = date('now')")
+    @Select("SELECT IFNULL(SUM(amount), 0) FROM payment_record WHERE status = 'paid' AND DATE(create_time) = CURDATE()")
     Integer sumTodayIncome();
 
-    @Select("SELECT IFNULL(SUM(amount), 0) FROM payment_record WHERE status = 'paid' AND date(create_time) >= date('now', '-7 day')")
+    @Select("SELECT IFNULL(SUM(amount), 0) FROM payment_record WHERE status = 'paid' AND DATE(create_time) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")
     Integer sumWeekIncome();
 
-    @Select("SELECT IFNULL(SUM(amount), 0) FROM payment_record WHERE status = 'paid' AND date(create_time) >= date('now', '-30 day')")
+    @Select("SELECT IFNULL(SUM(amount), 0) FROM payment_record WHERE status = 'paid' AND DATE(create_time) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)")
     Integer sumMonthIncome();
 
     @Select("SELECT IFNULL(SUM(amount), 0) FROM payment_record WHERE refund_status = 'refunded'")

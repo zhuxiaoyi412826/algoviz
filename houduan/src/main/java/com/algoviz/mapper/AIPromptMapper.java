@@ -7,7 +7,7 @@ import java.util.List;
 @Mapper
 public interface AIPromptMapper {
     @Insert("INSERT INTO ai_prompt (id, title, category, content, usage_count, status, created_at) " +
-            "VALUES (#{id}, #{title}, #{category}, #{content}, #{usageCount}, #{status}, datetime('now'))")
+            "VALUES (#{id}, #{title}, #{category}, #{content}, #{usageCount}, #{status}, NOW())")
     int insert(AIPrompt aiPrompt);
 
     @Select("SELECT * FROM ai_prompt ORDER BY created_at DESC LIMIT #{limit} OFFSET #{offset}")

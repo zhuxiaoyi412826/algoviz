@@ -25,19 +25,19 @@ public interface ApiLogMapper {
             "FROM api_log GROUP BY api_path ORDER BY total DESC LIMIT #{limit}")
     List<ApiStatistics> getApiStatistics(int limit);
 
-    @Select("SELECT COUNT(*) FROM api_log WHERE date(create_time) = date('now')")
+    @Select("SELECT COUNT(*) FROM api_log WHERE DATE(create_time) = CURDATE()")
     int countToday();
 
-    @Select("SELECT IFNULL(AVG(response_time), 0) FROM api_log WHERE date(create_time) = date('now')")
+    @Select("SELECT IFNULL(AVG(response_time), 0) FROM api_log WHERE DATE(create_time) = CURDATE()")
     Long avgResponseTimeToday();
 
-    @Select("SELECT COUNT(*) FROM api_log WHERE status_code >= 400 AND date(create_time) = date('now')")
+    @Select("SELECT COUNT(*) FROM api_log WHERE status_code >= 400 AND DATE(create_time) = CURDATE()")
     int countErrorToday();
 
-    @Select("SELECT strftime('%H', create_time) as hour, COUNT(*) as count FROM api_log WHERE date(create_time) = date('now') GROUP BY strftime('%H', create_time) ORDER BY hour")
+    @Select("SELECT DATE_FORMAT(create_time, '%H') as hour, COUNT(*) as count FROM api_log WHERE DATE(create_time) = CURDATE() GROUP BY DATE_FORMAT(create_time, '%H') ORDER BY hour")
     List<ApiHourlyStats> getHourlyStatsToday();
 
-    @Select("SELECT strftime('%Y-%m-%d', create_time) as date, COUNT(*) as count, AVG(response_time) as avg_time FROM api_log GROUP BY date(create_time) ORDER BY date DESC LIMIT #{limit}")
+    @Select("SELECT DATE_FORMAT(create_time, '%Y-%m-%d') as date, COUNT(*) as count, AVG(response_time) as avg_time FROM api_log GROUP BY DATE(create_time) ORDER BY date DESC LIMIT #{limit}")
     List<ApiDailyStats> getDailyStats(int limit);
 
     public interface ApiStatistics {
@@ -61,6 +61,6 @@ public interface ApiLogMapper {
         Double getAvgTime();
     }
 
-    @Delete("DELETE FROM api_log WHERE date(create_time) < date('now', '-30 day')")
+    @Delete("DELETE FROM api_log WHERE DATE(create_time) < DATE_SUB(CURDATE(), INTERVAL 30 DAY)")
     int cleanOldLogs();
 }

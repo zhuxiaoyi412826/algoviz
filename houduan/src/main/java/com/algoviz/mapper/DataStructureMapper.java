@@ -7,7 +7,7 @@ import java.util.List;
 @Mapper
 public interface DataStructureMapper {
     @Insert("INSERT INTO data_structure (id, name, type, description, status, created_at, updated_at) " +
-            "VALUES (#{id}, #{name}, #{type}, #{description}, #{status}, datetime('now'), datetime('now'))")
+            "VALUES (#{id}, #{name}, #{type}, #{description}, #{status}, NOW(), NOW())")
     int insert(DataStructure dataStructure);
 
     @Select("SELECT * FROM data_structure ORDER BY created_at DESC LIMIT #{limit} OFFSET #{offset}")
@@ -19,7 +19,7 @@ public interface DataStructureMapper {
     @Select("SELECT * FROM data_structure WHERE id = #{id}")
     DataStructure findById(String id);
 
-    @Update("UPDATE data_structure SET name=#{name}, type=#{type}, description=#{description}, status=#{status}, updated_at=datetime('now') WHERE id=#{id}")
+    @Update("UPDATE data_structure SET name=#{name}, type=#{type}, description=#{description}, status=#{status}, updated_at=NOW() WHERE id=#{id}")
     int update(DataStructure dataStructure);
 
     @Delete("DELETE FROM data_structure WHERE id=#{id}")

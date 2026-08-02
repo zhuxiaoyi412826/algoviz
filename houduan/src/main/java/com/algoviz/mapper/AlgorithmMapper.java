@@ -7,7 +7,7 @@ import java.util.List;
 @Mapper
 public interface AlgorithmMapper {
     @Insert("INSERT INTO algorithm (id, name, category, description, time_complexity, space_complexity, pseudocode, status, created_at, updated_at) " +
-            "VALUES (#{id}, #{name}, #{category}, #{description}, #{timeComplexity}, #{spaceComplexity}, #{pseudocode}, #{status}, datetime('now'), datetime('now'))")
+            "VALUES (#{id}, #{name}, #{category}, #{description}, #{timeComplexity}, #{spaceComplexity}, #{pseudocode}, #{status}, NOW(), NOW())")
     int insert(Algorithm algorithm);
 
     @Select("SELECT * FROM algorithm ORDER BY created_at DESC LIMIT #{limit} OFFSET #{offset}")
@@ -20,7 +20,7 @@ public interface AlgorithmMapper {
     Algorithm findById(String id);
 
     @Update("UPDATE algorithm SET name=#{name}, category=#{category}, description=#{description}, time_complexity=#{timeComplexity}, " +
-            "space_complexity=#{spaceComplexity}, pseudocode=#{pseudocode}, status=#{status}, updated_at=datetime('now') WHERE id=#{id}")
+            "space_complexity=#{spaceComplexity}, pseudocode=#{pseudocode}, status=#{status}, updated_at=NOW() WHERE id=#{id}")
     int update(Algorithm algorithm);
 
     @Delete("DELETE FROM algorithm WHERE id=#{id}")
