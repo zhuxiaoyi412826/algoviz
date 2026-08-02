@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频介绍 - AlgoViz</title>
+    <link rel="icon" type="image/png" href="../images/tubiao.png">
+    <link rel="stylesheet" href="../styles/main.css">
+    <script src="../js/main.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        .nav-avatar {
+            font-size: 1rem;
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            line-height: 24px;
+            text-align: center;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-avatar:hover {
+            transform: scale(1.1);
+        }
+        
+        .visit-counter {
+            margin-right: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--hover-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .video-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .video-wrapper video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 1.5rem 0 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .video-desc {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .video-actions {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn-secondary {
+            padding: 0.75rem 1.5rem;
+        }
+    </style>
+</head>
+<body onload="initTheme()">
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="./video.html" class="nav-logo">
+                <span class="nav-logo-icon">📊</span>
+                <span class="text-gradient">AlgoVize</span>
+            </a>
+            <div class="nav-links">
+                <a href="../index.html" class="nav-link">首页</a>
+                <a href="../pages/datastructures.html" class="nav-link">数据结构</a>
+                <a href="../pages/algorithms.html" class="nav-link">算法演示</a>
+                <a href="../pages/oj.html" class="nav-link">在线OJ</a>
+                <a href="../pages/products.html" class="nav-link">商品</a>
+                <a href="../pages/ai.html" class="nav-link ai-link">
+                    <span>✨</span> AI助手
+                </a>
+            </div>
+            <div class="nav-actions">
+                <div class="visit-counter">访问量: <span id="visitCount">0</span></div>
+                <button id="themeToggle" class="theme-switch" aria-label="切换主题">
+                    <div class="theme-switch-handle">
+                        <span class="theme-icon">☀️</span>
+                    </div>
+                </button>
+                <a href="javascript:void(0)" class="nav-link" id="profileLink">
+                    <span class="nav-avatar" id="navAvatar">👤</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <script>
+    (function() {
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('algoviz-theme', theme);
+            var btn = document.getElementById('themeToggle');
+            if (btn) {
+                var icon = btn.querySelector('.theme-icon');
+                if (icon) {
+                    icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+                }
+            }
+            document.body.style.background = theme === 'dark' ? '#0f0f23' : '#f5f7fa';
+        }
+        
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme') || 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            setTheme(next);
+        }
+        
+        function updateVisitCount() {
+            var count = localStorage.getItem('visitCount') || 0;
+            var hasVisited = localStorage.getItem('hasVisitedUnique');
+            if (!hasVisited) {
+                count = parseInt(count) + 1;
+                localStorage.setItem('visitCount', count);
+                localStorage.setItem('hasVisitedUnique', 'true');
+            }
+            
+            var visitCountElement = document.getElementById('visitCount');
+            if (visitCountElement) {
+                visitCountElement.textContent = count;
+            }
+        }
+        
+        function checkLoginStatus() {
+            var isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+            var navAvatar = document.getElementById('navAvatar');
+            var profileLink = document.getElementById('profileLink');
+            
+            if (isLoggedIn) {
+                var userAvatar = localStorage.getItem('userAvatar') || '👤';
+                navAvatar.textContent = userAvatar;
+                profileLink.href = '/pages/profile.html';
+            } else {
+                navAvatar.textContent = '👨';
+                profileLink.href = '/pages/login.html';
+            }
+        }
+        
+        window.toggleTheme = toggleTheme;
+        
+        var saved = localStorage.getItem('algoviz-theme') || 'light';
+        setTheme(saved);
+        
+        var btn = document.getElementById('themeToggle');
+        if (btn) {
+            btn.addEventListener('click', toggleTheme);
+        }
+        
+        checkLoginStatus();
+        updateVisitCount();
+    })();
+    </script>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <div class="video-container">
+                <div class="video-wrapper">
+                    <video id="mainVideo" controls autoplay muted playsinline>
+                        <source src="../avi/1.mp4" type="video/mp4">
+                        您的浏览器不支持视频播放
+                    </video>
+                </div>
+                <h3 class="video-title">AlgoVize 平台介绍</h3>
+                <p class="video-desc">了解 AlgoVize 如何帮助您更好地学习数据结构与算法</p>
+                <div class="video-actions">
+                    <a href="../index.html" class="btn btn-primary">开始学习</a>
+                    <button class="btn btn-secondary" onclick="document.getElementById('mainVideo').play()">播放视频</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-slogan">AlgoVize - 数据结构与算法可视化学习平台 · 让学习变得更有趣</div>
+                <div class="footer-bottom-row">
+                    <span>AlgoVize © 2026</span>
+                    <span class="footer-divider">|</span>
+                    <span class="footer-icp">ICP备案：<a href="https://beian.miit.gov.cn/" target="_blank">豫ICP备12345678号</a></span>
+                    <span class="footer-divider">|</span>
+                    <a href="https://github.com/zhuxiaoyi412826/AlgoVize" target="_blank" class="footer-github" title="查看 GitHub 源码">
+                        <svg height="16" aria-hidden="true" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" fill="currentColor">
+                            <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
+                        </svg>
+                        GitHub
+                    </a>
+                    <span class="footer-divider">|</span>
+                    <a href="../pages/changelog.html" class="footer-link">更新日志</a>
+                    <span class="footer-divider">|</span>
+                    <a href="../pages/suggestion.html" class="footer-link">建议我</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    </main>
+</body>
+</html>

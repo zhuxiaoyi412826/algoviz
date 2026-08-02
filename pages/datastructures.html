@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据结构 - AlgoViz</title>
+    <link rel="icon" type="image/png" href="../images/tubiao.png">
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/datastructures.css">
+    <script src="../js/main.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* 个人中心头像样式 */
+        .nav-avatar {
+            font-size: 1rem;
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            line-height: 24px;
+            text-align: center;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-avatar:hover {
+            transform: scale(1.1);
+        }
+        
+        .visit-counter {
+            margin-right: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--hover-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body onload="initTheme()">
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="./video.html" class="nav-logo">
+                <span class="nav-logo-icon">📊</span>
+                <span class="text-gradient">AlgoVize</span>
+            </a>
+            <div class="nav-links">
+                <a href="../index.html" class="nav-link">首页</a>
+                <a href="../pages/datastructures.html" class="nav-link active">数据结构</a>
+                <a href="../pages/algorithms.html" class="nav-link">算法演示</a>
+                <a href="../pages/oj.html" class="nav-link">在线OJ</a>
+                <a href="../pages/products.html" class="nav-link">商品</a>
+                <a href="../pages/ai.html" class="nav-link ai-link">
+                    <span>✨</span> AI助手
+                </a>
+            </div>
+            <div class="nav-actions">
+                <div class="visit-counter">访问量: <span id="visitCount">0</span></div>
+                <button id="themeToggle" class="theme-switch" aria-label="切换主题">
+                    <div class="theme-switch-handle">
+                        <span class="theme-icon">☀️</span>
+                    </div>
+                </button>
+                <a href="javascript:void(0)" class="nav-link" id="profileLink">
+                    <span class="nav-avatar" id="navAvatar">👤</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <script>
+    (function() {
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('algoviz-theme', theme);
+            var btn = document.getElementById('themeToggle');
+            if (btn) {
+                var icon = btn.querySelector('.theme-icon');
+                if (icon) {
+                    icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+                }
+            }
+            document.body.style.background = theme === 'dark' ? '#0f0f23' : '#f5f7fa';
+        }
+        
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme') || 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            setTheme(next);
+        }
+        
+        // 访问量计数
+        function updateVisitCount() {
+            var count = localStorage.getItem('visitCount') || 0;
+            
+            // 检查当前浏览器是否已经记录过访问
+            var hasVisited = localStorage.getItem('hasVisitedUnique');
+            if (!hasVisited) {
+                count = parseInt(count) + 1;
+                localStorage.setItem('visitCount', count);
+                localStorage.setItem('hasVisitedUnique', 'true');
+            }
+            
+            var visitCountElement = document.getElementById('visitCount');
+            if (visitCountElement) {
+                visitCountElement.textContent = count;
+            }
+        }
+        
+        // 检查登录状态并更新头像
+        function checkLoginStatus() {
+            var isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+            var navAvatar = document.getElementById('navAvatar');
+            var profileLink = document.getElementById('profileLink');
+            
+            if (isLoggedIn) {
+                var userAvatar = localStorage.getItem('userAvatar') || '👤';
+                navAvatar.textContent = userAvatar;
+                profileLink.href = '/pages/profile.html';
+            } else {
+                navAvatar.textContent = '👨';
+                profileLink.href = '/pages/login.html';
+            }
+        }
+        
+        window.toggleTheme = toggleTheme;
+        
+        var saved = localStorage.getItem('algoviz-theme') || 'light';
+        setTheme(saved);
+        
+        var btn = document.getElementById('themeToggle');
+        if (btn) {
+            btn.addEventListener('click', toggleTheme);
+        }
+        
+        // 检查登录状态
+        checkLoginStatus();
+        
+        // 更新访问量显示
+        updateVisitCount();
+    })();
+    </script>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+            <!-- Data Structure Selector -->
+            <div class="ds-selector">
+                <h2 style="margin-bottom: 1.5rem; text-align: center;">选择数据结构</h2>
+                <div class="ds-grid">
+                    <button class="ds-btn" data-ds="array" id="array">
+                        <span class="ds-icon">📦</span>
+                        <span class="ds-name">数组</span>
+                    </button>
+                    <button class="ds-btn" data-ds="linkedlist" id="linkedlist">
+                        <span class="ds-icon">🔗</span>
+                        <span class="ds-name">链表</span>
+                    </button>
+                    <button class="ds-btn" data-ds="stack" id="stack">
+                        <span class="ds-icon">📚</span>
+                        <span class="ds-name">栈</span>
+                    </button>
+                    <button class="ds-btn" data-ds="queue" id="queue">
+                        <span class="ds-icon">🚶</span>
+                        <span class="ds-name">队列</span>
+                    </button>
+                    <button class="ds-btn" data-ds="tree" id="tree">
+                        <span class="ds-icon">🌳</span>
+                        <span class="ds-name">树</span>
+                    </button>
+                    <button class="ds-btn" data-ds="hash" id="hash">
+                        <span class="ds-icon">🔍</span>
+                        <span class="ds-name">哈希表</span>
+                    </button>
+                    <button class="ds-btn" data-ds="graph" id="graph">
+                        <span class="ds-icon">🕸️</span>
+                        <span class="ds-name">图</span>
+                    </button>
+                    <button class="ds-btn" data-ds="heap" id="heap">
+                        <span class="ds-icon">🏔️</span>
+                        <span class="ds-name">堆</span>
+                    </button>
+                </div>
+            </div>    
+        </div>
+    
+    
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-slogan">AlgoViz - 数据结构与算法可视化学习平台 · 让学习变得更有趣</div>
+                <div class="footer-bottom-row">
+                    <span>AlgoViz © 2026</span>
+                    <span class="footer-divider">|</span>
+                    <span class="footer-icp">ICP备案：<a href="https://beian.miit.gov.cn/" target="_blank">豫ICP备12345678号</a></span>
+                    <span class="footer-divider">|</span>
+                    <a href="https://github.com/zhuxiaoyi412826/AlgoViz" target="_blank" class="footer-github" title="查看 GitHub 源码">
+                        <svg height="16" aria-hidden="true" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" fill="currentColor">
+                            <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
+                        </svg>
+                        GitHub
+                    </a>
+                    <span class="footer-divider">|</span>
+                    <a href="../pages/changelog.html" class="footer-link">更新日志</a>
+                    <span class="footer-divider">|</span>
+                    <a href="../pages/suggestion.html" class="footer-link">建议我</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    </main>
+
+    <script src="../js/visualizations/base.js"></script>
+    <script src="../js/visualizations/array.js"></script>
+    <script src="../js/visualizations/linkedlist.js"></script>
+    <script src="../js/visualizations/stack.js"></script>
+    <script src="../js/visualizations/queue.js"></script>
+    <script src="../js/visualizations/tree.js"></script>
+    <script src="../js/visualizations/hash.js"></script>
+    <script src="../js/visualizations/graph.js"></script>
+    <script src="../js/visualizations/heap.js"></script>
+    <script src="../js/visualizations/trie.js"></script>
+    <script src="../js/visualizations/unionfind.js"></script>
+    <script src="../js/visualizations/segmenttree.js"></script>
+    <script src="../js/visualizations/dp.js"></script>
+    <script src="../js/visualizations/kmp.js"></script>
+    <script src="../js/datastructures.js"></script>
+</body>
+</html>

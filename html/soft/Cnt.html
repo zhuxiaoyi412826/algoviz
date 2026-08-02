@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计数排序可视化</title>
+    <link rel="icon" type="image/png" href="../../../images/tubiao.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#6366F1',
+                        accent: '#EC4899',
+                        dark: '#1E293B',
+                        light: '#F8FAFC'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .sort-bar {
+                transition: all 0.3s ease;
+            }
+            .sort-bar-sorted {
+                @apply bg-green-500;
+            }
+            .sort-bar-compare {
+                @apply bg-accent scale-y-105;
+            }
+            .sort-bar-counting {
+                @apply bg-yellow-500;
+            }
+            .btn-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+            }
+            .glass-effect {
+                @apply bg-white/10 backdrop-blur-md border border-white/20;
+            }
+            .count-bar {
+                transition: all 0.5s ease;
+                transform-origin: bottom;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-dark to-slate-900 text-light min-h-screen font-inter">
+    <header class="container mx-auto px-4 py-8 text-center">
+        <h1 class="text-[clamp(2rem,5vw,3.5rem)] font-bold bg-gradient-to-r from-primary to-secondary inline-block text-transparent bg-clip-text mb-2">
+            计数排序可视化
+        </h1>
+        <p class="text-lg text-slate-300 max-w-2xl mx-auto">
+            通过交互式动画直观理解计数排序的工作原理。计数排序是一种非比较型排序算法，
+            通过统计每个元素出现的次数来实现排序，适用于整数排序且数据范围不大的情况。
+        </p>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- 控制面板 -->
+        <div class="glass-effect rounded-xl p-6 mb-8 shadow-xl">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">数组大小</label>
+                    <div class="flex items-center">
+                        <input type="range" id="array-size" min="5" max="100" value="20" 
+                            class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary">
+                        <span id="array-size-value" class="ml-4 min-w-[3rem] text-center">20</span>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">排序速度 (ms)</label>
+                    <div class="flex items-center">
+                        <input type="range" id="sort-speed" min="50" max="1000" value="300" 
+                            class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary">
+                        <span id="sort-speed-value" class="ml-4 min-w-[3rem] text-center">300</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-end">
+                    <button id="generate-array" class="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg mr-4 btn-hover flex items-center">
+                        <i class="fa-solid fa-refresh mr-2"></i> 生成数组
+                    </button>
+                    <button id="start-sort" class="bg-accent hover:bg-accent/90 text-white px-6 py-2 rounded-lg btn-hover flex items-center">
+                        <i class="fa-solid fa-play mr-2"></i> 开始排序
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 算法信息 -->
+        <div class="glass-effect rounded-xl p-6 mb-8 shadow-xl">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fa-solid fa-info-circle text-primary mr-2"></i> 算法原理
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-lg font-medium mb-2 text-primary">计数排序步骤</h3>
+                    <ol class="list-decimal pl-5 space-y-2 text-slate-300">
+                        <li>找出待排序数组中的最大值，确定计数数组的大小</li>
+                        <li>创建计数数组，统计每个元素出现的次数</li>
+                        <li>对计数数组进行累加，得到每个元素的最终位置</li>
+                        <li>根据计数数组重新构建排序后的数组</li>
+                    </ol>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium mb-2 text-primary">算法特性</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-slate-800/50 rounded-lg p-3">
+                            <p class="text-sm text-slate-400">时间复杂度</p>
+                            <p class="font-bold text-lg">O(n+k)</p>
+                        </div>
+                        <div class="bg-slate-800/50 rounded-lg p-3">
+                            <p class="text-sm text-slate-400">空间复杂度</p>
+                            <p class="font-bold text-lg">O(k)</p>
+                        </div>
+                        <div class="bg-slate-800/50 rounded-lg p-3">
+                            <p class="text-sm text-slate-400">稳定性</p>
+                            <p class="font-bold text-lg">稳定</p>
+                        </div>
+                        <div class="bg-slate-800/50 rounded-lg p-3">
+                            <p class="text-sm text-slate-400">类型</p>
+                            <p class="font-bold text-lg">非比较排序</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数组可视化区域 -->
+        <div class="glass-effect rounded-xl p-4 h-[400px] mb-8 shadow-xl overflow-hidden relative">
+            <div id="sorting-visualization" class="w-full h-full flex items-end justify-center">
+                <!-- 排序条将在这里动态生成 -->
+            </div>
+            <div id="sorting-status" class="absolute top-4 left-4 bg-slate-800/80 text-white px-4 py-2 rounded-lg text-sm">
+                准备就绪
+            </div>
+        </div>
+
+        <!-- 排序过程记录 -->
+        <div class="glass-effect rounded-xl p-6 mb-8 shadow-xl max-h-[300px] overflow-y-auto">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fa-solid fa-history text-primary mr-2"></i> 排序步骤记录
+            </h2>
+            <div id="sorting-steps" class="space-y-2 text-sm text-slate-300">
+                <p>点击"开始排序"按钮开始可视化过程</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="container mx-auto px-4 py-8 text-center text-slate-500">
+        <p>计数排序可视化工具 | 用动画展示算法原理</p>
+    </footer>
+
+    <script>
+        // DOM 元素
+        const arraySizeSlider = document.getElementById('array-size');
+        const arraySizeValue = document.getElementById('array-size-value');
+        const sortSpeedSlider = document.getElementById('sort-speed');
+        const sortSpeedValue = document.getElementById('sort-speed-value');
+        const generateArrayBtn = document.getElementById('generate-array');
+        const startSortBtn = document.getElementById('start-sort');
+        const visualizationContainer = document.getElementById('sorting-visualization');
+        const sortingStatus = document.getElementById('sorting-status');
+        const sortingSteps = document.getElementById('sorting-steps');
+
+        // 全局变量
+        let array = [];
+        let isSorting = false;
+        let animationSpeed = 300; // 毫秒
+        let stepCount = 0;
+        let sortedIndices = new Set(); // 已排序的索引
+        let compareIndices = new Set(); // 当前比较的索引
+        let countingIndices = new Set(); // 当前统计的索引
+
+        // 初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            updateArraySize();
+            updateSortSpeed();
+            generateRandomArray();
+            
+            // 事件监听
+            arraySizeSlider.addEventListener('input', updateArraySize);
+            sortSpeedSlider.addEventListener('input', updateSortSpeed);
+            generateArrayBtn.addEventListener('click', generateRandomArray);
+            startSortBtn.addEventListener('click', startSorting);
+            
+            // 窗口大小变化时重新渲染
+            window.addEventListener('resize', () => {
+                if (!isSorting) {
+                    renderArray();
+                }
+            });
+        });
+
+        /**
+         * 更新数组大小显示
+         */
+        function updateArraySize() {
+            arraySizeValue.textContent = arraySizeSlider.value;
+        }
+
+        /**
+         * 更新排序速度显示
+         */
+        function updateSortSpeed() {
+            sortSpeedValue.textContent = sortSpeedSlider.value;
+            animationSpeed = parseInt(sortSpeedSlider.value);
+        }
+
+        /**
+         * 生成随机数组
+         */
+        function generateRandomArray() {
+            if (isSorting) return;
+            
+            const size = parseInt(arraySizeSlider.value);
+            array = [];
+            
+            // 生成0-100之间的随机整数
+            for (let i = 0; i < size; i++) {
+                array.push(Math.floor(Math.random() * 101));
+            }
+            
+            sortedIndices.clear();
+            renderArray();
+            resetSortingStatus();
+        }
+
+        /**
+         * 渲染数组可视化
+         */
+        function renderArray() {
+            visualizationContainer.innerHTML = '';
+            const maxHeight = 350;
+            const maxVal = Math.max(...array);
+            
+            // 计算柱状图宽度，确保所有柱子都能显示
+            const containerWidth = visualizationContainer.clientWidth;
+            const barWidth = Math.max((containerWidth - array.length * 2) / array.length, 8); // 最小宽度8px
+            const barMargin = Math.min(2, containerWidth / array.length / 10); // 动态间距
+            
+            array.forEach((value, index) => {
+                const bar = document.createElement('div');
+                const height = (value / maxVal) * maxHeight;
+                
+                let barClass = 'sort-bar bg-primary rounded-t-lg relative';
+                
+                if (sortedIndices.has(index)) {
+                    barClass += ' sort-bar-sorted';
+                } else if (compareIndices.has(index)) {
+                    barClass += ' sort-bar-compare';
+                } else if (countingIndices.has(index)) {
+                    barClass += ' sort-bar-counting';
+                }
+                
+                bar.className = barClass;
+                bar.style.height = `${height}px`;
+                bar.style.width = `${barWidth}px`;
+                bar.style.marginRight = `${barMargin}px`;
+                bar.style.minWidth = '8px'; // 确保最小宽度
+                
+                // 添加数值标签
+                const label = document.createElement('div');
+                label.className = 'absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs font-bold text-white';
+                label.textContent = value;
+                bar.appendChild(label);
+                
+                visualizationContainer.appendChild(bar);
+            });
+        }
+
+        /**
+         * 重置排序状态
+         */
+        function resetSortingStatus() {
+            sortingStatus.textContent = '准备就绪';
+            sortingStatus.className = 'absolute top-4 left-4 bg-slate-800/80 text-white px-4 py-2 rounded-lg text-sm';
+            sortingSteps.innerHTML = '<p>点击"开始排序"按钮开始可视化过程</p>';
+            stepCount = 0;
+            sortedIndices.clear();
+            compareIndices.clear();
+            countingIndices.clear();
+        }
+
+        /**
+         * 开始排序
+         */
+        async function startSorting() {
+            if (isSorting) return;
+            
+            isSorting = true;
+            startSortBtn.disabled = true;
+            generateArrayBtn.disabled = true;
+            
+            sortingStatus.textContent = '排序中...';
+            sortingStatus.className = 'absolute top-4 left-4 bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm';
+            
+            sortedIndices.clear();
+            compareIndices.clear();
+            countingIndices.clear();
+            
+            await countingSort();
+            
+            sortingComplete();
+        }
+
+        /**
+         * 计数排序算法
+         */
+        async function countingSort() {
+            addStepToLog('开始计数排序');
+            
+            // 找到最大值
+            let maxValue = Math.max(...array);
+            let countArray = new Array(maxValue + 1).fill(0);
+            
+            // 第一步：统计每个元素的出现次数
+             addStepToLog('第一步：统计每个元素的出现次数');
+             for (let i = 0; i < array.length; i++) {
+                 countingIndices.clear();
+                 countingIndices.add(i);
+                 countArray[array[i]]++;
+                 renderArray();
+                 addStepToLog(`统计元素 ${array[i]}，计数数组[${array[i]}] = ${countArray[array[i]]}`);
+                 await sleep(animationSpeed);
+             }
+             
+             countingIndices.clear();
+            
+            // 第二步：计算累积计数
+            addStepToLog('第二步：计算累积计数');
+            for (let i = 1; i <= maxValue; i++) {
+                countArray[i] += countArray[i - 1];
+                addStepToLog(`累积计数: countArray[${i}] = ${countArray[i]}`);
+                await sleep(animationSpeed);
+            }
+            
+            // 第三步：构建排序后的数组
+            addStepToLog('第三步：构建排序后的数组');
+            let sortedArray = new Array(array.length);
+            
+            for (let i = array.length - 1; i >= 0; i--) {
+                let value = array[i];
+                let position = countArray[value] - 1;
+                sortedArray[position] = value;
+                countArray[value]--;
+                
+                // 高亮当前处理的元素
+                compareIndices.clear();
+                compareIndices.add(i);
+                
+                // 标记已排序的位置
+                sortedIndices.add(position);
+                
+                renderArray();
+                addStepToLog(`将元素 ${value} 放入位置 ${position}`);
+                await sleep(animationSpeed);
+            }
+            
+            // 将排序结果复制回原数组
+            for (let i = 0; i < array.length; i++) {
+                array[i] = sortedArray[i];
+            }
+            
+            compareIndices.clear();
+            countingIndices.clear();
+        }
+
+        /**
+         * 添加步骤到日志
+         */
+        function addStepToLog(message) {
+            stepCount++;
+            const stepElement = document.createElement('div');
+            stepElement.className = 'flex items-center space-x-2';
+            stepElement.innerHTML = `
+                <span class="text-primary font-bold min-w-[2rem]">${stepCount}.</span>
+                <span>${message}</span>
+            `;
+            sortingSteps.appendChild(stepElement);
+            sortingSteps.scrollTop = sortingSteps.scrollHeight;
+        }
+
+        /**
+         * 排序完成
+         */
+        function sortingComplete() {
+            isSorting = false;
+            startSortBtn.disabled = false;
+            generateArrayBtn.disabled = false;
+            
+            sortingStatus.textContent = '排序完成！';
+            sortingStatus.className = 'absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg text-sm';
+            
+            addStepToLog('计数排序完成！数组已按升序排列');
+            
+            // 标记所有元素为已排序
+            for (let i = 0; i < array.length; i++) {
+                sortedIndices.add(i);
+            }
+            
+            renderArray();
+        }
+
+        /**
+         * 延迟函数
+         */
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>

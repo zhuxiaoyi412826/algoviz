@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - AlgoVize</title>
+    <link rel="icon" type="image/png" href="../images/tubiao.png">
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* 个人中心头像样式 */
+        .nav-avatar {
+            font-size: 1rem;
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            line-height: 24px;
+            text-align: center;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-avatar:hover {
+            transform: scale(1.1);
+        }
+        
+        /* 个人中心页面样式 */
+        .profile-section {
+            padding: 4rem 0;
+        }
+        
+        .profile-container {
+            display: flex;
+            gap: 2rem;
+        }
+        
+        .profile-sidebar {
+            width: 250px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            position: sticky;
+            top: 2rem;
+            height: fit-content;
+        }
+        
+        .profile-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .profile-menu-item {
+            margin-bottom: 0.5rem;
+        }
+        
+        .profile-menu-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .profile-menu-link:hover {
+            background-color: var(--hover-bg);
+        }
+        
+        .profile-menu-link.active {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .profile-menu-icon {
+            margin-right: 0.75rem;
+            font-size: 1.25rem;
+        }
+        
+        .profile-content {
+            flex: 1;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+        
+        .profile-content h2 {
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .profile-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .profile-card h3 {
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .profile-info-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .profile-info-label {
+            width: 100px;
+            color: var(--text-secondary);
+        }
+        
+        .profile-info-value {
+            flex: 1;
+        }
+        
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            color: white;
+            margin-bottom: 1rem;
+        }
+        
+        .setting-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .form-label {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .form-input {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text-primary);
+        }
+        
+        .form-select {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text-primary);
+        }
+        
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+        
+        .avatar-option {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .avatar-option:hover {
+            border-color: var(--primary);
+            transform: scale(1.1);
+        }
+        
+        .avatar-option.selected {
+            border-color: var(--primary);
+        }
+        
+        .form-button {
+            padding: 0.75rem 1.5rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        
+        .form-button:hover {
+            background: var(--secondary);
+        }
+        
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .visit-counter {
+            margin-right: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--hover-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .modal-title {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+        
+        .modal-close:hover {
+            background: var(--hover-bg);
+        }
+        
+        .avatar-modal-content {
+            padding: 1.5rem;
+        }
+        
+        .avatar-modal-content h4 {
+            margin: 0 0 1rem 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .logout-btn {
+            padding: 0.75rem 1.5rem;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        
+        .logout-btn:hover {
+            background: #dc2626;
+        }
+    </style>
+</head>
+<body onload="initTheme()">
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="./video.html" class="nav-logo">
+                <span class="nav-logo-icon">📊</span>
+                <span class="text-gradient">AlgoVize</span>
+            </a>
+            <div class="nav-links">
+                <a href="../index.html" class="nav-link">首页</a>
+                <a href="../pages/datastructures.html" class="nav-link">数据结构</a>
+                <a href="../pages/algorithms.html" class="nav-link">算法演示</a>
+                <a href="../pages/oj.html" class="nav-link">在线OJ</a>
+                <a href="../pages/products.html" class="nav-link">商品</a>
+                <a href="../pages/profile.html" class="nav-link">
+                    <span class="nav-avatar">👤</span>
+                </a>
+            </div>
+            <div class="nav-actions">
+                <div class="visit-counter">访问量: <span id="visitCount">0</span></div>
+                <button id="themeToggle" style="width:38px;height:38px;border-radius:50%;border:1px solid #2d2d4a;background:#1a1a2e;cursor:pointer;font-size:18px;">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <script>
+    (function() {
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('algoviz-theme', theme);
+            var btn = document.getElementById('themeToggle');
+            if (btn) {
+                var icon = btn.querySelector('.theme-icon');
+                if (icon) {
+                    icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+                }
+            }
+            document.body.style.background = theme === 'dark' ? '#0f0f23' : '#f5f7fa';
+        }
+        
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme') || 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            setTheme(next);
+        }
+        
+        // 访问量计数
+        function updateVisitCount() {
+            var count = localStorage.getItem('visitCount') || 0;
+            
+            // 检查当前浏览器是否已经记录过访问
+            var hasVisited = localStorage.getItem('hasVisitedUnique');
+            if (!hasVisited) {
+                count = parseInt(count) + 1;
+                localStorage.setItem('visitCount', count);
+                localStorage.setItem('hasVisitedUnique', 'true');
+            }
+            
+            var visitCountElement = document.getElementById('visitCount');
+            if (visitCountElement) {
+                visitCountElement.textContent = count;
+            }
+        }
+        
+        // 检查登录状态
+        function checkLoginStatus() {
+            var isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+            if (!isLoggedIn) {
+                window.location.href = '/pages/login.html';
+            }
+        }
+        
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('userAvatar');
+            window.location.href = '/index.html';
+        }
+        
+        window.toggleTheme = toggleTheme;
+        window.logout = logout;
+        
+        var saved = localStorage.getItem('algoviz-theme') || 'light';
+        setTheme(saved);
+        
+        var btn = document.getElementById('themeToggle');
+        if (btn) {
+            btn.addEventListener('click', toggleTheme);
+        }
+        
+        // 检查登录状态
+        checkLoginStatus();
+        
+        // 更新访问量显示
+        updateVisitCount();
+    })();
+    </script>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Profile Section -->
+        <section class="profile-section">
+            <div class="container">
+                <!-- Breadcrumb -->
+                <div class="breadcrumb">
+                    <a href="../index.html">首页</a>
+                    <span>/</span>
+                    <span>账号信息</span>
+                </div>
+                
+                <div class="profile-container">
+                    <!-- Sidebar -->
+                    <div class="profile-sidebar">
+                        <div class="profile-avatar" onclick="openAvatarModal()">👤</div>
+                        <h3 style="margin-bottom: 1.5rem;">用户中心</h3>
+                        <ul class="profile-menu">
+                            <li class="profile-menu-item">
+                                <a href="#account" class="profile-menu-link active" data-section="account">
+                                    <span class="profile-menu-icon">👤</span>
+                                    <span>账号信息</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
+                                <a href="#orders" class="profile-menu-link" data-section="orders">
+                                    <span class="profile-menu-icon">📋</span>
+                                    <span>我的订单</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
+                                <a href="#products" class="profile-menu-link" data-section="products">
+                                    <span class="profile-menu-icon">🛍️</span>
+                                    <span>产品/服务</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
+                                <a href="#vip" class="profile-menu-link" data-section="vip">
+                                    <span class="profile-menu-icon">⭐</span>
+                                    <span>VIP会员</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
+                                <a href="#tutor" class="profile-menu-link" data-section="tutor">
+                                    <span class="profile-menu-icon">👨‍🏫</span>
+                                    <span>一对一答疑</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
+                                <a href="#benefits" class="profile-menu-link" data-section="benefits">
+                                    <span class="profile-menu-icon">🎁</span>
+                                    <span>福利/赠品</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
+                                <a href="#qq" class="profile-menu-link" data-section="qq">
+                                    <span class="profile-menu-icon">💬</span>
+                                    <span>QQ交流群</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
+                                <a href="#videos" class="profile-menu-link" data-section="videos">
+                                    <span class="profile-menu-icon">🎥</span>
+                                    <span>优质视频资料</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
+                                <a href="#points" class="profile-menu-link" data-section="points">
+                                    <span class="profile-menu-icon">💎</span>
+                                    <span>积分</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
+                                <a href="#point-logs" class="profile-menu-link" data-section="point-logs">
+                                    <span class="profile-menu-icon">📈</span>
+                                    <span>积分变动日志</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
+                                <a href="#settings" class="profile-menu-link" data-section="settings">
+                                    <span class="profile-menu-icon">⚙️</span>
+                                    <span>设置</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Content -->
+                    <div class="profile-content">
+                        <!-- 账号信息 -->
+                        <div id="account-section" class="profile-section-content">
+                            <h2>账号信息</h2>
+                            <div class="profile-card">
+                                <div class="profile-info">
+                                    <div class="profile-info-item">
+                                        <span class="profile-info-label">用户名：</span>
+                                        <span class="profile-info-value">user123</span>
+                                    </div>
+                                    <div class="profile-info-item">
+                                        <span class="profile-info-label">邮箱：</span>
+                                        <span class="profile-info-value">user@example.com</span>
+                                    </div>
+                                    <div class="profile-info-item">
+                                        <span class="profile-info-label">注册时间：</span>
+                                        <span class="profile-info-value">2024-01-01</span>
+                                    </div>
+                                    <div class="profile-info-item">
+                                        <span class="profile-info-label">最后登录：</span>
+                                        <span class="profile-info-value">2024-04-21</span>
+                                    </div>
+                                    <div class="profile-info-item">
+                                        <button class="logout-btn" onclick="logout()">退出登录</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 我的订单 -->
+                        <div id="orders-section" class="profile-section-content" style="display: none;">
+                            <h2>我的订单</h2>
+                            <div class="profile-card">
+                                <p>暂无订单记录</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 产品/服务 -->
+                        <div id="products-section" class="profile-section-content" style="display: none;">
+                            <h2>产品/服务</h2>
+                            <div class="profile-card">
+                                <p>暂无购买的产品或服务</p>
+                            </div>
+                        </div>
+                        
+                        <!-- VIP会员 -->
+                        <div id="vip-section" class="profile-section-content" style="display: none;">
+                            <h2>VIP会员</h2>
+                            <div class="profile-card">
+                                <p>您当前不是VIP会员</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 一对一答疑 -->
+                        <div id="tutor-section" class="profile-section-content" style="display: none;">
+                            <h2>一对一答疑</h2>
+                            <div class="profile-card">
+                                <p>暂无答疑记录</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 福利/赠品 -->
+                        <div id="benefits-section" class="profile-section-content" style="display: none;">
+                            <h2>福利/赠品</h2>
+                            <div class="profile-card">
+                                <p>暂无福利或赠品</p>
+                            </div>
+                        </div>
+                        
+                        <!-- QQ交流群 -->
+                        <div id="qq-section" class="profile-section-content" style="display: none;">
+                            <h2>QQ交流群</h2>
+                            <div class="profile-card">
+                                <p>群号：123456789</p>
+                                <p>扫码加入群聊</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 优质视频资料 -->
+                        <div id="videos-section" class="profile-section-content" style="display: none;">
+                            <h2>优质视频资料</h2>
+                            <div class="profile-card">
+                                <p>暂无视频资料</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 积分 -->
+                        <div id="points-section" class="profile-section-content" style="display: none;">
+                            <h2>积分</h2>
+                            <div class="profile-card">
+                                <div class="profile-info">
+                                    <div class="profile-info-item">
+                                        <span class="profile-info-label">积分数量：</span>
+                                        <span class="profile-info-value">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 积分变动日志 -->
+                        <div id="point-logs-section" class="profile-section-content" style="display: none;">
+                            <h2>积分变动日志</h2>
+                            <div class="profile-card">
+                                <p>暂无积分变动记录</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 设置 -->
+                        <div id="settings-section" class="profile-section-content" style="display: none;">
+                            <h2>设置</h2>
+                            <div class="profile-card">
+                                <form class="setting-form">
+                                    <div class="form-group">
+                                        <label class="form-label">姓名</label>
+                                        <input type="text" class="form-input" value="用户" placeholder="请输入姓名">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">性别</label>
+                                        <select class="form-select">
+                                            <option value="male">男</option>
+                                            <option value="female">女</option>
+                                            <option value="other">其他</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">头像</label>
+                                        <div class="avatar-grid">
+                                            <div class="avatar-option selected">👤</div>
+                                            <div class="avatar-option">👨</div>
+                                            <div class="avatar-option">👩</div>
+                                            <div class="avatar-option">👧</div>
+                                            <div class="avatar-option">👦</div>
+                                            <div class="avatar-option">🧑</div>
+                                            <div class="avatar-option">👨‍💼</div>
+                                            <div class="avatar-option">👩‍💼</div>
+                                            <div class="avatar-option">👨‍🎓</div>
+                                            <div class="avatar-option">👩‍🎓</div>
+                                            <div class="avatar-option">👨‍🏫</div>
+                                            <div class="avatar-option">👩‍🏫</div>
+                                            <div class="avatar-option">👨‍⚕️</div>
+                                            <div class="avatar-option">👩‍⚕️</div>
+                                            <div class="avatar-option">👨‍🔧</div>
+                                            <div class="avatar-option">👩‍🔧</div>
+                                            <div class="avatar-option">👨‍💻</div>
+                                            <div class="avatar-option">👩‍💻</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">重置密码</label>
+                                        <input type="password" class="form-input" placeholder="请输入新密码">
+                                    </div>
+                                    <button type="button" class="form-button" onclick="saveSettings()">保存设置</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    
+    
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-slogan">AlgoViz - 数据结构与算法可视化学习平台 · 让学习变得更有趣</div>
+                <div class="footer-bottom-row">
+                    <span>AlgoViz © 2026</span>
+                    <span class="footer-divider">|</span>
+                    <span class="footer-icp">ICP备案：<a href="https://beian.miit.gov.cn/" target="_blank">豫ICP备12345678号</a></span>
+                    <span class="footer-divider">|</span>
+                    <a href="https://github.com/zhuxiaoyi412826/AlgoViz" target="_blank" class="footer-github" title="查看 GitHub 源码">
+                        <svg height="16" aria-hidden="true" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" fill="currentColor">
+                            <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
+                        </svg>
+                        GitHub
+                    </a>
+                    <span class="footer-divider">|</span>
+                    <a href="../pages/changelog.html" class="footer-link">更新日志</a>
+                    <span class="footer-divider">|</span>
+                    <a href="../pages/suggestion.html" class="footer-link">建议我</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    </main>
+
+    <!-- 头像选择模态框 -->
+    <div class="modal" id="avatarModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">选择头像</h3>
+                <button class="modal-close" onclick="closeAvatarModal()">&times;</button>
+            </div>
+            <div class="avatar-modal-content">
+                <h4>默认头像</h4>
+                <div class="avatar-grid">
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👤')">👤</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👨')">👨</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👩')">👩</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👧')">👧</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👦')">👦</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('🧑')">🧑</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👨‍💼')">👨‍💼</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👩‍💼')">👩‍💼</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👨‍🎓')">👨‍🎓</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👩‍🎓')">👩‍🎓</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👨‍🏫')">👨‍🏫</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👩‍🏫')">👩‍🏫</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👨‍⚕️')">👨‍⚕️</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👩‍⚕️')">👩‍⚕️</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👨‍🔧')">👨‍🔧</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👩‍🔧')">👩‍🔧</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👨‍💻')">👨‍💻</div>
+                    <div class="avatar-option" onclick="selectDefaultAvatar('👩‍💻')">👩‍💻</div>
+                </div>
+                <h4 style="margin-top: 2rem;">上传头像</h4>
+                <input type="file" id="avatarUpload" accept="image/*" onchange="uploadAvatar()" style="margin-top: 1rem;">
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 切换菜单
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuLinks = document.querySelectorAll('.profile-menu-link');
+            const contentSections = document.querySelectorAll('.profile-section-content');
+            
+            menuLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // 更新菜单状态
+                    menuLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // 显示对应内容
+                    const section = this.dataset.section;
+                    contentSections.forEach(s => {
+                        s.style.display = 'none';
+                    });
+                    document.getElementById(`${section}-section`).style.display = 'block';
+                });
+            });
+            
+            // 头像选择
+            const avatarOptions = document.querySelectorAll('.avatar-option');
+            avatarOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    avatarOptions.forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                    
+                    // 更新侧边栏头像
+                    const profileAvatar = document.querySelector('.profile-avatar');
+                    profileAvatar.textContent = this.textContent;
+                    profileAvatar.style.background = '';
+                });
+            });
+        });
+        
+        // 保存设置
+        function saveSettings() {
+            alert('设置保存成功！');
+        }
+        
+        // 打开头像选择模态框
+        function openAvatarModal() {
+            document.getElementById('avatarModal').style.display = 'flex';
+        }
+        
+        // 关闭头像选择模态框
+        function closeAvatarModal() {
+            document.getElementById('avatarModal').style.display = 'none';
+        }
+        
+        // 选择默认头像
+        function selectDefaultAvatar(avatar) {
+            const profileAvatar = document.querySelector('.profile-avatar');
+            profileAvatar.textContent = avatar;
+            closeAvatarModal();
+            alert('头像已更新！');
+        }
+        
+        // 上传本地头像
+        function uploadAvatar() {
+            const fileInput = document.getElementById('avatarUpload');
+            const file = fileInput.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const profileAvatar = document.querySelector('.profile-avatar');
+                    profileAvatar.style.background = `url(${e.target.result})`;
+                    profileAvatar.style.backgroundSize = 'cover';
+                    profileAvatar.style.backgroundPosition = 'center';
+                    profileAvatar.textContent = '';
+                };
+                reader.readAsDataURL(file);
+                closeAvatarModal();
+                alert('头像已更新！');
+            }
+        }
+    </script>
+</body>
+</html>
