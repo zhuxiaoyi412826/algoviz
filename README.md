@@ -13,13 +13,13 @@ AlgoViz 是一个交互式的数据结构和算法可视化学习网站，帮助
 - **样式**: 自定义 CSS (无框架依赖)
 - **字体**: Inter (正文) + Fira Code (代码)
 - **后端**: Spring Boot 3.2.0 (Java 17)
-- **数据库**: SQLite (轻量级嵌入式数据库)
+- **数据库**: MySQL 8.0
 - **部署环境**: Apache Tomcat (前端) + Java JAR (后端) + Node.js CORS代理
 
 ## 目录结构
 
 ```
-/workspace/projects/
+AlgoVize/
 ├── index.html                    # 首页
 ├── pages/
 │   ├── datastructures.html       # 数据结构页面
@@ -131,25 +131,6 @@ AlgoViz 是一个交互式的数据结构和算法可视化学习网站，帮助
 5. 2002 - 全排列 (中等)
 6. 3001 - 最长公共子序列 (困难)
 7. 3002 - 滑动窗口最大值 (困难)
-
-## 启动方式
-
-由于前端和后端作为独立服务运行，你需要使用 Apache Tomcat 来部署静态前端项目：
-
-1. **下载并安装 Tomcat**：如果你还没有安装，请从 [Apache Tomcat 官网](https://tomcat.apache.org/) 下载安装包并解压。
-2. **部署前端文件**：将当前 `AlgoViz` 根目录下的所有前端文件（如 `index.html`, `pages`, `styles`, `js` 等）放入 Tomcat 安装目录的 `webapps/ROOT/` 文件夹中（建议先清空原有的 `ROOT` 目录内容）。
-3. **启动 Tomcat**：进入 Tomcat 的 `bin` 目录，运行 `startup.bat` (Windows) 或 `startup.sh` (Mac/Linux)。
-4. **访问**：在浏览器中打开 `http://localhost:8080/` 即可访问前端页面。
-
-*(注意：如果你将项目放在* *`webapps/algoviz/`* *目录下，访问路径将变为* *`http://localhost:8080/algoviz/`)*
-
-## 访问地址
-
-- 首页: `http://localhost:8080/`
-- 数据结构: `http://localhost:8080/pages/datastructures.html`
-- 算法演示: `http://localhost:8080/pages/algorithms.html`
-- 在线OJ: `http://localhost:8080/pages/oj.html`
-- AI 助手: `http://localhost:8080/pages/ai.html`
 
 ## 使用说明
 
