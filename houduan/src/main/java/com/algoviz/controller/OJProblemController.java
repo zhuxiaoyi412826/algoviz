@@ -171,6 +171,31 @@ public class OJProblemController {
         return result;
     }
 
+    @PutMapping("/{id}/status")
+    @Operation(summary = "切换题目状态", description = "仅更新题目上线/下线状态")
+    public Map<String, Object> updateStatus(@PathVariable String id, @RequestBody java.util.Map<String, String> body) {
+        String status = body.get("status");
+        logger.info("切换题目状态：id={}, status={}", id, status);
+
+        Map<String, Object> result = new HashMap<>();
+        if (status == null || (!"ACTIVE".equals(status) && !"INACTIVE".equals(status))) {
+            result.put("success", false);
+            result.put("message", "状态值非法，仅支持 ACTIVE / INACTIVE");
+            return result;
+        }
+
+        try {
+            boolean ok = problemService.updateStatus(id, status);
+            result.put("success", ok);
+            result.put("message", ok ? "状态切换成功" : "题目不存在");
+        } catch (Exception e) {
+            logger.error("切换题目状态失败", e);
+            result.put("success", false);
+            result.put("message", "切换状态失败：" + e.getMessage());
+        }
+        return result;
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "删除题目", description = "删除指定题目")
     public Map<String, Object> deleteProblem(@PathVariable String id) {

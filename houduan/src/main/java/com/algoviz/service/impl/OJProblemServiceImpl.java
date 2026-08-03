@@ -178,6 +178,14 @@ public class OJProblemServiceImpl implements OJProblemService {
     }
 
     @Override
+    public boolean updateStatus(String id, String status) {
+        logger.info("更新题目状态：id={}, status={}", id, status);
+        int rows = problemMapper.updateStatus(Long.valueOf(id), status);
+        logger.info("题目状态更新{}：id={}", rows > 0 ? "成功" : "失败（题号不存在）", id);
+        return rows > 0;
+    }
+
+    @Override
     public void deleteProblem(String id) {
         logger.info("删除题目：{}", id);
         problemMapper.deleteProblem(Long.valueOf(id));

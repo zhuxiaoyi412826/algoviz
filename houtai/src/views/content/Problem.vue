@@ -203,24 +203,31 @@ const handleDelete = async (row: OJProblem) => {
 }
 
 const handleToggleStatus = async (row: OJProblem) => {
-  const newStatus = row.status === 'online' ? 'offline' : 'online'
+  // el-switch 的 v-model 已经把 row.status 翻转为目标状态，直接使用即可
+  const targetStatus = row.status
+  const statusLabel = targetStatus === 'online' ? '上线' : '下线'
   try {
-    await ElMessageBox.confirm(`确定要${newStatus === 'online' ? '上线' : '下线'}该题目吗？`, '提示', { type: 'warning' })
-    
-    const response = await fetch(`http://localhost/api/problems/${row.id}`, {
+    await ElMessageBox.confirm(`确定要${statusLabel}该题目吗？`, '提示', { type: 'warning' })
+
+    const response = await fetch(`http://localhost/api/problems/${row.id}/status`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus === 'online' ? 'ACTIVE' : 'INACTIVE' })
+      body: JSON.stringify({ status: targetStatus === 'online' ? 'ACTIVE' : 'INACTIVE' })
     })
     const data = await response.json()
-    
+
     if (data.success) {
-      ElMessage.success('操作成功')
+      ElMessage.success(`${statusLabel}成功`)
       loadData()
     } else {
+      // 接口失败，回滚开关状态
+      row.status = targetStatus === 'online' ? 'offline' : 'online'
       ElMessage.error(data.message || '操作失败')
     }
-  } catch {}
+  } catch {
+    // 用户取消确认，回滚开关状态
+    row.status = targetStatus === 'online' ? 'offline' : 'online'
+  }
 }
 
 const handleSubmit = async () => {

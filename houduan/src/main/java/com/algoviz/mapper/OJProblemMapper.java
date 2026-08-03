@@ -34,6 +34,9 @@ public interface OJProblemMapper {
             "template=#{template}, status=#{status}, submission_count=#{submissionCount}, ac_rate=#{acRate}, updated_at=#{updatedAt} WHERE id=#{id}")
     void updateProblem(OJProblem problem);
 
+    @Update("UPDATE oj_problem SET status=#{status}, updated_at=NOW() WHERE id=#{id}")
+    int updateStatus(@Param("id") Long id, @Param("status") String status);
+
     @Delete("DELETE FROM oj_problem WHERE id = #{id}")
     void deleteProblem(Long id);
 

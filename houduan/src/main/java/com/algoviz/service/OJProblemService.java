@@ -21,6 +21,9 @@ public interface OJProblemService {
     void addProblem(OJProblem problem);
     
     void updateProblem(OJProblem problem);
+
+    /** 仅更新题目状态（上线/下线），避免全字段更新导致非空字段被置 null */
+    boolean updateStatus(String id, String status);
     
     void deleteProblem(String id);
     
