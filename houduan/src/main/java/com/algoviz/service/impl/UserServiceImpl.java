@@ -57,6 +57,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public List<User> getUsersByPage(int page, int pageSize) {
+        logger.info("分页获取用户 - page: {}, pageSize: {}", page, pageSize);
+        int offset = (page - 1) * pageSize;
+        return userMapper.getUsersByPage(offset, pageSize);
+    }
+
+    @Override
     public User findById(Integer id) {
         logger.info("获取用户：{}", id);
         return userMapper.findById(id);
@@ -66,6 +73,18 @@ public class UserServiceImpl implements UserService {
     public List<User> searchUsers(String keyword) {
         logger.info("搜索用户：{}", keyword);
         return userMapper.searchUsers(keyword);
+    }
+
+    @Override
+    public List<User> searchUsersByPage(String keyword, int page, int pageSize) {
+        logger.info("分页搜索用户 - keyword: {}, page: {}, pageSize: {}", keyword, page, pageSize);
+        int offset = (page - 1) * pageSize;
+        return userMapper.searchUsersByPage(keyword, offset, pageSize);
+    }
+
+    @Override
+    public int searchUsersCount(String keyword) {
+        return userMapper.searchUsersCount(keyword);
     }
 
     @Override

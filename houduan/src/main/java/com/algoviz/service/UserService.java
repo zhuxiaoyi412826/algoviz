@@ -12,8 +12,11 @@ public interface UserService {
     void updateLastLogin(Integer userId);
     
     List<User> getAllUsers();
+    List<User> getUsersByPage(int page, int pageSize);
     User findById(Integer id);
     List<User> searchUsers(String keyword);
+    List<User> searchUsersByPage(String keyword, int page, int pageSize);
+    int searchUsersCount(String keyword);
     void deleteUser(Integer id);
     int countUsers();
 }

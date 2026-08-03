@@ -1,7 +1,7 @@
 spring:
   datasource:
     # MySQL 8.0 配置（已迁移）
-    url: jdbc:mysql://localhost:3306/algoviz?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/algoviz?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
     password: "412826"

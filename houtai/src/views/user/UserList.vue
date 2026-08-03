@@ -22,7 +22,7 @@ const detailVisible = ref(false)
 const currentUser = ref<User | null>(null)
 
 const searchForm = reactive({ keyword: '', status: '' })
-const page = ref(1); const pageSize = ref(10); const total = ref(0)
+const page = ref(1); const pageSize = ref(100); const total = ref(0)
 
 onMounted(() => loadData())
 
@@ -31,6 +31,8 @@ const loadData = async () => {
   try {
     const params = new URLSearchParams()
     if (searchForm.keyword) params.append('keyword', searchForm.keyword)
+    params.append('page', String(page.value))
+    params.append('pageSize', String(pageSize.value))
     
     const response = await fetch(`http://localhost/api/users?${params.toString()}`)
     const data = await response.json()
@@ -55,6 +57,17 @@ const loadData = async () => {
     console.error('加载用户列表失败:', error)
     ElMessage.error('加载用户列表失败')
   } finally { loading.value = false }
+}
+
+const handlePageChange = (currentPage: number) => {
+  page.value = currentPage
+  loadData()
+}
+
+const handleSizeChange = (size: number) => {
+  pageSize.value = size
+  page.value = 1
+  loadData()
 }
 
 const handleSearch = () => {
@@ -132,7 +145,15 @@ const handleDelete = async (row: User) => {
         </el-table-column>
       </el-table>
       <div class="pagination-wrapper">
-        <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="total,sizes,prev,pager,next" />
+        <el-pagination 
+          v-model:current-page="page" 
+          v-model:page-size="pageSize" 
+          :total="total" 
+          :page-sizes="[50, 100, 200, 500]"
+          layout="total,sizes,prev,pager,next,jumper"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+        />
       </div>
     </div>
     <el-dialog v-model="detailVisible" title="用户详情" width="600px">

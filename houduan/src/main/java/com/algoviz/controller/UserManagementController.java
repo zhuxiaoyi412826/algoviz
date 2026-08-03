@@ -24,22 +24,30 @@ public class UserManagementController {
     private UserService userService;
 
     @GetMapping
-    @Operation(summary = "获取用户列表", description = "获取所有用户或按关键词搜索")
-    public Map<String, Object> getUsers(@RequestParam(required = false) String keyword) {
-        logger.info("获取用户列表 - 关键词: {}", keyword);
+    @Operation(summary = "获取用户列表", description = "分页获取用户列表，支持关键词搜索")
+    public Map<String, Object> getUsers(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "100") int pageSize) {
+        logger.info("获取用户列表 - 关键词: {}, page: {}, pageSize: {}", keyword, page, pageSize);
         
         Map<String, Object> result = new HashMap<>();
         List<User> users;
+        int totalCount;
 
         if (keyword != null && !keyword.isEmpty()) {
-            users = userService.searchUsers(keyword);
+            users = userService.searchUsersByPage(keyword, page, pageSize);
+            totalCount = userService.searchUsersCount(keyword);
         } else {
-            users = userService.getAllUsers();
+            users = userService.getUsersByPage(page, pageSize);
+            totalCount = userService.countUsers();
         }
 
         result.put("success", true);
         result.put("users", users);
-        result.put("count", users.size());
+        result.put("count", totalCount);
+        result.put("page", page);
+        result.put("pageSize", pageSize);
         
         return result;
     }

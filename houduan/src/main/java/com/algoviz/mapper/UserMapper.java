@@ -15,6 +15,15 @@ public interface UserMapper {
     
     @Select("SELECT * FROM user ORDER BY created_at DESC")
     List<User> getAllUsers();
+
+    @Select("SELECT * FROM user ORDER BY created_at DESC LIMIT #{offset}, #{pageSize}")
+    List<User> getUsersByPage(@Param("offset") int offset, @Param("pageSize") int pageSize);
+
+    @Select("SELECT * FROM user WHERE username LIKE CONCAT('%', #{keyword}, '%') OR email LIKE CONCAT('%', #{keyword}, '%') ORDER BY created_at DESC LIMIT #{offset}, #{pageSize}")
+    List<User> searchUsersByPage(@Param("keyword") String keyword, @Param("offset") int offset, @Param("pageSize") int pageSize);
+
+    @Select("SELECT COUNT(*) FROM user WHERE username LIKE CONCAT('%', #{keyword}, '%') OR email LIKE CONCAT('%', #{keyword}, '%')")
+    int searchUsersCount(@Param("keyword") String keyword);
     
     @Select("SELECT * FROM user WHERE id = #{id}")
     User findById(@Param("id") Integer id);
