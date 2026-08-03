@@ -27,14 +27,15 @@ const searchForm = reactive({
   status: ''
 })
 
-const formData = reactive<Partial<OJProblem>>({
+const formData = reactive<Partial<OJProblem> & { templateLang?: string }>({
   id: '',
   problemNo: '',
   title: '',
   difficulty: 'medium',
   tags: [],
   description: '',
-  template: {},
+  template: { java: '' },
+  templateLang: 'java',
   status: 'offline'
 })
 
@@ -100,7 +101,15 @@ const loadData = async () => {
         difficulty: item.difficulty,
         tags: item.tags ? item.tags.split(',') : [],
         description: item.description,
-        template: { java: item.template || '' },
+        template: (() => {
+          const raw = item.template
+          if (!raw) return {}
+          try {
+            const parsed = JSON.parse(raw)
+            if (typeof parsed === 'object' && parsed !== null) return parsed
+          } catch {}
+          return { java: raw }
+        })(),
         status: item.status === 'ACTIVE' ? 'online' : 'offline',
         submissionCount: item.submissionCount || 0,
         acRate: item.acRate || 0,
@@ -138,7 +147,12 @@ const handleReset = () => {
 const handleAdd = () => {
   dialogTitle.value = '新增题目'
   Object.keys(formData).forEach(key => {
-    (formData as any)[key] = key === 'difficulty' ? 'medium' : key === 'tags' ? [] : key === 'template' ? {} : key === 'status' ? 'offline' : ''
+    if (key === 'difficulty') (formData as any)[key] = 'medium'
+    else if (key === 'tags') (formData as any)[key] = []
+    else if (key === 'template') (formData as any)[key] = { java: '' }
+    else if (key === 'templateLang') (formData as any)[key] = 'java'
+    else if (key === 'status') (formData as any)[key] = 'offline'
+    else (formData as any)[key] = ''
   })
   dialogVisible.value = true
 }
@@ -146,6 +160,22 @@ const handleAdd = () => {
 const handleEdit = (row: OJProblem) => {
   dialogTitle.value = '编辑题目'
   Object.assign(formData, row)
+  // 确保 template 是对象格式，且有默认语言键
+  if (!formData.template || typeof formData.template !== 'object') {
+    ;(formData as any).template = { java: formData.template || '' }
+  }
+  // 确定当前模板语言（优先 java，否则取第一个有内容的语言）
+  const tpl = formData.template as Record<string, string>
+  if (tpl.java) {
+    ;(formData as any).templateLang = 'java'
+  } else {
+    const firstLang = Object.keys(tpl).find(k => tpl[k]) || 'java'
+    ;(formData as any).templateLang = firstLang
+  }
+  // 确保当前语言键存在
+  if (!tpl[(formData as any).templateLang]) {
+    tpl[(formData as any).templateLang] = ''
+  }
   dialogVisible.value = true
 }
 
@@ -199,13 +229,19 @@ const handleSubmit = async () => {
     if (!valid) return
     
     try {
+      // 将 template 对象序列化为 JSON 字符串（支持多语言）
+      const templateObj = formData.template || {}
+      const templateStr = Object.keys(templateObj).length > 0
+        ? JSON.stringify(templateObj)
+        : ''
+      
       const submitData = {
         problemNo: formData.problemNo,
         title: formData.title,
         difficulty: formData.difficulty,
         tags: (formData.tags || []).join(','),
         description: formData.description,
-        template: formData.template?.java || '',
+        template: templateStr,
         status: formData.status === 'online' ? 'ACTIVE' : 'INACTIVE'
       }
       
@@ -915,6 +951,20 @@ const saveAIEdit = () => {
         </el-form-item>
         <el-form-item label="题目描述" prop="description">
           <el-input v-model="formData.description" type="textarea" :rows="6" placeholder="支持Markdown格式" />
+        </el-form-item>
+        <el-form-item label="代码解法">
+          <div style="width: 100%">
+            <el-select v-model="formData.templateLang" style="width: 160px; margin-bottom: 8px">
+              <el-option v-for="lang in languageOptions" :key="lang.value" :label="lang.label" :value="lang.value" />
+            </el-select>
+            <el-input
+              v-model="formData.template[formData.templateLang || 'java']"
+              type="textarea"
+              :rows="8"
+              placeholder="请粘贴该题目的代码模板，如 Java 解法骨架"
+              style="font-family: 'Fira Code', Consolas, monospace; font-size: 13px"
+            />
+          </div>
         </el-form-item>
         <el-form-item label="状态">
           <el-radio-group v-model="formData.status">
