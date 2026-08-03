@@ -10,6 +10,8 @@ import { Plus, Edit, Delete, Search, Refresh, Upload, Download, View, MagicStick
 import type { OJProblem } from '@/types'
 
 const allProblems = ref<OJProblem[]>([])
+/** 后端拉取的原始全量数据（过滤前的缓存） */
+const allProblemsCache = ref<OJProblem[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const detailVisible = ref(false)
@@ -24,7 +26,8 @@ const importFormat = ref<'excel' | 'md' | 'json'>('excel')
 const searchForm = reactive({
   keyword: '',
   difficulty: '',
-  status: ''
+  status: '',
+  tag: ''
 })
 
 const formData = reactive<Partial<OJProblem> & { templateLang?: string }>({
@@ -86,15 +89,11 @@ onMounted(() => {
 const loadData = async () => {
   loading.value = true
   try {
-    const params = new URLSearchParams()
-    if (searchForm.keyword) params.append('keyword', searchForm.keyword)
-    if (searchForm.difficulty) params.append('difficulty', searchForm.difficulty)
-    
-    const response = await fetch(`http://localhost/api/problems/all?${params.toString()}`)
+    const response = await fetch('http://localhost/api/problems/all')
     const data = await response.json()
     
     if (data.success) {
-      allProblems.value = data.problems.map((item: any) => ({
+      allProblemsCache.value = data.problems.map((item: any) => ({
         id: item.id,
         problemNo: item.problemNo,
         title: item.title,
@@ -116,10 +115,7 @@ const loadData = async () => {
         createTime: item.createdAt,
         updateTime: item.updatedAt
       }))
-      total.value = data.count
-      // 数据变化 → 如果当前页超出范围，回到第 1 页
-      const maxPage = Math.max(1, Math.ceil(total.value / pageSize.value))
-      if (page.value > maxPage) page.value = 1
+      applyFilter()
     } else {
       ElMessage.error('加载题目失败')
     }
@@ -131,17 +127,44 @@ const loadData = async () => {
   }
 }
 
+/** 根据搜索条件在前端过滤 allProblemsCache → allProblems */
+const applyFilter = () => {
+  const kw = searchForm.keyword.trim().toLowerCase()
+  const diff = searchForm.difficulty
+  const st = searchForm.status
+  const tag = searchForm.tag
+
+  allProblems.value = allProblemsCache.value.filter(p => {
+    if (kw) {
+      const hit =
+        (p.problemNo || '').toLowerCase().includes(kw) ||
+        (p.title || '').toLowerCase().includes(kw) ||
+        (p.tags || []).some(t => t.toLowerCase().includes(kw))
+      if (!hit) return false
+    }
+    if (diff && p.difficulty !== diff) return false
+    if (st && p.status !== st) return false
+    if (tag && !(p.tags || []).includes(tag)) return false
+    return true
+  })
+  total.value = allProblems.value.length
+  // 数据变化 → 如果当前页超出范围，回到第 1 页
+  const maxPage = Math.max(1, Math.ceil(total.value / pageSize.value))
+  if (page.value > maxPage) page.value = 1
+}
+
 const handleSearch = () => {
   page.value = 1
-  loadData()
+  applyFilter()
 }
 
 const handleReset = () => {
   searchForm.keyword = ''
   searchForm.difficulty = ''
   searchForm.status = ''
+  searchForm.tag = ''
   page.value = 1
-  loadData()
+  applyFilter()
 }
 
 const handleAdd = () => {
@@ -870,7 +893,10 @@ const saveAIEdit = () => {
 
     <div class="card-container">
       <div class="filter-bar">
-        <el-input v-model="searchForm.keyword" placeholder="题号/标题/标签" clearable style="width: 200px" />
+        <el-input v-model="searchForm.keyword" placeholder="题号/标题/标签" clearable style="width: 200px" @keyup.enter="handleSearch" />
+        <el-select v-model="searchForm.tag" placeholder="标签" clearable filterable style="width: 120px">
+          <el-option v-for="tag in tagOptions" :key="tag" :label="tag" :value="tag" />
+        </el-select>
         <el-select v-model="searchForm.difficulty" placeholder="难度" clearable style="width: 100px">
           <el-option v-for="item in difficultyOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
