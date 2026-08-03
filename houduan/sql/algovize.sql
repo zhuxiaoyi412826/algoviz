@@ -398,7 +398,7 @@ CREATE TABLE `api_log` (
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================================
--- 3. 初始数据（来自 SQLite 源库）
+-- 3. 初始数据
 -- ============================================================================
 
 -- 用户测试数据
@@ -408,7 +408,7 @@ INSERT INTO `user` (`username`, `email`, `password`, `avatar`, `gender`, `nickna
 
 -- 管理员账号（密码: admin123）
 INSERT INTO `admin` (`id`, `username`, `nickname`, `password`, `role`, `status`) VALUES
-('1', 'admin', '超级管理员', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', 'super_admin', 'active');
+('1', 'admin', '超级管理员', '412826zxyZXY', 'super_admin', 'active');
 
 -- 系统配置
 INSERT INTO `system_config` (`key`, `value`, `type`, `label`, `description`, `config_group`) VALUES
@@ -430,15 +430,14 @@ INSERT INTO `product` (`product_id`, `product_name`, `description`, `price`, `ca
 
 -- OJ题目数据（来自运行中的 SQLite 数据库）
 INSERT INTO `oj_problem` (`id`, `problem_no`, `title`, `difficulty`, `tags`, `description`, `template`, `status`, `submission_count`, `ac_rate`, `created_at`, `updated_at`) VALUES
-('1', '1',     '两数之和',                 'easy',   NULL,                  NULL, NULL, 'ACTIVE', 0, 0.00, '2026-06-11 00:34:56', '2026-06-11 00:34:56'),
+('1', '1',     '单链表的选择排序',          'easy',   '链表',                  '给定一个无序单链表的头节点head，实现单链表的选择排序。要求额外空间复杂度为O(1)。**解题提示**选择排序的核心是从未排序的部分中找到最小值，然后放在排好序部分的尾部。具体过程：1. 遍历链表，找到整个链表的最小值节点，作为新的头节点；2. 每次从未排序的部分中找到最小值节点，将其从未排序部分删除，然后连接到排好序部分的尾部；3. 重复步骤2，直到所有节点都排序完成。时间复杂度O(N²)，空间复杂度O(1)。', 'public Node selectionSort(Node head) { Node tail = null; Node smallPre = null; Node cur = head; Node small = null; while (cur != null) { small = cur; smallPre = getSmallestPreNode(cur); if (smallPre != null) { small = smallPre.next; smallPre.next = small.next;   } cur = cur == small ? cur.next : cur; if (tail == null) {  head = small;  } else {  tail.next = small; } tail = small; }return head;', 'ACTIVE', 0, 0.00, '2026-06-11 00:34:56', '2026-06-11 00:34:56'),
 ('2', '1001',  '两数之和',                 'easy',   '数组,哈希表',         '给定一个整数数组 nums 和一个整数目标值 target，请你在该数组中找出和为目标值 target 的那两个整数，并返回它们的数组下标。', 'class Solution {\n    public int[] twoSum(int[] nums, int target) {\n        // 在此处编写你的代码\n        return new int[0];\n    }\n}', 'ACTIVE', 0, 0.00, '2026-06-11 00:34:56', '2026-06-11 00:34:56'),
 ('3', '1002',  '反转链表',                 'easy',   '链表,递归',           '将两个升序链表合并为一个新的升序链表并返回。新链表是通过拼接给定的两个链表的所有节点组成的。', 'class Solution {\n    public ListNode mergeTwoLists(ListNode list1, ListNode list2) {\n        // 在此处编写你的代码\n        return null;\n    }\n}', 'ACTIVE', 0, 0.00, '2026-06-11 00:34:56', '2026-06-11 00:34:56'),
 ('4', '2001',  '买卖股票最佳时机',         'medium', '数组,动态规划',       '给定一个数组 prices ，它的第 i 个元素 prices[i] 表示一支给定股票第 i 天的价格。你只能选择某一天买入这只股票，并选择在未来的某一个不同的日子卖出该股票。设计一个算法来计算你所能获取的最大利润。', 'class Solution {\n    public int maxProfit(int[] prices) {\n        // 在此处编写你的代码\n        return 0;\n    }\n}', 'ACTIVE', 0, 0.00, '2026-06-11 00:34:56', '2026-06-11 00:34:56'),
 ('5', '2002',  '全排列',                   'medium', '回溯',                '给定一个不含重复数字的数组 nums ，返回其所有可能的全排列。你可以按任意顺序返回答案。', 'class Solution {\n    public List<List<Integer>> permute(int[] nums) {\n        // 在此处编写你的代码\n        return new ArrayList<>();\n    }\n}', 'ACTIVE', 0, 0.00, '2026-06-11 00:34:56', '2026-06-11 00:34:56'),
 ('6', '3001',  '最长公共子序列',           'hard',   '动态规划',           '给定两个字符串 text1 和 text2，返回这两个字符串的最长公共子序列的长度。', 'class Solution {\n    public int longestCommonSubsequence(String text1, String text2) {\n        // 在此处编写你的代码\n        return 0;\n    }\n}', 'ACTIVE', 0, 0.00, '2026-06-11 00:34:56', '2026-06-11 00:34:56'),
-('7', '3002',  '滑动窗口最大值',           'hard',   '队列,滑动窗口',       '给你一个整数数组 nums，有一个大小为 k 的滑动窗口从数组的最左侧移动到数组的最右侧。你只可以看到在滑动窗口内的 k 个数字。滑动窗口每次只向右移动一位。返回滑动窗口中的最大值。', 'class Solution {\n    public int[] maxSlidingWindow(int[] nums, int k) {\n        // 在此处编写你的代码\n        return new int[0];\n    }\n}', 'ACTIVE', 0, 0.00, '2026-06-11 00:34:56', '2026-06-11 00:34:56'),
-('8', '11',    '1',                        'easy',   '图',                  '你好', '', 'ACTIVE', 0, 0.00, '2026-05-13 06:46:37', '2026-05-13 06:46:37'),
-('9', '3',     '合并区间',                 'medium', NULL,                  NULL, NULL, 'ACTIVE', 0, 0.00, '2026-06-11 00:34:56', '2026-06-11 00:34:56');
+('7', '3002',  '滑动窗口最大值',           'hard',   '队列,滑动窗口',       '给你一个整数数组 nums，有一个大小为 k 的滑动窗口从数组的最左侧移动到数组的最右侧。你只可以看到在滑动窗口内的 k 个数字。滑动窗口每次只向右移动一位。返回滑动窗口中的最大值。', 'class Solution {\n    public int[] maxSlidingWindow(int[] nums, int k) {\n        // 在此处编写你的代码\n        return new int[0];\n    }\n}', 'ACTIVE', 0, 0.00, '2026-06-11 00:34:56', '2026-06-11 00:34:56');
+
 
 -- ============================================================================
 -- 4. VARCHAR 长度修复（适配 UUID 36 字符）
