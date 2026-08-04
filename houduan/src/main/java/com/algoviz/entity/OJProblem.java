@@ -1,5 +1,6 @@
 package com.algoviz.entity;
 
+import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import java.util.List;
 
@@ -27,6 +28,7 @@ public class OJProblem {
     public void setTitle(String title) { this.title = title; }
     public String getDifficulty() { return difficulty; }
     public void setDifficulty(String difficulty) { this.difficulty = difficulty; }
+    @JsonGetter("tags")
     public String getTags() { return tags; }
 
     @JsonSetter("tags")

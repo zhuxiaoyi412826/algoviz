@@ -547,8 +547,36 @@ const downloadExcelTemplate = () => {
   ElMessage.success('模板已开始下载')
 }
 
+const exportDialogVisible = ref(false)
+
 const handleExport = () => {
-  ElMessage.info('导出功能开发中')
+  exportDialogVisible.value = true
+}
+
+const handleExportFormat = async (format: 'sql' | 'json') => {
+  try {
+    const url = `/api/problems/export/${format}`
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error('导出失败')
+    }
+
+    const blob = await response.blob()
+    const urlObj = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = urlObj
+    a.download = `oj_problems.${format === 'sql' ? 'sql' : 'json'}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(urlObj)
+
+    ElMessage.success(`${format.toUpperCase()} 文件导出成功`)
+    exportDialogVisible.value = false
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败: ' + (error as Error).message)
+  }
 }
 
 const getDifficultyType = (difficulty: string) => {
@@ -1408,6 +1436,29 @@ const saveAIEdit = () => {
 
       <template #footer>
         <el-button @click="importVisible = false" :disabled="importLoading">取消</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 导出格式选择弹窗 -->
+    <el-dialog v-model="exportDialogVisible" title="导出题目" width="400px" :close-on-click-modal="true">
+      <div style="text-align: center; padding: 20px 0;">
+        <p style="margin-bottom: 20px; color: #606266; font-size: 14px;">请选择导出格式：</p>
+        <div style="display: flex; gap: 16px; justify-content: center;">
+          <el-button type="primary" size="large" @click="handleExportFormat('sql')">
+            <el-icon class="el-icon--left"><Download /></el-icon>
+            导出 SQL
+          </el-button>
+          <el-button type="success" size="large" @click="handleExportFormat('json')">
+            <el-icon class="el-icon--left"><Download /></el-icon>
+            导出 JSON
+          </el-button>
+        </div>
+        <p style="margin-top: 16px; color: #909399; font-size: 12px;">
+          当前将导出所有题目数据
+        </p>
+      </div>
+      <template #footer>
+        <el-button @click="exportDialogVisible = false">取消</el-button>
       </template>
     </el-dialog>
   </div>

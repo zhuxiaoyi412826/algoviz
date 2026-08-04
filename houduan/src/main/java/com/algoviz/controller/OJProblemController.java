@@ -8,14 +8,21 @@ import com.algoviz.service.ExcelImportService;
 import com.algoviz.service.MdImportService;
 import com.algoviz.service.JsonImportService;
 import com.algoviz.service.OJProblemService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +47,9 @@ public class OJProblemController {
 
     @Autowired
     private JsonImportService jsonImportService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @GetMapping
     @Operation(summary = "获取题目列表", description = "获取所有题目或按条件筛选")
@@ -410,5 +420,97 @@ public class OJProblemController {
         logger.info("收到 JSON 导入请求：filename={}, size={} bytes, overwrite={}",
                 file.getOriginalFilename(), file.getSize(), overwriteOnConflict);
         return jsonImportService.importFromJson(file, overwriteOnConflict);
+    }
+
+    /**
+     * 导出题目为 SQL 文件
+     */
+    @GetMapping("/export/sql")
+    @Operation(summary = "导出题目(SQL)", description = "将所有题目导出为 SQL INSERT 语句文件")
+    public ResponseEntity<byte[]> exportAsSql() throws IOException {
+        logger.info("导出题目为 SQL 文件");
+        List<OJProblem> problems = problemService.getAllProblems();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("-- OJ 题目数据导出\n");
+        sb.append("-- 导出时间: ").append(java.time.LocalDateTime.now()).append("\n");
+        sb.append("-- 题目数量: ").append(problems.size()).append("\n\n");
+        sb.append("CREATE TABLE IF NOT EXISTS `oj_problem` (\n");
+        sb.append("  `id` BIGINT NOT NULL AUTO_INCREMENT,\n");
+        sb.append("  `problem_no` VARCHAR(32) NOT NULL,\n");
+        sb.append("  `title` VARCHAR(255) NOT NULL,\n");
+        sb.append("  `difficulty` VARCHAR(16) NOT NULL DEFAULT 'medium',\n");
+        sb.append("  `tags` VARCHAR(255) DEFAULT '',\n");
+        sb.append("  `description` MEDIUMTEXT,\n");
+        sb.append("  `template` MEDIUMTEXT,\n");
+        sb.append("  `status` VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',\n");
+        sb.append("  `submission_count` INT NOT NULL DEFAULT 0,\n");
+        sb.append("  `ac_rate` DOUBLE NOT NULL DEFAULT 0,\n");
+        sb.append("  `created_at` DATETIME NOT NULL,\n");
+        sb.append("  `updated_at` DATETIME NOT NULL,\n");
+        sb.append("  PRIMARY KEY (`id`),\n");
+        sb.append("  UNIQUE KEY `uk_problem_no` (`problem_no`)\n");
+        sb.append(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n\n");
+
+        for (OJProblem p : problems) {
+            sb.append("INSERT INTO `oj_problem` (`problem_no`, `title`, `difficulty`, `tags`, `description`, `template`, `status`, `submission_count`, `ac_rate`, `created_at`, `updated_at`) VALUES\n");
+            sb.append("('")
+              .append(escapeSql(p.getProblemNo())).append("', '")
+              .append(escapeSql(p.getTitle())).append("', '")
+              .append(escapeSql(p.getDifficulty())).append("', '")
+              .append(escapeSql(p.getTags())).append("', '")
+              .append(escapeSql(p.getDescription())).append("', '")
+              .append(escapeSql(p.getTemplate())).append("', '")
+              .append(escapeSql(p.getStatus())).append("', ")
+              .append(p.getSubmissionCount() != null ? p.getSubmissionCount() : 0).append(", ")
+              .append(p.getAcRate() != null ? p.getAcRate() : 0.0).append(", '")
+              .append(escapeSql(p.getCreatedAt())).append("', '")
+              .append(escapeSql(p.getUpdatedAt())).append("');\n");
+        }
+
+        String content = sb.toString();
+        byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
+        String filename = URLEncoder.encode("oj_problems.sql", StandardCharsets.UTF_8);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"; filename*=UTF-8''" + filename)
+                .contentType(MediaType.parseMediaType("application/sql; charset=UTF-8"))
+                .body(contentBytes);
+    }
+
+    /**
+     * 导出题目为 JSON 文件
+     */
+    @GetMapping("/export/json")
+    @Operation(summary = "导出题目(JSON)", description = "将所有题目导出为 JSON 格式文件")
+    public ResponseEntity<byte[]> exportAsJson() throws IOException {
+        logger.info("导出题目为 JSON 文件");
+        List<OJProblem> problems = problemService.getAllProblems();
+
+        Map<String, Object> exportData = new HashMap<>();
+        exportData.put("exportTime", java.time.LocalDateTime.now().toString());
+        exportData.put("totalCount", problems.size());
+        exportData.put("problems", problems);
+
+        String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(exportData);
+        byte[] contentBytes = json.getBytes(StandardCharsets.UTF_8);
+        String filename = URLEncoder.encode("oj_problems.json", StandardCharsets.UTF_8);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"; filename*=UTF-8''" + filename)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(contentBytes);
+    }
+
+    /**
+     * 转义 SQL 字符串中的特殊字符
+     */
+    private String escapeSql(String value) {
+        if (value == null) return "";
+        return value.replace("\\", "\\\\")
+                .replace("'", "\\'")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 }
