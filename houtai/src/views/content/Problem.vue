@@ -6,7 +6,7 @@ import {
   ElInputNumber, ElRadioGroup, ElRadio, ElDivider, ElCheckboxGroup, ElCheckbox,
   ElEmpty
 } from 'element-plus'
-import { Plus, Edit, Delete, Search, Refresh, Upload, Download, View, MagicStick, Promotion } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search, Refresh, Upload, Download, View, MagicStick, Promotion, FullScreen, Aim } from '@element-plus/icons-vue'
 import type { OJProblem } from '@/types'
 
 const allProblems = ref<OJProblem[]>([])
@@ -14,6 +14,7 @@ const allProblems = ref<OJProblem[]>([])
 const allProblemsCache = ref<OJProblem[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
+const dialogFullscreen = ref(false)
 const detailVisible = ref(false)
 const dialogTitle = ref('新增题目')
 
@@ -169,6 +170,7 @@ const handleReset = () => {
 
 const handleAdd = () => {
   dialogTitle.value = '新增题目'
+  dialogFullscreen.value = false
   Object.keys(formData).forEach(key => {
     if (key === 'difficulty') (formData as any)[key] = 'medium'
     else if (key === 'tags') (formData as any)[key] = []
@@ -182,6 +184,7 @@ const handleAdd = () => {
 
 const handleEdit = (row: OJProblem) => {
   dialogTitle.value = '编辑题目'
+  dialogFullscreen.value = false
   Object.assign(formData, row)
   // 确保 template 是对象格式，且有默认语言键
   if (!formData.template || typeof formData.template !== 'object') {
@@ -305,6 +308,11 @@ const handleSubmit = async () => {
       ElMessage.error('保存题目失败')
     }
   })
+}
+
+const onDialogClosed = () => {
+  formRef.value?.resetFields()
+  dialogFullscreen.value = false
 }
 
 const handleBatchImport = () => {
@@ -749,11 +757,12 @@ const handleBatchAddToLibrary = async () => {
       // 组装和 OJProblem 实体一致的 payload
       const fullDescription = buildAIDescription(p)
 
+      const tagsValue = Array.isArray(p.tags) ? p.tags.join(',') : (p.tags || '')
       const body = {
         problemNo: p.problemNo || '',  // 空 → 后端自动分配
         title: p.title,
         difficulty: p.difficulty || 'medium',
-        tags: p.tags || '',
+        tags: tagsValue,
         description: fullDescription,
         template: p.template || '',
         status: 'ACTIVE'
@@ -964,7 +973,25 @@ const saveAIEdit = () => {
       </div>
     </div>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="700px" @closed="formRef?.resetFields()">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="700px"
+      :fullscreen="dialogFullscreen"
+      :top="'calc(15vh - 50px)'"
+      @closed="onDialogClosed"
+    >
+      <template #header>
+        <div class="dialog-header">
+          <span>{{ dialogTitle }}</span>
+          <el-button
+            :icon="dialogFullscreen ? Aim : FullScreen"
+            circle
+            size="small"
+            @click="dialogFullscreen = !dialogFullscreen"
+          />
+        </div>
+      </template>
       <el-form ref="formRef" :model="formData" :rules="rules" label-width="100px">
         <el-form-item label="题号" prop="problemNo">
           <el-input v-model="formData.problemNo" :disabled="!!formData.id" />
@@ -1387,6 +1414,16 @@ const saveAIEdit = () => {
 </template>
 
 <style scoped lang="scss">
+/* ============ 编辑弹窗头部样式 ============ */
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  font-size: 16px;
+  font-weight: 600;
+}
+
 .pagination-wrapper {
   display: flex;
   justify-content: flex-end;

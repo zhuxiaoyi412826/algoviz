@@ -111,7 +111,7 @@ public class AIProblemService {
                             : ojProblemService.generateNextProblemNo());
                     gp.setTitle(p.path("title").asText("未命名题目"));
                     gp.setDifficulty(p.path("difficulty").asText(request.getDifficulty()));
-                    gp.setTags(p.path("tags").asText(""));
+                    gp.setTags(convertTags(p.path("tags")));
                     gp.setDescription(p.path("description").asText(""));
                     gp.setInputFormat(p.path("inputFormat").asText(""));
                     gp.setOutputFormat(p.path("outputFormat").asText(""));
@@ -324,7 +324,7 @@ public class AIProblemService {
                             : ojProblemService.generateNextProblemNo());
                     gp.setTitle(p.path("title").asText("未命名题目"));
                     gp.setDifficulty(p.path("difficulty").asText(request.getDifficulty()));
-                    gp.setTags(p.path("tags").asText(""));
+                    gp.setTags(convertTags(p.path("tags")));
                     gp.setDescription(p.path("description").asText(""));
                     gp.setInputFormat(p.path("inputFormat").asText(""));
                     gp.setOutputFormat(p.path("outputFormat").asText(""));
@@ -375,5 +375,27 @@ public class AIProblemService {
                   .replace("\n", "\\n")
                   .replace("\r", "\\r")
                   .replace("\t", "\\t");
+    }
+
+    /**
+     * 将 AI 返回的 tags 字段转为字符串。
+     * AI 可能返回字符串 "数组,动态规划" 或数组 ["数组", "动态规划"]
+     */
+    private String convertTags(JsonNode tagsNode) {
+        if (tagsNode == null || tagsNode.isNull()) {
+            return "";
+        }
+        if (tagsNode.isArray()) {
+            StringBuilder sb = new StringBuilder();
+            for (JsonNode item : tagsNode) {
+                String s = item.asText("").trim();
+                if (!s.isEmpty()) {
+                    if (sb.length() > 0) sb.append(",");
+                    sb.append(s);
+                }
+            }
+            return sb.toString();
+        }
+        return tagsNode.asText("").trim();
     }
 }

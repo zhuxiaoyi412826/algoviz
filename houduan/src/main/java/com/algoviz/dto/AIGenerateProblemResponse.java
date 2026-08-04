@@ -1,5 +1,6 @@
 package com.algoviz.dto;
 
+import com.fasterxml.jackson.annotation.JsonSetter;
 import java.util.List;
 
 /**
@@ -82,7 +83,28 @@ public class AIGenerateProblemResponse {
         public void setDifficulty(String difficulty) { this.difficulty = difficulty; }
 
         public String getTags() { return tags; }
-        public void setTags(String tags) { this.tags = tags; }
+
+        @JsonSetter("tags")
+        public void setTags(Object tags) {
+            if (tags == null) {
+                this.tags = null;
+            } else if (tags instanceof String) {
+                this.tags = (String) tags;
+            } else if (tags instanceof List) {
+                List<?> list = (List<?>) tags;
+                StringBuilder sb = new StringBuilder();
+                for (Object item : list) {
+                    String s = item == null ? "" : item.toString().trim();
+                    if (!s.isEmpty()) {
+                        if (sb.length() > 0) sb.append(",");
+                        sb.append(s);
+                    }
+                }
+                this.tags = sb.toString();
+            } else {
+                this.tags = tags.toString();
+            }
+        }
 
         public String getDescription() { return description; }
         public void setDescription(String description) { this.description = description; }
