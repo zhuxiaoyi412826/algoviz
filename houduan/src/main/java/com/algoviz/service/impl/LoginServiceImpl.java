@@ -75,8 +75,11 @@ public class LoginServiceImpl implements LoginService {
             user.setUsername(openId);
             user.setEmail(openId + "@example.com");
             user.setPassword(""); // 微信登录不需要密码
-            user.setAvatar("👤");
+            user.setAge(null);
             user.setGender("未知");
+            user.setLoginStatus("offline");
+            user.setStatus(1);
+            user.setAvatarUrl("https://i.pravatar.cc/150?u=" + System.currentTimeMillis());
             user.setNickname("微信用户" + new Random().nextInt(10000));
             user = userService.createUser(user);
         } else {
@@ -99,7 +102,7 @@ public class LoginServiceImpl implements LoginService {
         userInfo.setId(user.getId());
         userInfo.setUsername(user.getUsername());
         userInfo.setEmail(user.getEmail());
-        userInfo.setAvatar(user.getAvatar());
+        userInfo.setAge(user.getAge());
         userInfo.setNickname(user.getNickname());
         response.setUserInfo(userInfo);
 

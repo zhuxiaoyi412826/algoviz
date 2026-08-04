@@ -14,7 +14,7 @@ public class LoginResponse {
         private Integer id;
         private String username;
         private String email;
-        private String avatar;
+        private Integer age;
         private String nickname;
     }
 }

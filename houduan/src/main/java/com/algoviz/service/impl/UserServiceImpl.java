@@ -34,6 +34,15 @@ public class UserServiceImpl implements UserService {
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         user.setLastLoginAt(LocalDateTime.now());
+        if (user.getLoginStatus() == null) {
+            user.setLoginStatus("offline");
+        }
+        if (user.getStatus() == null) {
+            user.setStatus(1);
+        }
+        if (user.getAvatarUrl() == null || user.getAvatarUrl().isEmpty()) {
+            user.setAvatarUrl("https://i.pravatar.cc/150?u=" + System.currentTimeMillis());
+        }
         userMapper.insert(user);
         return user;
     }
@@ -96,5 +105,22 @@ public class UserServiceImpl implements UserService {
     @Override
     public int countUsers() {
         return userMapper.countUsers();
+    }
+
+    @Override
+    public List<User> getUsersByConditions(String keyword, String gender, Integer status, String loginStatus, String order, int page, int pageSize) {
+        String safeOrder = "desc".equalsIgnoreCase(order) ? "DESC" : "ASC";
+        int offset = (page - 1) * pageSize;
+        return userMapper.getUsersByConditions(keyword, gender, status, loginStatus, safeOrder, offset, pageSize);
+    }
+
+    @Override
+    public int getUsersCountByConditions(String keyword, String gender, Integer status, String loginStatus) {
+        return userMapper.getUsersCountByConditions(keyword, gender, status, loginStatus);
+    }
+
+    @Override
+    public void updateStatus(Integer id, Integer status) {
+        userMapper.updateStatus(id, status);
     }
 }

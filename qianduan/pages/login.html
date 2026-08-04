@@ -445,7 +445,7 @@
                         if (window.countdownInterval) clearInterval(window.countdownInterval);
                         
                         localStorage.setItem('isLoggedIn', 'true');
-                        localStorage.setItem('userAvatar', result.userInfo?.avatar || '👤');
+                        localStorage.setItem('userAvatar', '👤');
                         localStorage.setItem('userInfo', JSON.stringify(result.userInfo || {}));
                         localStorage.setItem('token', result.token || '');
                         
@@ -489,7 +489,7 @@
                 
                 if (result.success) {
                     localStorage.setItem('isLoggedIn', 'true');
-                    localStorage.setItem('userAvatar', result.userInfo.avatar || '👤');
+                    localStorage.setItem('userAvatar', '👤');
                     localStorage.setItem('userInfo', JSON.stringify(result.userInfo));
                     localStorage.setItem('token', result.token);
                     window.location.href = '/pages/profile.html';

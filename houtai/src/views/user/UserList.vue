@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { ElTable, ElTableColumn, ElButton, ElTag, ElDialog, ElAvatar, ElMessage, ElPagination, ElInput, ElSelect, ElOption, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Edit, Delete } from '@element-plus/icons-vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
+import { ElTable, ElTableColumn, ElButton, ElTag, ElDialog, ElAvatar, ElMessage, ElPagination, ElInput, ElSelect, ElOption, ElMessageBox, ElRadio, ElRadioGroup } from 'element-plus'
+import { Search, Refresh, Edit, Delete, Download } from '@element-plus/icons-vue'
 import type { AppUser } from '@/types'
 
 interface User {
   id: number
   username: string
   email: string
-  avatar: string
+  age: number | null
   gender: string
   nickname: string
+  avatarUrl: string
+  loginStatus: string
+  status: number
   createdAt: string
   updatedAt: string
   lastLoginAt: string
@@ -20,17 +23,43 @@ const tableData = ref<User[]>([])
 const loading = ref(false)
 const detailVisible = ref(false)
 const currentUser = ref<User | null>(null)
+const editVisible = ref(false)
+const editUser = ref<User | null>(null)
+const editStatus = ref<number>(1)
 
-const searchForm = reactive({ keyword: '', status: '' })
+const scrollTopRef = ref<HTMLElement | null>(null)
+const tableWrapperRef = ref<HTMLElement | null>(null)
+let syncing = false
+
+const syncScroll = (source: 'top' | 'bottom') => {
+  if (syncing) return
+  syncing = true
+  if (source === 'top' && scrollTopRef.value && tableWrapperRef.value) {
+    tableWrapperRef.value.scrollLeft = scrollTopRef.value.scrollLeft
+  } else if (source === 'bottom' && scrollTopRef.value && tableWrapperRef.value) {
+    scrollTopRef.value.scrollLeft = tableWrapperRef.value.scrollLeft
+  }
+  syncing = false
+}
+
+const searchForm = reactive({ keyword: '', gender: '', status: '' as string, loginStatus: '', order: 'desc' })
 const page = ref(1); const pageSize = ref(100); const total = ref(0)
 
 onMounted(() => loadData())
+
+onUnmounted(() => {
+  syncing = true
+})
 
 const loadData = async () => {
   loading.value = true
   try {
     const params = new URLSearchParams()
     if (searchForm.keyword) params.append('keyword', searchForm.keyword)
+    if (searchForm.gender) params.append('gender', searchForm.gender)
+    if (searchForm.status != null && searchForm.status !== '') params.append('status', String(searchForm.status))
+    if (searchForm.loginStatus) params.append('loginStatus', searchForm.loginStatus)
+    if (searchForm.order) params.append('order', searchForm.order)
     params.append('page', String(page.value))
     params.append('pageSize', String(pageSize.value))
     
@@ -42,9 +71,12 @@ const loadData = async () => {
         id: item.id,
         username: item.username,
         email: item.email,
-        avatar: item.avatar || '',
+        age: item.age,
         gender: item.gender || '未知',
         nickname: item.nickname || item.username,
+        avatarUrl: item.avatarUrl || '',
+        loginStatus: item.loginStatus || 'offline',
+        status: item.status != null ? item.status : 1,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
         lastLoginAt: item.lastLoginAt
@@ -77,7 +109,10 @@ const handleSearch = () => {
 
 const handleReset = () => {
   searchForm.keyword = ''
+  searchForm.gender = ''
   searchForm.status = ''
+  searchForm.loginStatus = ''
+  searchForm.order = 'desc'
   loadData()
 }
 
@@ -87,8 +122,31 @@ const handleView = (row: User) => {
 }
 
 const handleEdit = (row: User) => {
-  currentUser.value = row
-  detailVisible.value = true
+  editUser.value = row
+  editStatus.value = row.status
+  editVisible.value = true
+}
+
+const handleSaveEdit = async () => {
+  if (!editUser.value) return
+  try {
+    const response = await fetch(`http://localhost/api/users/${editUser.value.id}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: editStatus.value })
+    })
+    const data = await response.json()
+    if (data.success) {
+      ElMessage.success('用户状态更新成功')
+      editVisible.value = false
+      loadData()
+    } else {
+      ElMessage.error(data.message || '更新失败')
+    }
+  } catch (error) {
+    console.error('更新失败:', error)
+    ElMessage.error('更新失败')
+  }
 }
 
 const handleDelete = async (row: User) => {
@@ -108,6 +166,28 @@ const handleDelete = async (row: User) => {
     }
   } catch {}
 }
+
+const handleExport = async () => {
+  try {
+    const response = await fetch('http://localhost/api/users/export/json')
+    if (!response.ok) {
+      throw new Error('导出失败')
+    }
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'users.json'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    ElMessage.success('用户数据导出成功')
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败: ' + (error as Error).message)
+  }
+}
 </script>
 
 <template>
@@ -116,15 +196,36 @@ const handleDelete = async (row: User) => {
     <div class="card-container">
       <div class="filter-bar">
         <el-input v-model="searchForm.keyword" placeholder="用户名/邮箱" clearable style="width:180px" @keyup.enter="handleSearch" />
+        <el-select v-model="searchForm.gender" placeholder="性别" clearable style="width:120px">
+          <el-option label="男" value="男" />
+          <el-option label="女" value="女" />
+        </el-select>
+        <el-select v-model="searchForm.status" placeholder="账号状态" clearable style="width:130px">
+          <el-option label="正常" value="1" />
+          <el-option label="封禁" value="0" />
+        </el-select>
+        <el-select v-model="searchForm.loginStatus" placeholder="登录状态" clearable style="width:130px">
+          <el-option label="在线" value="online" />
+          <el-option label="离线" value="offline" />
+        </el-select>
+        <el-select v-model="searchForm.order" placeholder="注册时间" style="width:140px">
+          <el-option label="注册时间倒序" value="desc" />
+          <el-option label="注册时间正序" value="asc" />
+        </el-select>
         <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
         <el-button :icon="Refresh" @click="handleReset">重置</el-button>
+        <el-button type="success" :icon="Download" @click="handleExport" style="margin-left:auto">导出JSON</el-button>
       </div>
-      <el-table :data="tableData" v-loading="loading" stripe style="margin-top:16px">
+      <div class="scroll-top" ref="scrollTopRef" @scroll="syncScroll('top')">
+        <div class="scroll-top-inner" style="min-width:1200px; height:1px"></div>
+      </div>
+      <div class="table-wrapper" ref="tableWrapperRef" @scroll="syncScroll('bottom')">
+        <el-table :data="tableData" v-loading="loading" stripe style="min-width:1200px">
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column label="用户" min-width="200">
           <template #default="{row}">
             <div style="display:flex;align-items:center;gap:10px">
-              <el-avatar :size="36" :src="row.avatar" icon="User" />
+              <el-avatar :size="36" :src="row.avatarUrl" icon="User" />
               <div>
                 <div>{{ row.nickname }}</div>
                 <div style="font-size:12px;color:#999">{{ row.username }}</div>
@@ -133,7 +234,24 @@ const handleDelete = async (row: User) => {
           </template>
         </el-table-column>
         <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="age" label="年龄" width="70">
+          <template #default="{row}">{{ row.age != null ? row.age : '-' }}</template>
+        </el-table-column>
         <el-table-column prop="gender" label="性别" width="70" />
+        <el-table-column label="登录状态" width="90">
+          <template #default="{row}">
+            <el-tag :type="row.loginStatus === 'online' ? 'success' : 'info'" size="small">
+              {{ row.loginStatus === 'online' ? '在线' : '离线' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="账号状态" width="90">
+          <template #default="{row}">
+            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
+              {{ row.status === 1 ? '正常' : '封禁' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="150" />
         <el-table-column prop="lastLoginAt" label="最后登录" width="150" />
         <el-table-column label="操作" width="180">
@@ -144,6 +262,7 @@ const handleDelete = async (row: User) => {
           </template>
         </el-table-column>
       </el-table>
+      </div>
       <div class="pagination-wrapper">
         <el-pagination 
           v-model:current-page="page" 
@@ -163,15 +282,60 @@ const handleDelete = async (row: User) => {
         <el-descriptions-item label="昵称">{{ currentUser.nickname }}</el-descriptions-item>
         <el-descriptions-item label="邮箱">{{ currentUser.email }}</el-descriptions-item>
         <el-descriptions-item label="性别">{{ currentUser.gender }}</el-descriptions-item>
+        <el-descriptions-item label="年龄">{{ currentUser.age != null ? currentUser.age : '-' }}</el-descriptions-item>
         <el-descriptions-item label="头像">
-          <el-avatar :size="40" :src="currentUser.avatar" icon="User" />
+          <el-avatar :size="40" :src="currentUser.avatarUrl" icon="User" />
+        </el-descriptions-item>
+        <el-descriptions-item label="登录状态">
+          <el-tag :type="currentUser.loginStatus === 'online' ? 'success' : 'info'" size="small">
+            {{ currentUser.loginStatus === 'online' ? '在线' : '离线' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="账号状态">
+          <el-tag :type="currentUser.status === 1 ? 'success' : 'danger'" size="small">
+            {{ currentUser.status === 1 ? '正常' : '封禁' }}
+          </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ currentUser.createdAt }}</el-descriptions-item>
         <el-descriptions-item label="更新时间">{{ currentUser.updatedAt }}</el-descriptions-item>
         <el-descriptions-item label="最后登录" :span="2">{{ currentUser.lastLoginAt || '-' }}</el-descriptions-item>
       </el-descriptions>
     </el-dialog>
+    <el-dialog v-model="editVisible" title="编辑用户" width="450px" :close-on-click-modal="false">
+      <div v-if="editUser" style="padding:10px 0">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="ID">{{ editUser.id }}</el-descriptions-item>
+          <el-descriptions-item label="用户名">{{ editUser.username }}</el-descriptions-item>
+          <el-descriptions-item label="昵称">{{ editUser.nickname }}</el-descriptions-item>
+          <el-descriptions-item label="邮箱">{{ editUser.email }}</el-descriptions-item>
+          <el-descriptions-item label="性别">{{ editUser.gender }}</el-descriptions-item>
+        </el-descriptions>
+        <div style="margin-top:18px">
+          <div style="font-weight:600;margin-bottom:8px">账号状态 <span style="color:#f56c6c">*</span></div>
+          <el-radio-group v-model="editStatus">
+            <el-radio :value="1"><el-tag type="success" size="small">正常</el-tag></el-radio>
+            <el-radio :value="0"><el-tag type="danger" size="small">封禁</el-tag></el-radio>
+          </el-radio-group>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="editVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveEdit">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
-<style scoped>.pagination-wrapper{display:flex;justify-content:flex-end;margin-top:16px}</style>
+<style scoped>
+.pagination-wrapper{display:flex;justify-content:flex-end;margin-top:16px}
+.scroll-top{overflow-x:auto;overflow-y:hidden;margin-bottom:-1px}
+.scroll-top::-webkit-scrollbar{height:8px}
+.scroll-top::-webkit-scrollbar-track{background:#f1f1f1}
+.scroll-top::-webkit-scrollbar-thumb{background:#c1c1c1;border-radius:4px}
+.scroll-top::-webkit-scrollbar-thumb:hover{background:#a8a8a8}
+.table-wrapper{overflow-x:auto;margin-top:0}
+.table-wrapper::-webkit-scrollbar{height:8px}
+.table-wrapper::-webkit-scrollbar-track{background:#f1f1f1}
+.table-wrapper::-webkit-scrollbar-thumb{background:#c1c1c1;border-radius:4px}
+.table-wrapper::-webkit-scrollbar-thumb:hover{background:#a8a8a8}
+</style>

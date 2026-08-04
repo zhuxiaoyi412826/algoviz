@@ -33,7 +33,54 @@ public interface UserMapper {
     
     @Delete("DELETE FROM user WHERE id = #{id}")
     void deleteById(@Param("id") Integer id);
+
+    @Update("UPDATE user SET status = #{status}, updated_at = NOW() WHERE id = #{id}")
+    void updateStatus(@Param("id") Integer id, @Param("status") Integer status);
     
     @Select("SELECT COUNT(*) FROM user")
     int countUsers();
+
+    @Select("<script>" +
+            "SELECT * FROM user WHERE 1=1" +
+            "<if test='keyword != null and keyword != \"\"'>" +
+            " AND (username LIKE CONCAT('%', #{keyword}, '%') OR email LIKE CONCAT('%', #{keyword}, '%'))" +
+            "</if>" +
+            "<if test='gender != null and gender != \"\"'>" +
+            " AND gender = #{gender}" +
+            "</if>" +
+            "<if test='status != null'>" +
+            " AND status = #{status}" +
+            "</if>" +
+            "<if test='loginStatus != null and loginStatus != \"\"'>" +
+            " AND login_status = #{loginStatus}" +
+            "</if>" +
+            " ORDER BY created_at ${order} LIMIT #{offset}, #{pageSize}" +
+            "</script>")
+    List<User> getUsersByConditions(@Param("keyword") String keyword,
+                                    @Param("gender") String gender,
+                                    @Param("status") Integer status,
+                                    @Param("loginStatus") String loginStatus,
+                                    @Param("order") String order,
+                                    @Param("offset") int offset,
+                                    @Param("pageSize") int pageSize);
+
+    @Select("<script>" +
+            "SELECT COUNT(*) FROM user WHERE 1=1" +
+            "<if test='keyword != null and keyword != \"\"'>" +
+            " AND (username LIKE CONCAT('%', #{keyword}, '%') OR email LIKE CONCAT('%', #{keyword}, '%'))" +
+            "</if>" +
+            "<if test='gender != null and gender != \"\"'>" +
+            " AND gender = #{gender}" +
+            "</if>" +
+            "<if test='status != null'>" +
+            " AND status = #{status}" +
+            "</if>" +
+            "<if test='loginStatus != null and loginStatus != \"\"'>" +
+            " AND login_status = #{loginStatus}" +
+            "</if>" +
+            "</script>")
+    int getUsersCountByConditions(@Param("keyword") String keyword,
+                                  @Param("gender") String gender,
+                                  @Param("status") Integer status,
+                                  @Param("loginStatus") String loginStatus);
 }

@@ -19,4 +19,7 @@ public interface UserService {
     int searchUsersCount(String keyword);
     void deleteUser(Integer id);
     int countUsers();
+    List<User> getUsersByConditions(String keyword, String gender, Integer status, String loginStatus, String order, int page, int pageSize);
+    int getUsersCountByConditions(String keyword, String gender, Integer status, String loginStatus);
+    void updateStatus(Integer id, Integer status);
 }

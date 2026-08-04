@@ -10,9 +10,12 @@ public class User {
     private String username;
     private String email;
     private String password;
-    private String avatar;
+    private Integer age;
     private String gender;
     private String nickname;
+    private String avatarUrl;
+    private String loginStatus;
+    private Integer status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime lastLoginAt;

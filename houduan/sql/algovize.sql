@@ -26,9 +26,12 @@ CREATE TABLE `user` (
     `username`      VARCHAR(50)  NOT NULL,
     `email`         VARCHAR(100) NOT NULL,
     `password`      VARCHAR(255) DEFAULT NULL,
-    `avatar`        VARCHAR(500) DEFAULT '👤',
+    `age`           INT          DEFAULT NULL,
     `gender`        VARCHAR(10)  DEFAULT '未知',
     `nickname`      VARCHAR(100) DEFAULT NULL,
+    `avatar_url`    VARCHAR(500) DEFAULT NULL,
+    `login_status`  VARCHAR(20)  DEFAULT 'offline',
+    `status`        TINYINT      DEFAULT 1 COMMENT '1:正常 0:封禁',
     `created_at`    DATETIME     DEFAULT CURRENT_TIMESTAMP,
     `updated_at`    DATETIME     DEFAULT CURRENT_TIMESTAMP,
     `last_login_at` DATETIME     DEFAULT CURRENT_TIMESTAMP,
@@ -402,9 +405,9 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- ============================================================================
 
 -- 用户测试数据
-INSERT INTO `user` (`username`, `email`, `password`, `avatar`, `gender`, `nickname`) VALUES
-('admin',  'admin@example.com',  'admin123', '👨', '男',   '管理员'),
-('user1',  'user1@example.com',  'user123',  '👤', '未知', '用户1');
+INSERT INTO `user` (`username`, `email`, `password`, `age`, `gender`, `nickname`, `avatar_url`, `login_status`, `status`) VALUES
+('admin',  'admin@example.com',  'admin123', 25, '男',   '管理员', 'https://i.pravatar.cc/150?u=1', 'offline', 1),
+('user1',  'user1@example.com',  'user123',  NULL, '未知', '用户1', 'https://i.pravatar.cc/150?u=2', 'offline', 1);
 
 -- 管理员账号（密码: admin123）
 INSERT INTO `admin` (`id`, `username`, `nickname`, `password`, `role`, `status`) VALUES
@@ -478,3 +481,24 @@ SELECT COUNT(*) AS user_count      FROM `user`;
 SELECT COUNT(*) AS product_count   FROM `product`;
 SELECT COUNT(*) AS oj_problem_cnt  FROM `oj_problem`;
 SELECT COUNT(*) AS admin_count     FROM `admin`;
+
+-- ============================================================================
+-- 6. user 表字段变更：avatar → age，新增 avatar_url / login_status / status
+-- ============================================================================
+
+-- 6.1 将 avatar 字段替换为 age
+ALTER TABLE `user` CHANGE COLUMN `avatar` `age` INT DEFAULT NULL COMMENT '年龄';
+
+-- 6.2 新增 avatar_url（头像地址）
+ALTER TABLE `user` ADD COLUMN `avatar_url` VARCHAR(500) DEFAULT NULL COMMENT '头像URL' AFTER `nickname`;
+
+-- 6.3 新增 login_status（登录状态：online/offline）
+ALTER TABLE `user` ADD COLUMN `login_status` VARCHAR(20) DEFAULT 'offline' COMMENT '登录状态' AFTER `avatar_url`;
+
+-- 6.4 新增 status（账号状态：1正常 0封禁）
+ALTER TABLE `user` ADD COLUMN `status` TINYINT DEFAULT 1 COMMENT '1:正常 0:封禁' AFTER `login_status`;
+
+-- 6.5 批量更新所有用户的头像URL（格式：https://i.pravatar.cc/150?u={id}）
+UPDATE `user` SET `avatar_url` = CONCAT('https://i.pravatar.cc/150?u=', `id`), `updated_at` = NOW() WHERE `avatar_url` IS NULL OR `avatar_url` = '';
+
+SELECT 'user 表字段变更完成' AS message;

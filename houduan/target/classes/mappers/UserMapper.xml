@@ -13,14 +13,15 @@
     </select>
 
     <insert id="insert" parameterType="com.algoviz.entity.User">
-        INSERT INTO user (username, email, password, avatar, gender, nickname, created_at, updated_at, last_login_at)
-        VALUES (#{username}, #{email}, #{password}, #{avatar}, #{gender}, #{nickname}, #{createdAt}, #{updatedAt}, #{lastLoginAt})
+        INSERT INTO user (username, email, password, age, gender, nickname, avatar_url, login_status, status, created_at, updated_at, last_login_at)
+        VALUES (#{username}, #{email}, #{password}, #{age}, #{gender}, #{nickname}, #{avatarUrl}, #{loginStatus}, #{status}, #{createdAt}, #{updatedAt}, #{lastLoginAt})
     </insert>
 
     <update id="update" parameterType="com.algoviz.entity.User">
         UPDATE user
-        SET username = #{username}, email = #{email}, password = #{password}, avatar = #{avatar},
-            gender = #{gender}, nickname = #{nickname}, updated_at = #{updatedAt}
+        SET username = #{username}, email = #{email}, password = #{password}, age = #{age},
+            gender = #{gender}, nickname = #{nickname}, avatar_url = #{avatarUrl},
+            login_status = #{loginStatus}, status = #{status}, updated_at = #{updatedAt}
         WHERE id = #{id}
     </update>
 
