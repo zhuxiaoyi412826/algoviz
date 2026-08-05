@@ -1,873 +1,254 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>算法题库</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  :root {
-    --bg-dark: #1a1a2e;
-    --bg-panel: #16213e;
-    --bg-card: #0f3460;
-    --bg-editor: #1e1e2e;
-    --bg-toolbar: #12122a;
-    --accent: #7c3aed;
-    --accent2: #06b6d4;
-    --green: #10b981;
-    --yellow: #f59e0b;
-    --red: #ef4444;
-    --text: #e2e8f0;
-    --text-dim: #94a3b8;
-    --text-muted: #475569;
-    --border: #2d2d4e;
-    --divider: #3b3b6b;
-    --font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-    --radius: 6px;
-  }
-
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg-dark);
-    color: var(--text);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    font-size: 13px;
-  }
-
-  /* ── TOP NAV ── */
-  .topnav {
-    display: flex; align-items: center;
-    background: var(--bg-toolbar);
-    border-bottom: 1px solid var(--border);
-    padding: 0 12px; height: 44px;
-    flex-shrink: 0; gap: 8px; z-index: 100;
-  }
-  .nav-logo {
-    display: flex; align-items: center; gap: 6px;
-    font-weight: 700; font-size: 15px;
-    color: var(--accent2); letter-spacing: -0.3px; margin-right: 4px;
-  }
-  .nav-icon-btn {
-    width: 30px; height: 30px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 4px; color: var(--text-dim);
-    cursor: pointer; border: none; background: none;
-    transition: background 0.15s, color 0.15s;
-  }
-  .nav-icon-btn:hover { background: var(--bg-card); color: var(--text); }
-  .nav-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
-  .nav-spacer { flex: 1; }
-  .nav-run {
-    display: flex; align-items: center; gap: 6px;
-    background: var(--bg-panel); border: 1px solid var(--border);
-    border-radius: 4px; padding: 4px 10px;
-    color: var(--text-dim); cursor: pointer; font-size: 12px;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .nav-run:hover { border-color: var(--accent2); color: var(--accent2); }
-  .btn-submit {
-    display: flex; align-items: center; gap: 6px;
-    background: var(--green); border: none; border-radius: 4px;
-    padding: 5px 14px; color: #fff;
-    cursor: pointer; font-size: 12px; font-weight: 600;
-    transition: opacity 0.15s;
-  }
-  .btn-submit:hover { opacity: 0.85; }
-  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
-  .nav-timer {
-    font-family: var(--font-mono); font-size: 12px;
-    color: var(--accent2);
-    background: rgba(6,182,212,0.1);
-    border: 1px solid rgba(6,182,212,0.25);
-    border-radius: 4px; padding: 4px 10px;
-    min-width: 90px; text-align: center; cursor: pointer;
-  }
-  .btn-plus {
-    background: var(--accent); border: none; border-radius: 4px;
-    padding: 5px 12px; color: #fff;
-    cursor: pointer; font-size: 12px; font-weight: 600;
-  }
-
-  /* ── WORKSPACE ── */
-  .workspace {
-    display: flex; flex: 1;
-    overflow: hidden; position: relative;
-  }
-
-  /* ── LEFT PANEL ── */
-  .left-panel {
-    width: 420px; min-width: 220px; max-width: 60%;
-    display: flex; flex-direction: column;
-    background: var(--bg-panel);
-    border-right: 1px solid var(--border);
-    overflow: hidden; flex-shrink: 0;
-  }
-  .panel-tabs {
-    display: flex; align-items: center;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-toolbar);
-    padding: 0 8px; gap: 2px;
-    flex-shrink: 0; height: 38px;
-  }
-  .tab {
-    padding: 0 12px; height: 38px;
-    display: flex; align-items: center; gap: 6px;
-    font-size: 12px; color: var(--text-dim);
-    cursor: pointer; border-bottom: 2px solid transparent;
-    transition: color 0.15s; white-space: nowrap;
-  }
-  .tab:hover { color: var(--text); }
-  .tab.active { color: var(--text); border-bottom-color: var(--accent2); }
-
-  .problem-body {
-    flex: 1; overflow-y: auto;
-    padding: 20px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-  }
-  .problem-body::-webkit-scrollbar { width: 4px; }
-  .problem-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-  .problem-title {
-    font-size: 20px; font-weight: 700;
-    color: var(--text); margin-bottom: 12px; line-height: 1.3;
-  }
-  .tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
-  .tag {
-    font-size: 11px; padding: 3px 10px; border-radius: 20px;
-    font-weight: 500; cursor: pointer;
-  }
-  .tag-easy   { background: rgba(16,185,129,0.15); color: #10b981; }
-  .tag-medium { background: rgba(245,158,11,0.15);  color: #f59e0b; }
-  .tag-hard   { background: rgba(239,68,68,0.15);   color: #ef4444; }
-  .tag-related{ background: rgba(124,58,237,0.15);  color: #a78bfa; }
-  .tag-company{ background: rgba(245,158,11,0.15);  color: var(--yellow); }
-  .tag-hint   { background: rgba(6,182,212,0.12);   color: var(--accent2); }
-
-  .problem-text {
-    color: var(--text-dim); line-height: 1.75;
-    margin-bottom: 14px; font-size: 13px;
-  }
-  .problem-text strong { color: var(--text); font-weight: 600; }
-  .problem-text code {
-    font-family: var(--font-mono); font-size: 12px;
-    background: var(--bg-card); padding: 1px 5px; border-radius: 3px;
-    color: var(--accent2);
-  }
-
-  .example-label {
-    font-size: 11px; font-weight: 700; color: var(--text-dim);
-    text-transform: uppercase; letter-spacing: 0.8px;
-    margin: 14px 0 6px;
-  }
-  .example-block {
-    background: var(--bg-editor); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 12px 14px;
-    margin-bottom: 10px; font-family: var(--font-mono); font-size: 12px;
-    line-height: 1.8;
-  }
-  .example-block .lbl { color: var(--text-muted); }
-  .example-block .val { color: var(--text); }
-
-  /* ── DRAG HANDLE (H) ── */
-  .drag-handle {
-    width: 5px; cursor: col-resize;
-    background: transparent; flex-shrink: 0;
-    position: relative; z-index: 10;
-    transition: background 0.15s;
-  }
-  .drag-handle::after {
-    content: ''; position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 2px; height: 40px;
-    background: var(--divider); border-radius: 2px;
-    transition: background 0.15s, height 0.15s;
-  }
-  .drag-handle:hover, .drag-handle.dragging { background: rgba(124,58,237,0.1); }
-  .drag-handle:hover::after, .drag-handle.dragging::after { background: var(--accent); height: 60px; }
-
-  /* ── RIGHT PANEL ── */
-  .right-panel {
-    flex: 1; display: flex; flex-direction: column;
-    overflow: hidden; min-width: 200px;
-    background: var(--bg-editor);
-  }
-  .editor-topbar {
-    display: flex; align-items: center;
-    background: var(--bg-toolbar);
-    border-bottom: 1px solid var(--border);
-    padding: 0 10px; height: 38px; gap: 8px; flex-shrink: 0;
-  }
-  .editor-section-label {
-    font-size: 13px; font-weight: 600; color: var(--text);
-    display: flex; align-items: center; gap: 6px;
-  }
-  .lang-select {
-    display: flex; align-items: center; gap: 4px;
-    background: var(--bg-panel); border: 1px solid var(--border);
-    border-radius: 4px; padding: 3px 8px;
-    font-size: 12px; color: var(--text-dim); cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-    min-width: 80px;
-  }
-  .lang-select:hover { border-color: var(--accent); color: var(--text); }
-  .smart-badge {
-    font-size: 11px; color: var(--accent2);
-    background: rgba(6,182,212,0.1);
-    border: 1px solid rgba(6,182,212,0.2);
-    border-radius: 3px; padding: 2px 8px;
-    display: flex; align-items: center; gap: 4px;
-  }
-  .editor-spacer { flex: 1; }
-  .editor-action {
-    width: 26px; height: 26px;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--text-muted); cursor: pointer; border-radius: 3px;
-    border: none; background: none;
-    transition: color 0.15s, background 0.15s;
-  }
-  .editor-action:hover { color: var(--text); background: var(--bg-card); }
-
-  .right-inner { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-
-  .code-area {
-    flex: 1; overflow: auto; padding: 16px 0;
-    min-height: 80px;
-    scrollbar-width: thin; scrollbar-color: var(--border) transparent;
-  }
-  .code-area::-webkit-scrollbar { width: 4px; }
-  .code-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-  .code-lines { display: flex; }
-  .line-nums {
-    padding: 0 16px 0 12px; text-align: right;
-    font-family: var(--font-mono); font-size: 13px;
-    color: var(--text-muted); line-height: 22px;
-    user-select: none; min-width: 48px;
-  }
-  .code-content {
-    font-family: var(--font-mono); font-size: 13px;
-    line-height: 22px; color: var(--text);
-    white-space: pre; flex: 1; outline: none;
-  }
-
-  .editor-statusbar {
-    display: flex; align-items: center;
-    background: var(--bg-toolbar);
-    border-top: 1px solid var(--border);
-    padding: 0 12px; height: 26px;
-    font-size: 11px; color: var(--text-muted);
-    gap: 12px; flex-shrink: 0;
-  }
-  .status-spacer { flex: 1; }
-  .status-green { color: var(--green); }
-
-  /* ── DRAG HANDLE (V) ── */
-  .v-drag-handle {
-    height: 5px; cursor: row-resize;
-    background: transparent; flex-shrink: 0;
-    position: relative; z-index: 10;
-    transition: background 0.15s;
-  }
-  .v-drag-handle::after {
-    content: ''; position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    height: 2px; width: 40px;
-    background: var(--divider); border-radius: 2px;
-    transition: background 0.15s, width 0.15s;
-  }
-  .v-drag-handle:hover, .v-drag-handle.dragging { background: rgba(124,58,237,0.1); }
-  .v-drag-handle:hover::after, .v-drag-handle.dragging::after { background: var(--accent); width: 60px; }
-
-  /* ── OUTPUT PANEL ── */
-  .output-panel {
-    height: 200px; min-height: 80px; max-height: 70%;
-    display: flex; flex-direction: column;
-    border-top: 1px solid var(--border);
-    background: var(--bg-panel); flex-shrink: 0; overflow: hidden;
-  }
-  .output-tabs {
-    display: flex; align-items: center;
-    background: var(--bg-toolbar);
-    border-bottom: 1px solid var(--border);
-    padding: 0 8px; height: 36px; gap: 4px; flex-shrink: 0;
-  }
-  .out-tab {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 12px; color: var(--text-dim);
-    padding: 0 10px; height: 36px; cursor: pointer;
-    border-bottom: 2px solid transparent;
-  }
-  .out-tab.active { color: var(--text); border-bottom-color: var(--accent2); }
-  .output-body {
-    flex: 1; display: flex; align-items: center;
-    justify-content: center; color: var(--text-muted);
-    font-size: 13px; overflow: auto; padding: 12px;
-  }
-  .empty-hint {
-    display: flex; flex-direction: column; align-items: center; gap: 8px; opacity: 0.4;
-  }
-
-  /* ── BOTTOM BAR ── */
-  .bottom-bar {
-    display: flex; align-items: center;
-    background: var(--bg-toolbar);
-    border-top: 1px solid var(--border);
-    padding: 0 16px; height: 30px;
-    font-size: 11px; color: var(--text-muted); gap: 14px;
-    flex-shrink: 0;
-  }
-  .bottom-bar .likes   { color: #10b981; display: flex; align-items: center; gap: 4px; }
-  .bottom-bar .comments{ display: flex; align-items: center; gap: 4px; }
-  .bottom-bar .online  { color: var(--accent2); margin-left: auto; }
-
-  /* ── SKELETON LOADING ── */
-  .skeleton {
-    background: var(--bg-card);
-    border-radius: 4px;
-    opacity: 0.6;
-  }
-
-  .sk-title  { height: 24px; width: 60%; margin-bottom: 14px; }
-  .sk-tag    { height: 22px; width: 52px; border-radius: 20px; }
-  .sk-line   { height: 14px; margin-bottom: 10px; }
-  .sk-line.w90 { width: 90%; }
-  .sk-line.w75 { width: 75%; }
-  .sk-line.w55 { width: 55%; }
-  .sk-block  { height: 80px; margin-bottom: 10px; border-radius: 6px; }
-
-  /* drag tooltip */
-  .drag-tooltip {
-    position: fixed;
-    background: var(--bg-card); border: 1px solid var(--accent);
-    border-radius: 4px; padding: 3px 8px;
-    font-size: 11px; color: var(--text);
-    pointer-events: none; z-index: 999;
-    display: none; white-space: nowrap;
-  }
-
-  /* streaming cursor */
-  .streaming-cursor::after {
-    content: '▌'; animation: blink 0.7s steps(1) infinite;
-    color: var(--accent2);
-  }
-  @keyframes blink { 50% { opacity: 0; } }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线OJ - 题目详情</title>
+    <link rel="icon" type="image/png" href="../images/tubiao.png">
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/oj.css">
+    <script src="../js/main.js"></script>
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
 </head>
-<body>
 
-<!-- TOP NAV -->
-<nav class="topnav">
-  <div class="nav-logo">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    题库
-  </div>
-  <div class="nav-sep"></div>
-  <button class="nav-icon-btn" title="题库列表">
-    <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/></svg>
-  </button>
-  <button class="nav-icon-btn" id="btnPrev" title="上一题">
-    <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-  </button>
-  <button class="nav-icon-btn" id="btnNext" title="下一题">
-    <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-  </button>
-  <button class="nav-icon-btn" id="btnRandom" title="随机一题">
-    <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M3 4l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-  </button>
-  <div class="nav-spacer"></div>
-  <button class="nav-run" id="btnRun">
-    <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="currentColor"/></svg>
-    执行
-  </button>
-  <button class="btn-submit" id="btnSubmit">
-    <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-    提交
-  </button>
-  <div class="nav-sep"></div>
-  <div class="nav-timer" id="navTimer">⏱ 00:00:00 ↺</div>
-  <div class="nav-sep"></div>
-  <button class="nav-icon-btn">
-    <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" stroke="currentColor" stroke-width="2"/></svg>
-  </button>
-  <button class="btn-plus">Plus 会员</button>
-</nav>
-
-<!-- WORKSPACE -->
-<div class="workspace" id="workspace">
-
-  <!-- LEFT PANEL -->
-  <div class="left-panel" id="leftPanel">
-    <div class="panel-tabs">
-      <div class="tab active">
-        <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" stroke="currentColor" stroke-width="2"/><rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="2"/></svg>
-        题目描述
-      </div>
-      <div class="tab">
-        <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="2"/></svg>
-        题解
-      </div>
-      <div class="tab">
-        <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        提交记录
-      </div>
-    </div>
-    <div class="problem-body" id="problemBody">
-      <!-- skeleton -->
-      <div class="skeleton sk-title"></div>
-      <div class="tag-row">
-        <div class="skeleton sk-tag"></div>
-        <div class="skeleton sk-tag" style="width:70px"></div>
-        <div class="skeleton sk-tag" style="width:60px"></div>
-      </div>
-      <div class="skeleton sk-line w90"></div>
-      <div class="skeleton sk-line w75"></div>
-      <div class="skeleton sk-line w55"></div>
-      <div class="skeleton sk-block"></div>
-      <div class="skeleton sk-block"></div>
-    </div>
-  </div>
-
-  <!-- DRAG HANDLE (H) -->
-  <div class="drag-handle" id="hDrag"></div>
-
-  <!-- RIGHT PANEL -->
-  <div class="right-panel" id="rightPanel">
-    <div class="editor-topbar">
-      <div class="editor-section-label">
-        <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><polyline points="8 6 2 12 8 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        代码
-      </div>
-      <div class="nav-sep"></div>
-      <div class="lang-select" id="langSelect">
-        <span id="langLabel">加载中…</span>
-        <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      </div>
-      <div class="smart-badge">🔒 智能模式</div>
-      <div class="editor-spacer"></div>
-      <button class="editor-action" title="格式化">
-        <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M21 10H7M21 6H3M21 14H3M21 18H7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      </button>
-      <button class="editor-action" title="收藏">
-        <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2"/></svg>
-      </button>
-      <button class="editor-action" title="还原" id="btnReset">
-        <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 4v6h6M3.51 15a9 9 0 1 0 .49-4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      </button>
-      <button class="editor-action" title="全屏">
-        <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-
-    <div class="right-inner" id="rightInner">
-      <div class="code-area" id="codeArea">
-        <div class="code-lines">
-          <div class="line-nums" id="lineNums">1</div>
-          <div class="code-content" contenteditable="true" spellcheck="false" id="codeEditor"></div>
+<body onload="initTheme()">
+    <!-- Top Control Bar -->
+    <div class="oj-top-bar">
+        <!-- Left Section -->
+        <div class="oj-top-left">
+            <button id="ojBackToListBtn" class="oj-top-btn" title="返回题目列表">
+                <span>←</span> 题库
+            </button>
         </div>
-      </div>
 
-      <div class="editor-statusbar">
-        <span id="saveStatus" class="status-green">● 已存储</span>
-        <div class="status-spacer"></div>
-        <span id="cursorPos">行 1, 列 1</span>
-      </div>
-
-      <!-- DRAG HANDLE (V) -->
-      <div class="v-drag-handle" id="vDrag"></div>
-
-      <!-- OUTPUT PANEL -->
-      <div class="output-panel" id="outputPanel">
-        <div class="output-tabs">
-          <div class="out-tab active">☑ 测试用例</div>
-          <div class="out-tab">▶ 测试结果</div>
+        <!-- Center Section -->
+        <div class="oj-top-center">
+            <button id="ojPrevBtn" class="oj-top-btn" title="上一题">
+                <span>◀</span>
+            </button>
+            <button id="ojNextBtn" class="oj-top-btn" title="下一题">
+                <span>▶</span>
+            </button>
+            <button id="ojRunBtn" class="oj-top-btn oj-run-btn" title="运行代码">
+                <span>▶</span> 运行
+            </button>
+            <button id="ojSubmitBtn" class="oj-top-btn oj-submit-btn" title="提交代码">
+                <span>📤</span> 提交
+            </button>
         </div>
-        <div class="output-body" id="outputBody">
-          <div class="empty-hint">
-            <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            请先执行代码
-          </div>
+
+        <!-- Right Section -->
+        <div class="oj-top-right">
+            <button id="ojFormatBtn" class="oj-top-btn" title="格式化代码">
+                <span>🎨</span>
+            </button>
+            <button id="ojCopyBtn" class="oj-top-btn" title="复制代码">
+                <span>📋</span>
+            </button>
+            <button id="ojClearBtn" class="oj-top-btn" title="清空代码">
+                <span>🗑️</span>
+            </button>
+            <button id="ojFullscreenBtn" class="oj-top-btn" title="全屏编辑">
+                <span>⛶</span>
+            </button>
         </div>
-      </div>
     </div>
-  </div>
-</div>
 
-<!-- BOTTOM BAR -->
-<div class="bottom-bar">
-  <span class="likes" id="barLikes">👍 —</span>
-  <span class="comments" id="barComments">💬 —</span>
-  <button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;">☆</button>
-  <button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;">↗</button>
-  <button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;">?</button>
-  <span class="online" id="barOnline">● — 人在线</span>
-</div>
+    <!-- Main Content -->
+    <div class="oj-container" id="ojContainer">
+        <!-- Resizable Layout -->
+        <div class="oj-resizable-layout">
+            <!-- Left: Problem Description + Solution -->
+            <div class="oj-resizable-left" id="ojResizableLeft">
+                <div class="oj-problem-desc" id="ojProblemDesc">
+                    <!-- Panel Tabs -->
+                    <div class="oj-panel-header" style="flex-direction: column; align-items: stretch; gap: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="oj-problem-tabs">
+                                <button class="oj-problem-tab active" data-tab="description">📝 题目描述</button>
+                                <button class="oj-problem-tab" data-tab="solution">💡 解法</button>
+                                <button class="oj-problem-tab" data-tab="submissions">📊 提交记录</button>
+                            </div>
+                            <span class="oj-problem-difficulty" id="ojProblemDifficulty"></span>
+                        </div>
+                        <!-- Language selector for solution tab -->
+                        <div id="ojSolutionLangBar" style="display: none; padding: 8px 12px; background: rgba(102,126,234,0.08); border-bottom: 1px solid #3c3c3c; align-items: center; gap: 10px;">
+                            <span style="font-size: 12px; color: #858585;">选择语言：</span>
+                            <select id="ojSolutionLangSelect" class="oj-filter-select" style="flex: 1; max-width: 200px;">
+                                <option value="java">Java</option>
+                                <option value="c">C</option>
+                                <option value="python">Python</option>
+                                <option value="go">Go</option>
+                            </select>
+                        </div>
+                    </div>
 
-<div class="drag-tooltip" id="dragTooltip"></div>
+                    <!-- Problem Content (Description Tab) -->
+                    <div class="oj-problem-content" id="ojProblemContent">
+                        <div class="oj-loading">
+                            <div class="oj-spinner"></div>
+                            <span>加载题目中...</span>
+                        </div>
+                    </div>
 
-<script>
-// ═══════════════════════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════════════════════
-const state = {
-  problemId: 1,
-  problem: null,        // filled by API
-  codeTemplate: '',     // filled by API
-  language: '',         // filled by API
-};
+                    <!-- Solution Content -->
+                    <div class="oj-problem-content" id="ojSolutionContent" style="display: none;">
+                        <div class="oj-loading">
+                            <div class="oj-spinner"></div>
+                            <span>加载解法中...</span>
+                        </div>
+                    </div>
 
-// ═══════════════════════════════════════════════════════
-//  CLAUDE API CALL (streaming)
-// ═══════════════════════════════════════════════════════
-async function callClaude(messages, onChunk) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      stream: true,
-      messages,
-    }),
-  });
-  if (!res.ok) throw new Error(`API ${res.status}`);
-  const reader = res.body.getReader();
-  const dec = new TextDecoder();
-  let buf = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    const lines = buf.split('\n');
-    buf = lines.pop();
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') return;
-      try {
-        const evt = JSON.parse(data);
-        if (evt.type === 'content_block_delta' && evt.delta?.text) {
-          onChunk(evt.delta.text);
-        }
-      } catch {}
-    }
-  }
-}
+                    <!-- Submissions Content -->
+                    <div class="oj-problem-content" id="ojSubmissionsContent" style="display: none;">
+                        <div class="oj-empty-state">
+                            <div class="oj-empty-icon" style="font-size: 32px; margin-bottom: 8px;">📊</div>
+                            <p>暂无提交记录</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-async function callClaudeOnce(prompt) {
-  let result = '';
-  await callClaude([{ role: 'user', content: prompt }], chunk => { result += chunk; });
-  return result;
-}
+            <!-- Resize Handle -->
+            <div class="oj-resize-handle" id="ojResizeHandle"></div>
 
-// ═══════════════════════════════════════════════════════
-//  LOAD PROBLEM from API
-// ═══════════════════════════════════════════════════════
-async function loadProblem(id) {
-  const body = document.getElementById('problemBody');
-  const langLabel = document.getElementById('langLabel');
-  const codeEditor = document.getElementById('codeEditor');
+            <!-- Right: Editor + Result -->
+            <div class="oj-resizable-right" id="ojResizableRight">
+                <!-- Editor Header -->
+                <div class="oj-editor-header" style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: #252526; border-bottom: 1px solid #3c3c3c;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 12px; color: #858585;">语言：</span>
+                        <select id="ojLangSelect" class="oj-filter-select" style="padding: 5px 10px; font-size: 12px;">
+                            <option value="java">Java</option>
+                            <option value="c">C</option>
+                            <option value="python">Python</option>
+                            <option value="go">Go</option>
+                        </select>
+                    </div>
+                    <div class="oj-editor-actions" style="display: flex; gap: 4px; margin-left: auto;">
+                        <button class="oj-top-btn" id="ojFormatBtn2" title="格式化">
+                            <span>🎨</span>
+                        </button>
+                        <button class="oj-top-btn" id="ojClearBtn2" title="清空">
+                            <span>🗑️</span>
+                        </button>
+                        <button class="oj-top-btn" id="ojCopyBtn2" title="复制">
+                            <span>📋</span>
+                        </button>
+                        <button class="oj-top-btn" id="ojFullscreenBtn2" title="全屏">
+                            <span>⛶</span>
+                        </button>
+                    </div>
+                </div>
 
-  // Reset UI
-  body.innerHTML = `
-    <div class="skeleton sk-title"></div>
-    <div class="tag-row">
-      <div class="skeleton sk-tag"></div>
-      <div class="skeleton sk-tag" style="width:70px"></div>
+                <!-- Resizable Vertical Layout -->
+                <div class="oj-vertical-layout" id="ojVerticalLayout">
+                    <!-- Code Editor -->
+                    <div class="oj-vertical-top" id="ojVerticalTop">
+                        <div class="oj-editor-container" id="ojEditorContainer">
+                            <textarea id="ojCodeEditor">// 加载中...
+// 请等待题目数据加载</textarea>
+                        </div>
+                    </div>
+
+                    <!-- Vertical Resize Handle -->
+                    <div class="oj-vertical-resize-handle" id="ojVerticalResizeHandle"></div>
+
+                    <!-- Bottom Panel: Test Input + Result -->
+                    <div class="oj-vertical-bottom" id="ojVerticalBottom">
+                        <div style="display: flex; gap: 0; height: 100%;">
+                            <!-- Test Input -->
+                            <div style="flex: 1; display: flex; flex-direction: column; border-right: 1px solid #3c3c3c;">
+                                <div class="oj-panel-header" style="padding: 6px 10px; background: #252526; border-bottom: 1px solid #3c3c3c;">
+                                    <span style="font-size: 11px; font-weight: 600; color: #858585;">测试输入</span>
+                                </div>
+                                <textarea id="ojCustomInput" placeholder="输入测试数据...（可选）" style="flex: 1; padding: 10px; background: #1e1e1e; border: none; color: #d4d4d4; font-family: 'Fira Code', monospace; font-size: 12px; resize: none; outline: none;"></textarea>
+                            </div>
+
+                            <!-- Result Panel -->
+                            <div style="flex: 2; display: flex; flex-direction: column;">
+                                <div class="oj-result-header" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #252526; border-bottom: 1px solid #3c3c3c;">
+                                    <div class="oj-result-tabs">
+                                        <button class="oj-result-tab active" data-tab="output">运行结果</button>
+                                        <button class="oj-result-tab" data-tab="testcase">测试用例</button>
+                                    </div>
+                                </div>
+                                <div class="oj-result-body" id="ojResultBody" style="flex: 1; padding: 10px; font-family: 'Fira Code', monospace; font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; overflow-y: auto;">
+                                    <div class="oj-empty-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #6a6a6a;">
+                                        <div style="font-size: 32px; margin-bottom: 8px;">▶</div>
+                                        <span>点击运行查看结果</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="skeleton sk-line w90"></div>
-    <div class="skeleton sk-line w75"></div>
-    <div class="skeleton sk-line w55"></div>
-    <div class="skeleton sk-block"></div>
-    <div class="skeleton sk-block"></div>`;
-  langLabel.textContent = '加载中…';
-  codeEditor.textContent = '';
-  updateLineNums();
-  document.getElementById('barLikes').textContent   = '👍 —';
-  document.getElementById('barComments').textContent = '💬 —';
-  document.getElementById('barOnline').textContent   = '● — 人在线';
-  resetTimer();
 
-  // ── Step 1: fetch problem metadata as JSON ──
-  const metaPrompt = `你是一个算法题库后端接口。用户请求第 ${id} 道 LeetCode 经典题目。
-请以纯 JSON 返回，格式如下，不要加任何 Markdown 代码块标记：
-{
-  "id": ${id},
-  "title": "题目标题",
-  "difficulty": "简单|中等|困难",
-  "tags": ["标签1","标签2"],
-  "likes": 12345,
-  "comments": 3456,
-  "online": 234,
-  "description": "题目描述（可包含<strong>/<code>等HTML标签）",
-  "examples": [
-    {"input": "...", "output": "...", "explanation": "...（可选）"},
-    {"input": "...", "output": "..."}
-  ],
-  "defaultLanguage": "JavaScript",
-  "codeTemplate": "完整的代码模板字符串（含注释和函数签名）"
-}`;
+    <!-- Fullscreen Overlay -->
+    <div class="oj-fullscreen-overlay" id="ojFullscreenOverlay">
+        <div class="oj-fullscreen-header">
+            <div class="oj-lang-selector" style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 12px; color: #858585;">语言：</span>
+                <select id="ojFullscreenLangSelect" class="oj-filter-select" style="padding: 5px 10px; font-size: 12px;">
+                    <option value="java">Java</option>
+                    <option value="c">C</option>
+                    <option value="python">Python</option>
+                    <option value="go">Go</option>
+                </select>
+            </div>
+            <div class="oj-fullscreen-actions" style="display: flex; gap: 6px;">
+                <button class="oj-top-btn" id="ojFullscreenFormatBtn" title="格式化">
+                    <span>🎨</span>
+                </button>
+                <button class="oj-top-btn" id="ojFullscreenClearBtn" title="清空">
+                    <span>🗑️</span>
+                </button>
+                <button class="oj-top-btn" id="ojFullscreenCopyBtn" title="复制">
+                    <span>📋</span>
+                </button>
+                <button class="oj-top-btn" id="ojExitFullscreenBtn" title="退出全屏">
+                    <span>⛶</span>
+                </button>
+            </div>
+        </div>
+        <div class="oj-fullscreen-editor-container">
+            <textarea id="ojFullscreenCodeEditor"></textarea>
+        </div>
+        <div class="oj-fullscreen-footer" style="display: flex; justify-content: flex-end; padding: 10px 12px; background: #252526; border-top: 1px solid #3c3c3c; gap: 8px;">
+            <button id="ojFullscreenRunBtn" class="oj-top-btn oj-run-btn" style="color: #4ec9b0; padding: 5px 14px; border: 1px solid #3c3c3c; border-radius: 4px; background: transparent; cursor: pointer;">
+                <span>▶</span> 运行
+            </button>
+            <button id="ojFullscreenSubmitBtn" class="oj-top-btn oj-submit-btn" style="color: #4ec9b0; padding: 5px 14px; border: none; border-radius: 4px; background: rgba(78,201,176,0.15); cursor: pointer; font-weight: 600;">
+                <span>📤</span> 提交
+            </button>
+        </div>
+    </div>
 
-  let jsonStr = '';
-  await callClaude([{ role: 'user', content: metaPrompt }], chunk => { jsonStr += chunk; });
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/haxe/haxe.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
 
-  // strip possible markdown fences
-  jsonStr = jsonStr.replace(/```json|```/g, '').trim();
-  let data;
-  try { data = JSON.parse(jsonStr); }
-  catch (e) {
-    body.innerHTML = `<div style="color:var(--red);padding:20px">数据解析失败，请刷新重试。<br><small>${e}</small></div>`;
-    return;
-  }
+    <!-- marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-  state.problem = data;
-  state.codeTemplate = data.codeTemplate || '';
-  state.language = data.defaultLanguage || 'JavaScript';
-
-  // ── Render problem ──
-  const diffClass = { '简单':'tag-easy', '中等':'tag-medium', '困难':'tag-hard' }[data.difficulty] || 'tag-easy';
-  const tagsHtml = `<span class="tag ${diffClass}">${data.difficulty}</span>` +
-    (data.tags||[]).map(t => `<span class="tag tag-related">${t}</span>`).join('') +
-    `<span class="tag tag-hint">💡 提示</span>`;
-
-  const examplesHtml = (data.examples||[]).map((ex, i) => `
-    <div class="example-label">示例 ${i+1}:</div>
-    <div class="example-block">
-      <div><span class="lbl">输入：</span><span class="val">${ex.input}</span></div>
-      <div><span class="lbl">输出：</span><span class="val">${ex.output}</span></div>
-      ${ex.explanation ? `<div><span class="lbl">解释：</span><span class="val">${ex.explanation}</span></div>` : ''}
-    </div>`).join('');
-
-  body.innerHTML = `
-    <div class="problem-title">${data.id}. ${data.title}</div>
-    <div class="tag-row">${tagsHtml}</div>
-    <div class="problem-text">${data.description}</div>
-    ${examplesHtml}`;
-
-  // ── Render code template ──
-  langLabel.textContent = state.language;
-  codeEditor.textContent = state.codeTemplate;
-  updateLineNums();
-
-  // ── Bottom bar stats ──
-  document.getElementById('barLikes').textContent    = `👍 ${fmtNum(data.likes)}`;
-  document.getElementById('barComments').textContent = `💬 ${fmtNum(data.comments)}`;
-  document.getElementById('barOnline').textContent   = `● ${data.online} 人在线`;
-
-  startTimer();
-}
-
-function fmtNum(n) {
-  if (!n) return '—';
-  return n >= 1000 ? (n/1000).toFixed(1) + 'K' : n;
-}
-
-// ═══════════════════════════════════════════════════════
-//  RUN / SUBMIT  (asks Claude to evaluate code)
-// ═══════════════════════════════════════════════════════
-async function runCode(isSubmit) {
-  const code = document.getElementById('codeEditor').innerText;
-  const ob   = document.getElementById('outputBody');
-  const tabs = document.querySelectorAll('.out-tab');
-
-  tabs.forEach((t,i) => t.classList.toggle('active', i === 1));
-  ob.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text-dim)">
-    <div class="streaming-cursor" id="streamingMsg">正在${isSubmit?'提交':'执行'}…</div>
-  </div>`;
-
-  const prompt = `你是算法题目评测系统，以 JSON 返回评测结果，不加 Markdown 代码块标记。
-题目：${state.problem?.title || '未知'}
-用户代码（${state.language}）：
-${code}
-
-${isSubmit
-  ? '请模拟提交评测，返回格式：{"status":"通过|错误|超时","passRate":"xx/xx","runtime":"xms","memory":"xMB","message":"简短说明"}'
-  : '请执行示例测试用例，返回格式：{"status":"通过|错误","cases":[{"input":"...","expected":"...","output":"...","pass":true}],"message":"简短说明"}'}`;
-
-  let jsonStr = '';
-  try {
-    await callClaude([{ role: 'user', content: prompt }], chunk => { jsonStr += chunk; });
-    jsonStr = jsonStr.replace(/```json|```/g, '').trim();
-    const result = JSON.parse(jsonStr);
-    renderResult(result, isSubmit);
-  } catch(e) {
-    ob.innerHTML = `<div style="color:var(--red)">评测失败：${e.message}</div>`;
-  }
-}
-
-function renderResult(r, isSubmit) {
-  const ob = document.getElementById('outputBody');
-  const ok = r.status === '通过' || r.status === 'Accepted';
-  const color = ok ? 'var(--green)' : 'var(--red)';
-
-  if (isSubmit) {
-    ob.innerHTML = `<div style="width:100%;padding:4px 0">
-      <div style="font-size:16px;font-weight:700;color:${color};margin-bottom:10px">
-        ${ok ? '✅' : '❌'} ${r.status}
-      </div>
-      ${r.passRate ? `<div style="color:var(--text-dim);margin-bottom:6px">通过用例：<strong style="color:var(--text)">${r.passRate}</strong></div>` : ''}
-      ${r.runtime  ? `<div style="color:var(--text-dim);margin-bottom:4px">执行用时：<strong style="color:var(--text)">${r.runtime}</strong></div>` : ''}
-      ${r.memory   ? `<div style="color:var(--text-dim);margin-bottom:4px">内存消耗：<strong style="color:var(--text)">${r.memory}</strong></div>` : ''}
-      ${r.message  ? `<div style="color:var(--text-muted);font-size:12px;margin-top:8px">${r.message}</div>` : ''}
-    </div>`;
-  } else {
-    const casesHtml = (r.cases||[]).map((c,i) => `
-      <div style="margin-bottom:10px;padding:10px;background:var(--bg-editor);border:1px solid ${c.pass?'rgba(16,185,129,0.3)':'rgba(239,68,68,0.3)'};border-radius:6px;font-family:var(--font-mono);font-size:12px">
-        <div style="font-weight:600;color:${c.pass?'var(--green)':'var(--red)'};margin-bottom:6px">${c.pass?'✓':'✗'} 用例 ${i+1}</div>
-        <div><span style="color:var(--text-muted)">输入：</span>${c.input}</div>
-        <div><span style="color:var(--text-muted)">预期：</span>${c.expected}</div>
-        <div><span style="color:var(--text-muted)">输出：</span><span style="color:${c.pass?'var(--green)':'var(--red)'}">${c.output}</span></div>
-      </div>`).join('');
-    ob.innerHTML = `<div style="width:100%">
-      <div style="font-size:14px;font-weight:600;color:${color};margin-bottom:12px">${ok?'✅':'❌'} ${r.status}</div>
-      ${casesHtml}
-      ${r.message ? `<div style="color:var(--text-muted);font-size:12px">${r.message}</div>` : ''}
-    </div>`;
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-//  TIMER
-// ═══════════════════════════════════════════════════════
-let timerSec = 0, timerPaused = false, timerInterval = null;
-function resetTimer() {
-  clearInterval(timerInterval); timerSec = 0; timerPaused = false;
-  document.getElementById('navTimer').textContent = '⏱ 00:00:00 ↺';
-}
-function startTimer() {
-  clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    if (timerPaused) return;
-    timerSec++;
-    const h = String(Math.floor(timerSec/3600)).padStart(2,'0');
-    const m = String(Math.floor((timerSec%3600)/60)).padStart(2,'0');
-    const s = String(timerSec%60).padStart(2,'0');
-    document.getElementById('navTimer').textContent = `⏱ ${h}:${m}:${s} ↺`;
-  }, 1000);
-}
-document.getElementById('navTimer').addEventListener('click', () => {
-  timerPaused = !timerPaused;
-  const el = document.getElementById('navTimer');
-  el.textContent = el.textContent.replace(/^[⏱⏸]/, timerPaused ? '⏸' : '⏱');
-});
-
-// ═══════════════════════════════════════════════════════
-//  LINE NUMBERS
-// ═══════════════════════════════════════════════════════
-function updateLineNums() {
-  const editor = document.getElementById('codeEditor');
-  const lines  = (editor.innerText || '').split('\n').length;
-  document.getElementById('lineNums').innerHTML = Array.from({length:lines},(_,i)=>i+1).join('<br>');
-}
-document.getElementById('codeEditor').addEventListener('input', updateLineNums);
-
-// ═══════════════════════════════════════════════════════
-//  DRAG — HORIZONTAL
-// ═══════════════════════════════════════════════════════
-(function() {
-  const handle = document.getElementById('hDrag');
-  const left   = document.getElementById('leftPanel');
-  const ws     = document.getElementById('workspace');
-  const tip    = document.getElementById('dragTooltip');
-  let drag = false, sx = 0, sw = 0;
-  handle.addEventListener('mousedown', e => {
-    drag=true; sx=e.clientX; sw=left.offsetWidth;
-    handle.classList.add('dragging');
-    document.body.style.cssText += 'cursor:col-resize;user-select:none';
-    tip.style.display='block'; e.preventDefault();
-  });
-  document.addEventListener('mousemove', e => {
-    if(!drag) return;
-    const nw = Math.max(220, Math.min(sw+(e.clientX-sx), ws.offsetWidth*0.6));
-    left.style.width = nw+'px';
-    tip.style.left=(e.clientX+10)+'px'; tip.style.top=(e.clientY-18)+'px';
-    tip.textContent = Math.round(nw)+'px';
-  });
-  document.addEventListener('mouseup', () => {
-    if(!drag) return; drag=false;
-    handle.classList.remove('dragging');
-    document.body.style.cursor=''; document.body.style.userSelect='';
-    tip.style.display='none';
-  });
-})();
-
-// ═══════════════════════════════════════════════════════
-//  DRAG — VERTICAL
-// ═══════════════════════════════════════════════════════
-(function() {
-  const handle = document.getElementById('vDrag');
-  const output = document.getElementById('outputPanel');
-  const inner  = document.getElementById('rightInner');
-  const tip    = document.getElementById('dragTooltip');
-  let drag = false, sy = 0, sh = 0;
-  handle.addEventListener('mousedown', e => {
-    drag=true; sy=e.clientY; sh=output.offsetHeight;
-    handle.classList.add('dragging');
-    document.body.style.cssText += 'cursor:row-resize;user-select:none';
-    tip.style.display='block'; e.preventDefault();
-  });
-  document.addEventListener('mousemove', e => {
-    if(!drag) return;
-    const nh = Math.max(80, Math.min(sh+(sy-e.clientY), inner.offsetHeight*0.7));
-    output.style.height = nh+'px';
-    tip.style.left=(e.clientX+10)+'px'; tip.style.top=(e.clientY-18)+'px';
-    tip.textContent = Math.round(nh)+'px';
-  });
-  document.addEventListener('mouseup', () => {
-    if(!drag) return; drag=false;
-    handle.classList.remove('dragging');
-    document.body.style.cursor=''; document.body.style.userSelect='';
-    tip.style.display='none';
-  });
-})();
-
-// ═══════════════════════════════════════════════════════
-//  TABS
-// ═══════════════════════════════════════════════════════
-document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
-  t.closest('.panel-tabs').querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-  t.classList.add('active');
-}));
-document.querySelectorAll('.out-tab').forEach(t => t.addEventListener('click', () => {
-  t.closest('.output-tabs').querySelectorAll('.out-tab').forEach(x=>x.classList.remove('active'));
-  t.classList.add('active');
-}));
-
-// ═══════════════════════════════════════════════════════
-//  BUTTONS
-// ═══════════════════════════════════════════════════════
-document.getElementById('btnRun').addEventListener('click', () => runCode(false));
-document.getElementById('btnSubmit').addEventListener('click', () => runCode(true));
-
-document.getElementById('btnNext').addEventListener('click', () => {
-  state.problemId++;
-  loadProblem(state.problemId);
-});
-document.getElementById('btnPrev').addEventListener('click', () => {
-  if (state.problemId > 1) { state.problemId--; loadProblem(state.problemId); }
-});
-document.getElementById('btnRandom').addEventListener('click', () => {
-  state.problemId = Math.floor(Math.random() * 100) + 1;
-  loadProblem(state.problemId);
-});
-document.getElementById('btnReset').addEventListener('click', () => {
-  document.getElementById('codeEditor').textContent = state.codeTemplate;
-  updateLineNums();
-});
-
-// ═══════════════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════════════
-loadProblem(state.problemId);
-</script>
- <script src="../js/oj.js"></script>
+    <script src="../js/oj.js"></script>
 </body>
+
 </html>

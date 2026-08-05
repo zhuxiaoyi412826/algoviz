@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线OJ - 题目列表</title>
+    <link rel="icon" type="image/png" href="../images/tubiao.png">
+    <link rel="stylesheet" href="../styles/oj.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: #0f0f23;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+        .oj-list-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+        .oj-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .oj-list-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .oj-list-title-icon {
+            font-size: 28px;
+        }
+        .oj-list-filters {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .oj-search-box {
+            position: relative;
+        }
+        .oj-search-box input {
+            width: 280px;
+            padding: 10px 14px 10px 38px;
+            background: #1a1a2e;
+            border: 1px solid #2d2d4e;
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .oj-search-box input:focus {
+            border-color: #667eea;
+        }
+        .oj-search-box input::placeholder {
+            color: #64748b;
+        }
+        .oj-search-box::before {
+            content: '🔍';
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+        }
+        .oj-filter-select {
+            padding: 10px 14px;
+            background: #1a1a2e;
+            border: 1px solid #2d2d4e;
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .oj-filter-select:focus {
+            border-color: #667eea;
+        }
+        .oj-filter-select option {
+            background: #1a1a2e;
+            color: #e2e8f0;
+        }
+        .oj-list-stats {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        .oj-list-stats strong {
+            color: #667eea;
+            font-size: 15px;
+        }
+        .oj-problem-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: #1a1a2e;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #2d2d4e;
+        }
+        .oj-problem-table thead {
+            background: #16213e;
+        }
+        .oj-problem-table th {
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #2d2d4e;
+        }
+        .oj-problem-table td {
+            padding: 14px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(45, 45, 78, 0.4);
+        }
+        .oj-problem-table tbody tr {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .oj-problem-table tbody tr:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+        .oj-problem-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .oj-problem-no {
+            color: #667eea;
+            font-weight: 600;
+            font-family: 'Fira Code', monospace;
+        }
+        .oj-problem-name {
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+        .oj-problem-name:hover {
+            color: #667eea;
+        }
+        .oj-difficulty-badge {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .oj-difficulty-easy {
+            background: rgba(72, 199, 142, 0.15);
+            color: #48c78a;
+        }
+        .oj-difficulty-medium {
+            background: rgba(251, 191, 36, 0.15);
+            color: #fbbf24;
+        }
+        .oj-difficulty-hard {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+        .oj-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(102, 126, 234, 0.15);
+            color: #a5b4fc;
+            border-radius: 10px;
+            font-size: 11px;
+            margin-right: 4px;
+            margin-bottom: 2px;
+        }
+        .oj-list-loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+        .oj-list-loading .oj-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #2d2d4e;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .oj-list-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+        .oj-list-empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        .oj-list-nav-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+        .oj-list-nav-btn:hover {
+            opacity: 0.9;
+        }
+        .oj-list-nav-btn-secondary {
+            background: #2d2d4e;
+            border: 1px solid #3c3c5c;
+        }
+        @media (max-width: 768px) {
+            .oj-list-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .oj-search-box input {
+                width: 100%;
+            }
+            .oj-problem-table {
+                font-size: 12px;
+            }
+            .oj-problem-table th,
+            .oj-problem-table td {
+                padding: 10px 12px;
+            }
+        }
+        .oj-list-error {
+            text-align: center;
+            padding: 60px 20px;
+            background: #1a1a2e;
+            border-radius: 12px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        .oj-list-error-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        .oj-list-error-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #ef4444;
+            margin-bottom: 8px;
+        }
+        .oj-list-error-message {
+            color: #94a3b8;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .oj-list-retry-btn {
+            display: inline-block;
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 16px;
+            transition: opacity 0.2s;
+        }
+        .oj-list-retry-btn:hover {
+            opacity: 0.9;
+        }
+        .oj-list-error-hint {
+            color: #64748b;
+            font-size: 12px;
+        }
+        .oj-pagination-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: #1a1a2e;
+            border-radius: 10px;
+            border: 1px solid #2d2d4e;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .oj-pagination-info {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+        .oj-pagination-info strong {
+            color: #667eea;
+            font-weight: 600;
+        }
+        .oj-pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .oj-page-btn {
+            padding: 6px 14px;
+            background: #2d2d4e;
+            border: 1px solid #3c3c5c;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .oj-page-btn:hover:not(:disabled) {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+        .oj-page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .oj-page-info {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+        .oj-page-info strong {
+            color: #667eea;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="oj-list-container">
+        <div class="oj-list-header">
+            <div class="oj-list-title">
+                <span class="oj-list-title-icon">📚</span>
+                在线OJ题库
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <a href="../index.html" class="oj-list-nav-btn oj-list-nav-btn-secondary">← 返回首页</a>
+            </div>
+        </div>
+
+        <div class="oj-list-filters">
+            <div class="oj-search-box">
+                <input type="text" id="ojSearchInput" placeholder="搜索题目名称或标签...">
+            </div>
+            <select class="oj-filter-select" id="ojDifficultyFilter">
+                <option value="">全部难度</option>
+                <option value="easy">简单</option>
+                <option value="medium">中等</option>
+                <option value="hard">困难</option>
+            </select>
+            <select class="oj-filter-select" id="ojTagFilter">
+                <option value="">全部标签</option>
+                <option value="数组">数组</option>
+                <option value="栈">栈</option>
+                <option value="队列">队列</option>
+                <option value="链表">链表</option>
+                <option value="哈希表">哈希表</option>
+                <option value="堆">堆</option>
+                <option value="树">树</option>
+                <option value="图">图</option>
+                <option value="贪心">贪心</option>
+                <option value="递归">递归</option>
+                <option value="回溯">回溯</option>
+                <option value="动态规划">动态规划</option>
+                <option value="排序">排序</option>
+                <option value="搜索">搜索</option>
+            </select>
+        </div>
+
+        <div class="oj-list-stats" id="ojListStats">
+            共 <strong id="ojTotalCount">0</strong> 道题目
+        </div>
+
+        <div id="ojListContent">
+            <div class="oj-list-loading">
+                <div class="oj-spinner"></div>
+                <div>加载题目列表中...</div>
+            </div>
+        </div>
+
+        <div class="oj-pagination-bar" id="ojPaginationBar" style="display: none;">
+            <div class="oj-pagination-info">
+                显示第 <strong id="ojPageStart">1</strong> - <strong id="ojPageEnd">20</strong> 条，共 <strong id="ojPageTotal">0</strong> 条
+            </div>
+            <div class="oj-pagination-controls">
+                <select class="oj-filter-select" id="ojPageSizeSelect">
+                    <option value="20">20 条/页</option>
+                    <option value="50">50 条/页</option>
+                    <option value="100">100 条/页</option>
+                </select>
+                <button class="oj-page-btn" id="ojPrevPage" onclick="changePage(-1)">← 上一页</button>
+                <span class="oj-page-info">第 <strong id="ojCurrentPage">1</strong> / <strong id="ojTotalPages">1</strong> 页</span>
+                <button class="oj-page-btn" id="ojNextPage" onclick="changePage(1)">下一页 →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:80/api';
+        let allProblems = [];
+        let filteredProblems = [];
+        let currentPage = 1;
+        let pageSize = 20;
+
+        const difficultyMap = {
+            'easy': { label: '简单', class: 'oj-difficulty-easy' },
+            'medium': { label: '中等', class: 'oj-difficulty-medium' },
+            'hard': { label: '困难', class: 'oj-difficulty-hard' }
+        };
+
+        async function loadProblems() {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+            try {
+                const response = await fetch(API_BASE + '/problems', { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error('服务器返回错误: ' + response.status);
+                }
+
+                const data = await response.json();
+
+                if (data.success && data.problems) {
+                    allProblems = data.problems.map(function(problem, index) {
+                        var problemNoValue = problem.problem_no || problem.problemNo;
+                        var problemId = 0;
+                        if (problemNoValue) {
+                            if (typeof problemNoValue === 'number') {
+                                problemId = problemNoValue;
+                            } else {
+                                var parsed = parseInt(problemNoValue);
+                                problemId = isNaN(parsed) ? (index + 1) * 1000 : parsed;
+                            }
+                        } else {
+                            problemId = (index + 1) * 1000;
+                        }
+                        return {
+                            id: problemId,
+                            title: problem.title || '未命名题目',
+                            difficulty: problem.difficulty || 'easy',
+                            tags: problem.tags ? problem.tags.split(',').map(function(tag) { return tag.trim(); }).filter(function(t) { return t; }) : [],
+                            description: problem.description || ''
+                        };
+                    });
+
+                    populateTagFilter();
+                    applyFilters();
+                } else {
+                    showError('加载题目失败', '后端返回数据格式异常');
+                }
+            } catch (error) {
+                console.error('加载题目失败:', error);
+                var errorMessage = '无法连接到后端服务';
+                if (error.name === 'AbortError') {
+                    errorMessage = '请求超时，请检查后端服务是否启动';
+                } else if (error.message && error.message.indexOf('Failed to fetch') !== -1) {
+                    errorMessage = '网络连接失败，请确认后端服务已启动';
+                } else {
+                    errorMessage = error.message || '未知错误';
+                }
+                showError('加载题目列表失败', errorMessage);
+            }
+        }
+
+        function showError(title, message) {
+            var content = document.getElementById('ojListContent');
+            var paginationBar = document.getElementById('ojPaginationBar');
+            paginationBar.style.display = 'none';
+            content.innerHTML =
+                '<div class="oj-list-error">' +
+                    '<div class="oj-list-error-icon">⚠️</div>' +
+                    '<div class="oj-list-error-title">' + title + '</div>' +
+                    '<div class="oj-list-error-message">' + message + '</div>' +
+                    '<button onclick="loadProblems()" class="oj-list-retry-btn">🔄 重试加载</button>' +
+                    '<div class="oj-list-error-hint">请确保后端 Spring Boot 服务已启动（端口 80）</div>' +
+                '</div>';
+        }
+
+        function populateTagFilter() {
+            // 标签已在 HTML 中预定义，无需动态生成
+        }
+
+        function renderProblems(problems) {
+            var content = document.getElementById('ojListContent');
+            var paginationBar = document.getElementById('ojPaginationBar');
+
+            if (problems.length === 0) {
+                paginationBar.style.display = 'none';
+                showEmpty('未找到匹配的题目');
+                return;
+            }
+
+            // 更新总数
+            document.getElementById('ojTotalCount').textContent = problems.length;
+
+            // 计算分页
+            var totalPages = Math.ceil(problems.length / pageSize);
+            if (currentPage > totalPages) {
+                currentPage = totalPages;
+            }
+            if (currentPage < 1) {
+                currentPage = 1;
+            }
+
+            var start = (currentPage - 1) * pageSize;
+            var end = Math.min(start + pageSize, problems.length);
+            var pageProblems = problems.slice(start, end);
+
+            // 渲染表格
+            var tableHtml =
+                '<table class="oj-problem-table">' +
+                    '<thead>' +
+                        '<tr>' +
+                            '<th style="width:80px">编号</th>' +
+                            '<th style="width:30%">题目名称</th>' +
+                            '<th style="width:100px">难度</th>' +
+                            '<th>标签</th>' +
+                        '</tr>' +
+                    '</thead>' +
+                    '<tbody>';
+
+            pageProblems.forEach(function(problem) {
+                var diff = difficultyMap[problem.difficulty] || difficultyMap['easy'];
+                var tagsHtml = problem.tags.map(function(t) { return '<span class="oj-tag">' + t + '</span>'; }).join('');
+
+                tableHtml +=
+                    '<tr onclick="goToProblem(' + problem.id + ')">' +
+                        '<td class="oj-problem-no">' + problem.id + '</td>' +
+                        '<td class="oj-problem-name">' + problem.title + '</td>' +
+                        '<td><span class="oj-difficulty-badge ' + diff.class + '">' + diff.label + '</span></td>' +
+                        '<td>' + tagsHtml + '</td>' +
+                    '</tr>';
+            });
+
+            tableHtml += '</tbody></table>';
+            content.innerHTML = tableHtml;
+
+            // 更新分页信息
+            document.getElementById('ojPageStart').textContent = problems.length === 0 ? 0 : start + 1;
+            document.getElementById('ojPageEnd').textContent = end;
+            document.getElementById('ojPageTotal').textContent = problems.length;
+            document.getElementById('ojCurrentPage').textContent = currentPage;
+            document.getElementById('ojTotalPages').textContent = totalPages;
+
+            // 更新按钮状态
+            document.getElementById('ojPrevPage').disabled = currentPage <= 1;
+            document.getElementById('ojNextPage').disabled = currentPage >= totalPages;
+
+            // 显示分页
+            paginationBar.style.display = 'flex';
+        }
+
+        function changePage(delta) {
+            var totalPages = Math.ceil(filteredProblems.length / pageSize);
+            currentPage += delta;
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            renderProblems(filteredProblems);
+        }
+
+        function showEmpty(message) {
+            document.getElementById('ojListContent').innerHTML =
+                '<div class="oj-list-empty">' +
+                    '<div class="oj-list-empty-icon">📭</div>' +
+                    '<div>' + message + '</div>' +
+                '</div>';
+        }
+
+        function goToProblem(id) {
+            window.location.href = 'oj.html?id=' + id;
+        }
+
+        function applyFilters() {
+            var searchVal = document.getElementById('ojSearchInput').value.toLowerCase().trim();
+            var diffVal = document.getElementById('ojDifficultyFilter').value;
+            var tagVal = document.getElementById('ojTagFilter').value;
+
+            filteredProblems = allProblems;
+
+            if (searchVal) {
+                filteredProblems = filteredProblems.filter(function(p) {
+                    return p.title.toLowerCase().indexOf(searchVal) !== -1 ||
+                           p.tags.some(function(t) { return t.toLowerCase().indexOf(searchVal) !== -1; });
+                });
+            }
+
+            if (diffVal) {
+                filteredProblems = filteredProblems.filter(function(p) { return p.difficulty === diffVal; });
+            }
+
+            if (tagVal) {
+                filteredProblems = filteredProblems.filter(function(p) { return p.tags.indexOf(tagVal) !== -1; });
+            }
+
+            currentPage = 1;
+            renderProblems(filteredProblems);
+        }
+
+        document.getElementById('ojSearchInput').addEventListener('input', applyFilters);
+        document.getElementById('ojDifficultyFilter').addEventListener('change', applyFilters);
+        document.getElementById('ojTagFilter').addEventListener('change', applyFilters);
+        document.getElementById('ojPageSizeSelect').addEventListener('change', function(e) {
+            pageSize = parseInt(e.target.value);
+            currentPage = 1;
+            renderProblems(filteredProblems);
+        });
+
+        loadProblems();
+    </script>
+</body>
+</html>

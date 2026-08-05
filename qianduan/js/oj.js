@@ -2,45 +2,184 @@
  * Online Judge - 前端逻辑
  */
 
-// 页面刷新防护机制（在页面加载时立即初始化）
-let allowRefresh = true;
-let refreshProtectionInitialized = false;
-
-// 题目数据（从后端获取）
-let OJ_PROBLEMS = [];
-
 // API基础地址
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = 'http://localhost:80/api';
 
-// 页面加载标志，用于检测页面是否重新加载
-window.ALGOVIZ_PAGE_LOADED = Date.now();
-console.log('页面加载时间戳:', window.ALGOVIZ_PAGE_LOADED);
+// 语言配置映射
+const LANGUAGE_CONFIG = {
+    java: { label: 'Java', mode: 'text/x-java', ext: 'java' },
+    c: { label: 'C', mode: 'text/x-csrc', ext: 'c' },
+    python: { label: 'Python', mode: 'text/x-python', ext: 'py' },
+    go: { label: 'Go', mode: 'text/x-go', ext: 'go' }
+};
 
-// HTML转义函数，防止XSS攻击和HTML解析错误
-function escapeHtml(str) {
-    if (!str) return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+// 离线题目数据
+const OFFLINE_PROBLEMS = [
+    {
+        id: 1001, title: '两数之和', difficulty: 'easy', tags: ['数组', '哈希表'],
+        description: '<p>给定一个整数数组 <code>nums</code> 和一个整数目标值 <code>target</code>，请你在该数组中找出和为目标值 <code>target</code> 的那两个整数，并返回它们的数组下标。</p><p>你可以假设每种输入只会对应一个答案，并且你不能使用两次相同的元素。</p>',
+        inputFormat: 'nums = [2,7,11,15], target = 9',
+        outputFormat: '[0,1]',
+        sampleInput: 'nums = [2,7,11,15], target = 9',
+        sampleOutput: '[0,1]',
+        templateCode: {
+            java: 'class Solution {\n    public int[] twoSum(int[] nums, int target) {\n        // 在此处编写你的代码\n        \n    }\n}',
+            c: '#include <stdlib.h>\nint* twoSum(int* nums, int numsSize, int target, int* returnSize) {\n    // 在此处编写你的代码\n    \n}',
+            python: 'class Solution:\n    def twoSum(self, nums: list[int], target: int) -> list[int]:\n        # 在此处编写你的代码\n        pass',
+            go: 'func twoSum(nums []int, target int) []int {\n    // 在此处编写你的代码\n    \n}'
+        }
+    },
+    {
+        id: 1002, title: '反转链表', difficulty: 'easy', tags: ['链表', '递归'],
+        description: '<p>给你单链表的头节点 <code>head</code> ，请你反转链表，并返回反转后的链表。</p>',
+        inputFormat: 'head = [1,2,3,4,5]',
+        outputFormat: '[5,4,3,2,1]',
+        sampleInput: 'head = [1,2,3,4,5]',
+        sampleOutput: '[5,4,3,2,1]',
+        templateCode: {
+            java: 'class Solution {\n    public ListNode reverseList(ListNode head) {\n        // 在此处编写你的代码\n        \n    }\n}',
+            c: 'struct ListNode* reverseList(struct ListNode* head) {\n    // 在此处编写你的代码\n    \n}',
+            python: 'class Solution:\n    def reverseList(self, head: ListNode) -> ListNode:\n        # 在此处编写你的代码\n        pass',
+            go: 'func reverseList(head *ListNode) *ListNode {\n    // 在此处编写你的代码\n    \n}'
+        }
+    },
+    {
+        id: 1003, title: 'LRU缓存', difficulty: 'medium', tags: ['设计', '哈希表', '链表'],
+        description: '<p>请你设计并实现一个满足 <b>LRU (最近最少使用) 缓存</b> 约束的数据结构。</p><p>实现 <code>LRUCache</code> 类：</p><ul><li><code>LRUCache(int capacity)</code> 以正整数作为容量 <code>capacity</code> 初始化 LRU 缓存</li><li><code>int get(int key)</code> 如果关键字 <code>key</code> 存在于缓存中，则返回关键字的值，否则返回 <code>-1</code></li><li><code>void put(int key, int value)</code> 如果关键字 <code>key</code> 已经存在，则变更其数据值 <code>value</code>；如果不存在，则向缓存中插入该组 <code>key-value</code>。如果插入操作导致关键字数量超过 <code>capacity</code>，则应该逐出最久未使用的关键字。</li></ul>',
+        inputFormat: '["LRUCache", "put", "put", "get", "put", "get", "put", "get", "get", "get"]\n[[2], [1, 1], [2, 2], [1], [3, 3], [2], [4, 4], [1], [3], [4]]',
+        outputFormat: '[null, null, null, 1, null, -1, null, -1, 3, 4]',
+        sampleInput: 'capacity = 2, operations = ["put(1,1)","put(2,2)","get(1)","put(3,3)","get(2)","put(4,4)","get(1)","get(3)","get(4)"]',
+        sampleOutput: '[null,null,1,null,-1,null,-1,3,4]',
+        templateCode: {
+            java: 'class LRUCache {\n    public LRUCache(int capacity) {\n        // 初始化缓存\n    }\n    public int get(int key) {\n        // 获取缓存\n        return -1;\n    }\n    public void put(int key, int value) {\n        // 设置缓存\n    }\n}',
+            c: 'typedef struct {\n    int key;\n    int value;\n} LRUCache;\n\nLRUCache* lRUCacheCreate(int capacity) {\n    // 初始化\n    return NULL;\n}\nint lRUCacheGet(LRUCache* obj, int key) {\n    // 获取\n    return -1;\n}\nvoid lRUCachePut(LRUCache* obj, int key, int value) {\n    // 设置\n}\nvoid lRUCacheFree(LRUCache* obj) {\n    // 释放内存\n}',
+            python: 'class LRUCache:\n    def __init__(self, capacity: int):\n        # 初始化\n        pass\n    def get(self, key: int) -> int:\n        # 获取\n        return -1\n    def put(self, key: int, value: int) -> None:\n        # 设置\n        pass',
+            go: 'type LRUCache struct {\n    // 定义数据结构\n}\n\nfunc Constructor(capacity int) LRUCache {\n    // 初始化\n    return LRUCache{}\n}\n\nfunc (this *LRUCache) Get(key int) int {\n    // 获取\n    return -1\n}\n\nfunc (this *LRUCache) Put(key int, value int) {\n    // 设置\n}'
+        }
+    },
+    {
+        id: 1004, title: '无重复字符的最长子串', difficulty: 'medium', tags: ['哈希表', '字符串', '滑动窗口'],
+        description: '<p>给定一个字符串 <code>s</code> ，请你找出其中不含有重复字符的 <b>最长子串</b> 的长度。</p>',
+        inputFormat: 's = "abcabcbb"',
+        outputFormat: '3',
+        sampleInput: 's = "abcabcbb"',
+        sampleOutput: '3',
+        templateCode: {
+            java: 'class Solution {\n    public int lengthOfLongestSubstring(String s) {\n        // 在此处编写你的代码\n        \n    }\n}',
+            c: 'int lengthOfLongestSubstring(char* s) {\n    // 在此处编写你的代码\n    \n}',
+            python: 'class Solution:\n    def lengthOfLongestSubstring(self, s: str) -> int:\n        # 在此处编写你的代码\n        pass',
+            go: 'func lengthOfLongestSubstring(s string) int {\n    // 在此处编写你的代码\n    \n}'
+        }
+    },
+    {
+        id: 1005, title: '接雨水', difficulty: 'hard', tags: ['栈', '双指针', '动态规划'],
+        description: '<p>给定 <code>n</code> 个非负整数表示每个宽度为 <code>1</code> 的柱子的高度图，计算按此排列的柱子，下雨之后能接多少雨水。</p>',
+        inputFormat: 'height = [0,1,0,2,1,0,1,3,2,1,2,1]',
+        outputFormat: '6',
+        sampleInput: 'height = [0,1,0,2,1,0,1,3,2,1,2,1]',
+        sampleOutput: '6',
+        templateCode: {
+            java: 'class Solution {\n    public int trap(int[] height) {\n        // 在此处编写你的代码\n        \n    }\n}',
+            c: 'int trap(int* height, int heightSize) {\n    // 在此处编写你的代码\n    \n}',
+            python: 'class Solution:\n    def trap(self, height: list[int]) -> int:\n        # 在此处编写你的代码\n        pass',
+            go: 'func trap(height []int) int {\n    // 在此处编写你的代码\n    \n}'
+        }
+    },
+    {
+        id: 1006, title: '合并两个有序链表', difficulty: 'easy', tags: ['链表', '递归'],
+        description: '<p>将两个升序链表合并为一个新的 <b>升序</b> 链表并返回。新链表是通过拼接给定的两个链表的所有节点组成的。</p>',
+        inputFormat: 'l1 = [1,2,4], l2 = [1,3,4]',
+        outputFormat: '[1,1,2,3,4,4]',
+        sampleInput: 'l1 = [1,2,4], l2 = [1,3,4]',
+        sampleOutput: '[1,1,2,3,4,4]',
+        templateCode: {
+            java: 'class Solution {\n    public ListNode mergeTwoLists(ListNode l1, ListNode l2) {\n        // 在此处编写你的代码\n        \n    }\n}',
+            c: 'struct ListNode* mergeTwoLists(struct ListNode* l1, struct ListNode* l2) {\n    // 在此处编写你的代码\n    \n}',
+            python: 'class Solution:\n    def mergeTwoLists(self, l1: ListNode, l2: ListNode) -> ListNode:\n        # 在此处编写你的代码\n        pass',
+            go: 'func mergeTwoLists(l1 *ListNode, l2 *ListNode) *ListNode {\n    // 在此处编写你的代码\n    \n}'
+        }
+    }
+];
+
+// OJ 全局状态
+const OJState = {
+    problems: [],
+    currentProblem: null,
+    currentProblemId: null,
+    currentLanguage: 'java',
+    currentSolutionLang: 'java',
+    editor: null,
+    fullscreenEditor: null,
+    isFullscreen: false,
+    isRunning: false,
+    isSubmitting: false
+};
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', initOJ);
+
+// 初始化 OJ
+async function initOJ() {
+    // 从URL获取题目ID
+    const urlParams = new URLSearchParams(window.location.search);
+    const problemId = urlParams.get('id');
+
+    try {
+        // 加载题目列表
+        await loadProblems();
+
+        // 初始化编辑器
+        initEditor();
+        initFullscreenEditor();
+
+        // 初始化控件
+        initOJControls();
+        initTabs();
+        initLanguageSwitchers();
+
+        // 初始化可拖动分栏
+        initResizableLayout();
+        initVerticalResize();
+
+        // 根据URL参数选择题目
+        if (problemId) {
+            const id = parseInt(problemId);
+            const problem = OJState.problems.find(p => p.id === id);
+            if (problem) {
+                selectProblem(problem);
+            } else {
+                selectProblem(OJState.problems[0]);
+            }
+        } else {
+            // 没有ID参数，选择第一题
+            if (OJState.problems.length > 0) {
+                selectProblem(OJState.problems[0]);
+            }
+        }
+    } catch (error) {
+        console.error('OJ初始化失败:', error);
+        // 使用离线数据
+        OJState.problems = OFFLINE_PROBLEMS;
+        initEditor();
+        initFullscreenEditor();
+        initOJControls();
+        initTabs();
+        initLanguageSwitchers();
+        initResizableLayout();
+        initVerticalResize();
+        selectProblem(OJState.problems[0]);
+    }
 }
-
-// loadProblems调用计数器
-let loadProblemsCount = 0;
 
 // 从后端获取题目列表
 async function loadProblems() {
-    loadProblemsCount++;
     try {
         const response = await fetch(`${API_BASE}/problems`);
         const data = await response.json();
-        
-        if (data.success && data.problems) {
-            console.log('原始数据:', data.problems[0]);
-            
-            OJ_PROBLEMS = data.problems.map((problem, index) => {
-                const problemNoValue = problem.problem_no || problem.problemNo || problem['problem_no'] || problem['problemNo'];
-                console.log(`题目${index}: problemNoValue =`, problemNoValue);
-                
+
+        if (data.success && data.problems && data.problems.length > 0) {
+            OJState.problems = data.problems.map((problem, index) => {
+                const problemNoValue = problem.problem_no || problem.problemNo;
                 let problemId = 0;
                 if (problemNoValue) {
                     if (typeof problemNoValue === 'number') {
@@ -52,12 +191,12 @@ async function loadProblems() {
                 } else {
                     problemId = (index + 1) * 1000;
                 }
-                
+
                 return {
                     id: problemId,
                     title: problem.title || '未命名题目',
                     difficulty: problem.difficulty || 'easy',
-                    tags: problem.tags ? problem.tags.split(',').map(tag => tag.trim()) : [],
+                    tags: problem.tags ? problem.tags.split(',').map(tag => tag.trim()).filter(t => t) : [],
                     description: problem.description || '',
                     inputFormat: problem.inputFormat || '',
                     outputFormat: problem.outputFormat || '',
@@ -65,105 +204,26 @@ async function loadProblems() {
                     sampleOutput: problem.sampleOutput || '',
                     templateCode: {
                         java: problem.template || '',
+                        c: problem.cTemplate || problem.cppTemplate || '',
                         python: problem.pythonTemplate || '',
-                        cpp: problem.cppTemplate || '',
-                        javascript: problem.javascriptTemplate || ''
-                    },
-                    testCases: problem.testCases || []
+                        go: problem.goTemplate || ''
+                    }
                 };
             });
-            
-            console.log(`成功加载 ${OJ_PROBLEMS.length} 道题目`);
-            console.log('转换后题目数据:', OJ_PROBLEMS);
         } else {
-            OJ_PROBLEMS = [];
-            console.log('未获取到题目数据');
+            OJState.problems = OFFLINE_PROBLEMS;
         }
     } catch (error) {
-        console.error('加载题目失败:', error);
-        OJ_PROBLEMS = [];
-    }
-}
-
-// OJ 全局状态
-const OJState = {
-    currentProblem: null,
-    currentLanguage: 'cpp',
-    editor: null,
-    fullscreenEditor: null,
-    isRunning: false,
-    isSubmitting: false,
-    isFullscreen: false
-};
-
-// 初始化 OJ
-async function initOJ() {
-    console.log('===== initOJ 开始 =====');
-    console.log('当前URL:', window.location.href);
-    
-    try {
-        console.log('步骤1: 加载题目');
-        await loadProblems();
-        console.log('步骤1完成: 题目加载完毕，数量:', OJ_PROBLEMS.length);
-        
-        console.log('步骤2: 初始化编辑器');
-        initEditor();
-        console.log('步骤2完成');
-        
-        console.log('步骤3: 初始化OJ控件');
-        initOJControls();
-        console.log('步骤3完成');
-        
-        console.log('步骤4: 初始化可拖动分栏');
-        initResizableLayout();
-        console.log('步骤4完成');
-        
-        console.log('步骤5: 初始化垂直拖动');
-        initVerticalResize();
-        console.log('步骤5完成');
-        
-        console.log('步骤6: 初始化全屏编辑器');
-        initFullscreenEditor();
-        console.log('步骤6完成');
-        
-        // 如果有题目，选择第一个题目显示详情
-        if (OJ_PROBLEMS.length > 0) {
-            console.log('步骤7: 选择第一个题目');
-            selectProblem(OJ_PROBLEMS[0]);
-            console.log('步骤7完成');
-        } else {
-            // 没有题目时显示提示
-            document.getElementById('ojProblemContent').innerHTML = `
-                <div class="oj-empty-state">
-                    <div class="oj-empty-icon">📋</div>
-                    <p>暂无题目数据</p>
-                </div>
-            `;
-        }
-        
-        console.log('===== initOJ 完成 =====');
-    } catch (error) {
-        console.error('OJ初始化失败:', error);
-        console.error('错误堆栈:', error.stack);
-        document.getElementById('ojProblemContent').innerHTML = `
-            <div class="oj-empty-state">
-                <div class="oj-empty-icon">⚠️</div>
-                <p>加载题目失败，请检查网络连接</p>
-            </div>
-        `;
-        initEditor();
-        initOJControls();
-        initResizableLayout();
-        initFullscreenEditor();
+        console.log('使用离线题目数据');
+        OJState.problems = OFFLINE_PROBLEMS;
     }
 }
 
 // 初始化代码编辑器
 function initEditor() {
     const textarea = document.getElementById('ojCodeEditor');
-    
     OJState.editor = CodeMirror.fromTextArea(textarea, {
-        mode: 'text/x-c++src',
+        mode: LANGUAGE_CONFIG[OJState.currentLanguage].mode,
         theme: 'monokai',
         lineNumbers: true,
         matchBrackets: true,
@@ -174,45 +234,20 @@ function initEditor() {
         indentWithTabs: false,
         electricChars: true,
         extraKeys: {
-            'Ctrl-Z': 'undo',
-            'Cmd-Z': 'undo',
-            'Ctrl-Y': 'redo',
-            'Cmd-Y': 'redo',
+            'Ctrl-Z': 'undo', 'Cmd-Z': 'undo',
+            'Ctrl-Y': 'redo', 'Cmd-Y': 'redo',
             'Ctrl-/': 'toggleComment',
-            'Tab': 'indentMore',
-            'Shift-Tab': 'indentLess'
+            'Tab': 'indentMore', 'Shift-Tab': 'indentLess'
         }
     });
-
     OJState.editor.setSize(null, '100%');
-    OJState.editor.setValue('// 请选择题目或等待题目加载...');
-
-    // 语言切换
-    document.getElementById('ojLangSelect').addEventListener('change', (e) => {
-        const lang = e.target.value;
-        OJState.currentLanguage = lang;
-        
-        const modeMap = {
-            java: 'text/x-java',
-            cpp: 'text/x-c++src',
-            python: 'text/x-python',
-            javascript: 'text/javascript'
-        };
-        OJState.editor.setOption('mode', modeMap[lang] || 'text/x-c++src');
-        
-        // 更新模板代码
-        if (OJState.currentProblem && OJState.currentProblem.templateCode[lang]) {
-            OJState.editor.setValue(OJState.currentProblem.templateCode[lang]);
-        }
-    });
 }
 
 // 初始化全屏编辑器
 function initFullscreenEditor() {
     const textarea = document.getElementById('ojFullscreenCodeEditor');
-    
     OJState.fullscreenEditor = CodeMirror.fromTextArea(textarea, {
-        mode: 'text/x-c++src',
+        mode: LANGUAGE_CONFIG[OJState.currentLanguage].mode,
         theme: 'monokai',
         lineNumbers: true,
         matchBrackets: true,
@@ -221,542 +256,462 @@ function initFullscreenEditor() {
         indentUnit: 4,
         tabSize: 4,
         indentWithTabs: false,
-        electricChars: true,
         extraKeys: {
-            'Ctrl-Z': 'undo',
-            'Cmd-Z': 'undo',
-            'Ctrl-Y': 'redo',
-            'Cmd-Y': 'redo',
+            'Ctrl-Z': 'undo', 'Cmd-Z': 'undo',
+            'Ctrl-Y': 'redo', 'Cmd-Y': 'redo',
             'Ctrl-/': 'toggleComment',
-            'Tab': 'indentMore',
-            'Shift-Tab': 'indentLess',
+            'Tab': 'indentMore', 'Shift-Tab': 'indentLess',
             'Esc': exitFullscreen
         }
     });
-
     OJState.fullscreenEditor.setSize(null, '100%');
 }
 
-// 初始化可拖动分栏
-function initResizableLayout() {
-    const leftPanel = document.getElementById('ojResizableLeft');
-    const rightPanel = document.getElementById('ojResizableRight');
-    const handle = document.getElementById('ojResizeHandle');
-    
-    if (!leftPanel || !rightPanel || !handle) {
-        console.log('未找到可拖动布局元素');
-        return;
-    }
-    
-    let isResizing = false;
-    let startX = 0;
-    let startWidth = 0;
-    
-    handle.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        startX = e.clientX;
-        startWidth = leftPanel.offsetWidth;
+// 初始化标签页切换
+function initTabs() {
+    document.querySelectorAll('.oj-problem-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.dataset.tab;
+            // 更新标签状态
+            document.querySelectorAll('.oj-problem-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
 
-        document.body.classList.add('is-resizing');
-        document.addEventListener('mousemove', onResize);
-        document.addEventListener('mouseup', stopResize);
-        document.addEventListener('mouseleave', stopResize);
+            // 切换内容区域
+            document.getElementById('ojProblemContent').style.display = 'none';
+            document.getElementById('ojSolutionContent').style.display = 'none';
+            document.getElementById('ojSubmissionsContent').style.display = 'none';
 
-        e.preventDefault();
-        e.stopPropagation();
-    });
+            // 切换语言选择栏（仅解法标签显示）
+            const langBar = document.getElementById('ojSolutionLangBar');
 
-    function onResize(e) {
-        if (!isResizing) return;
-        
-        const deltaX = e.clientX - startX;
-        const containerWidth = document.querySelector('.oj-resizable-layout').offsetWidth;
-        const newLeftWidth = startWidth + deltaX;
-        
-        // 移除限制，可以拖动到最左侧和最右侧
-        let newLeftPercent = (newLeftWidth / containerWidth) * 100;
-        
-        // 确保百分比在合理范围内 (0.1% - 99.9%)
-        newLeftPercent = Math.max(0.1, Math.min(99.9, newLeftPercent));
-        
-        leftPanel.style.flex = `0 0 ${newLeftPercent}%`;
-        rightPanel.style.flex = `0 0 ${100 - newLeftPercent}%`;
-    }
-    
-    function stopResize() {
-        isResizing = false;
-        document.body.classList.remove('is-resizing');
-        document.removeEventListener('mousemove', onResize);
-        document.removeEventListener('mouseup', stopResize);
-        document.removeEventListener('mouseleave', stopResize);
-    }
-}
-
-// 初始化垂直拖动功能
-function initVerticalResize() {
-    const verticalHandle = document.getElementById('ojVerticalResizeHandle');
-    const topPanel = document.getElementById('ojVerticalTop');
-    const bottomPanel = document.getElementById('ojVerticalBottom');
-    const verticalLayout = document.getElementById('ojVerticalLayout');
-    
-    let isVerticalResizing = false;
-    let startY = 0;
-    let startHeight = 0;
-    
-    verticalHandle.addEventListener('mousedown', (e) => {
-        isVerticalResizing = true;
-        startY = e.clientY;
-        startHeight = topPanel.offsetHeight;
-
-        document.body.classList.add('is-resizing');
-        document.addEventListener('mousemove', onVerticalResize);
-        document.addEventListener('mouseup', stopVerticalResize);
-        document.addEventListener('mouseleave', stopVerticalResize);
-
-        e.preventDefault();
-        e.stopPropagation();
-    });
-    
-    function onVerticalResize(e) {
-        if (!isVerticalResizing) return;
-        
-        const deltaY = e.clientY - startY;
-        const containerHeight = verticalLayout.offsetHeight;
-        const newTopHeight = startHeight + deltaY;
-        
-        // 移除限制，可以拖动到顶部和底部
-        let newTopPercent = (newTopHeight / containerHeight) * 100;
-        
-        // 确保百分比在合理范围内 (0.1% - 99.9%)
-        newTopPercent = Math.max(0.1, Math.min(99.9, newTopPercent));
-        
-        topPanel.style.flex = `0 0 ${newTopPercent}%`;
-        bottomPanel.style.flex = `0 0 ${100 - newTopPercent}%`;
-    }
-    
-    function stopVerticalResize() {
-        isVerticalResizing = false;
-        document.body.classList.remove('is-resizing');
-        document.removeEventListener('mousemove', onVerticalResize);
-        document.removeEventListener('mouseup', stopVerticalResize);
-        document.removeEventListener('mouseleave', stopVerticalResize);
-    }
-}
-
-// 初始化 OJ 控制按钮
-function initOJControls() {
-    // 返回按钮
-    document.getElementById('ojBackBtn').addEventListener('click', () => {
-        window.location.href = '../index.html';
-    });
-
-    // 题库按钮
-    document.getElementById('ojProblemsBtn').addEventListener('click', () => {
-        showProblemList();
-    });
-
-    // 上一题按钮
-    document.getElementById('ojPrevBtn').addEventListener('click', () => {
-        switchToPrevProblem();
-    });
-
-    // 下一题按钮
-    document.getElementById('ojNextBtn').addEventListener('click', () => {
-        switchToNextProblem();
-    });
-
-    // 格式化按钮
-    document.getElementById('ojFormatBtn').addEventListener('click', () => {
-        formatCode();
-    });
-
-    // 清空按钮
-    document.getElementById('ojClearBtn').addEventListener('click', () => {
-        OJState.editor.setValue('');
-    });
-
-    // 复制按钮
-    document.getElementById('ojCopyBtn').addEventListener('click', () => {
-        const code = OJState.editor.getValue();
-        navigator.clipboard.writeText(code).then(() => {
-            showToast('代码已复制到剪贴板');
-        }).catch(() => {
-            showToast('复制失败');
+            if (tabName === 'description') {
+                document.getElementById('ojProblemContent').style.display = 'block';
+                langBar.style.display = 'none';
+            } else if (tabName === 'solution') {
+                document.getElementById('ojSolutionContent').style.display = 'block';
+                langBar.style.display = 'flex';
+                renderSolutionContent();
+            } else if (tabName === 'submissions') {
+                document.getElementById('ojSubmissionsContent').style.display = 'block';
+                langBar.style.display = 'none';
+            }
         });
     });
 
-    // 全屏按钮
-    document.getElementById('ojFullscreenBtn').addEventListener('click', () => {
-        enterFullscreen();
-    });
-
-    // 运行按钮
-    document.getElementById('ojRunBtn').addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        runCode();
-    });
-
-    // 提交按钮
-    document.getElementById('ojSubmitBtn').addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        submitCode();
-    });
-
-    // 结果面板切换
+    // 结果标签
     document.querySelectorAll('.oj-result-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.oj-result-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
         });
     });
+}
 
-    // 题目标签切换
-    document.querySelectorAll('.oj-problem-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.oj-problem-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-        });
+// 初始化语言切换器
+function initLanguageSwitchers() {
+    // 编辑器语言切换
+    document.getElementById('ojLangSelect').addEventListener('change', (e) => {
+        const lang = e.target.value;
+        OJState.currentLanguage = lang;
+
+        OJState.editor.setOption('mode', LANGUAGE_CONFIG[lang].mode);
+        OJState.fullscreenEditor.setOption('mode', LANGUAGE_CONFIG[lang].mode);
+
+        // 更新全屏语言选择
+        const fsSelect = document.getElementById('ojFullscreenLangSelect');
+        if (fsSelect.value !== lang) fsSelect.value = lang;
+
+        // 加载题目模板
+        if (OJState.currentProblem && OJState.currentProblem.templateCode[lang]) {
+            OJState.editor.setValue(OJState.currentProblem.templateCode[lang]);
+        }
     });
 
-    // 全屏相关按钮
-    document.getElementById('ojExitFullscreenBtn').addEventListener('click', exitFullscreen);
-    document.getElementById('ojFullscreenFormatBtn').addEventListener('click', () => {
-        formatCode(true);
+    // 解法标签页语言切换
+    document.getElementById('ojSolutionLangSelect').addEventListener('change', (e) => {
+        OJState.currentSolutionLang = e.target.value;
+        renderSolutionContent();
     });
-    document.getElementById('ojFullscreenClearBtn').addEventListener('click', () => {
-        OJState.fullscreenEditor.setValue('');
-    });
-    document.getElementById('ojFullscreenCopyBtn').addEventListener('click', () => {
-        const code = OJState.fullscreenEditor.getValue();
-        navigator.clipboard.writeText(code).then(() => {
-            showToast('代码已复制到剪贴板');
-        }).catch(() => {
-            showToast('复制失败');
-        });
-    });
-    document.getElementById('ojFullscreenSubmitBtn').addEventListener('click', () => {
-        OJState.editor.setValue(OJState.fullscreenEditor.getValue());
-        exitFullscreen();
-        submitCode();
+
+    // 全屏语言切换
+    document.getElementById('ojFullscreenLangSelect').addEventListener('change', (e) => {
+        const lang = e.target.value;
+        OJState.currentLanguage = lang;
+        OJState.editor.setOption('mode', LANGUAGE_CONFIG[lang].mode);
+        OJState.fullscreenEditor.setOption('mode', LANGUAGE_CONFIG[lang].mode);
+        // 更新编辑器语言选择
+        const mainSelect = document.getElementById('ojLangSelect');
+        if (mainSelect.value !== lang) mainSelect.value = lang;
+
+        if (OJState.currentProblem && OJState.currentProblem.templateCode[lang]) {
+            OJState.editor.setValue(OJState.currentProblem.templateCode[lang]);
+            OJState.fullscreenEditor.setValue(OJState.currentProblem.templateCode[lang]);
+        }
     });
 }
 
-// 进入全屏模式
-function enterFullscreen() {
-    const overlay = document.getElementById('ojFullscreenOverlay');
-    const currentCode = OJState.editor.getValue();
-    
-    OJState.fullscreenEditor.setValue(currentCode);
-    OJState.fullscreenEditor.focus();
-    
-    overlay.classList.add('active');
-    OJState.isFullscreen = true;
-    
-    document.body.style.overflow = 'hidden';
+// 渲染解法内容
+function renderSolutionContent() {
+    const content = document.getElementById('ojSolutionContent');
+    if (!OJState.currentProblem) return;
+
+    const lang = OJState.currentSolutionLang;
+    const template = OJState.currentProblem.templateCode[lang] || '暂无该语言的模板代码';
+    const langLabel = LANGUAGE_CONFIG[lang].label;
+
+    content.innerHTML = `
+        <div style="margin-bottom: 16px;">
+            <div style="font-size: 12px; color: #858585; margin-bottom: 8px;">
+                <span style="background: rgba(102,126,234,0.15); color: #a5b4fc; padding: 2px 8px; border-radius: 4px; margin-right: 8px;">${langLabel} 模板</span>
+                <span style="color: #666;">以下是该题的 ${langLabel} 解法模板</span>
+            </div>
+            <pre style="background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 6px; padding: 12px; font-family: 'Fira Code', monospace; font-size: 13px; line-height: 1.6; color: #d4d4d4; overflow-x: auto; white-space: pre-wrap; word-break: break-all;">${escapeHtml(template)}</pre>
+            <div style="margin-top: 12px; display: flex; gap: 8px;">
+                <button onclick="copyTemplate('${lang}')" style="padding: 6px 12px; background: rgba(102,126,234,0.15); border: 1px solid rgba(102,126,234,0.3); border-radius: 4px; color: #a5b4fc; cursor: pointer; font-size: 12px;">📋 复制模板</button>
+                <button onclick="applyTemplate('${lang}')" style="padding: 6px 12px; background: rgba(78,201,176,0.15); border: 1px solid rgba(78,201,176,0.3); border-radius: 4px; color: #4ec9b0; cursor: pointer; font-size: 12px;">✅ 应用到编辑器</button>
+            </div>
+        </div>
+    `;
 }
 
-// 退出全屏模式
-function exitFullscreen() {
-    const overlay = document.getElementById('ojFullscreenOverlay');
-    const fullscreenCode = OJState.fullscreenEditor.getValue();
-    
-    OJState.editor.setValue(fullscreenCode);
-    
-    overlay.classList.remove('active');
-    OJState.isFullscreen = false;
-    
-    document.body.style.overflow = '';
+// 转义HTML
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// 复制模板到剪贴板
+function copyTemplate(lang) {
+    if (!OJState.currentProblem) return;
+    const template = OJState.currentProblem.templateCode[lang] || '';
+    navigator.clipboard.writeText(template).then(() => {
+        showToast('模板已复制到剪贴板');
+    }).catch(() => showToast('复制失败'));
+}
+
+// 应用模板到编辑器
+function applyTemplate(lang) {
+    if (!OJState.currentProblem) return;
+    const template = OJState.currentProblem.templateCode[lang] || '';
+    OJState.editor.setValue(template);
+    OJState.currentLanguage = lang;
+
+    // 同步语言选择
+    document.getElementById('ojLangSelect').value = lang;
+    OJState.editor.setOption('mode', LANGUAGE_CONFIG[lang].mode);
+
+    showToast('模板已应用到编辑器');
 }
 
 // 选择题目并显示详情
 function selectProblem(problem) {
     if (!problem) return;
-    
+
     OJState.currentProblem = problem;
-    
-    // 更新题目标题
-    document.getElementById('ojProblemTitle').textContent = `${problem.id}. ${problem.title}`;
-    
+    OJState.currentProblemId = problem.id;
+
     // 更新难度标签
-    const difficultyMap = {
+    const diffMap = {
         'easy': { label: '简单', class: 'oj-difficulty-easy' },
         'medium': { label: '中等', class: 'oj-difficulty-medium' },
         'hard': { label: '困难', class: 'oj-difficulty-hard' }
     };
-    const difficulty = difficultyMap[problem.difficulty] || difficultyMap['easy'];
-    const difficultySpan = document.getElementById('ojProblemDifficulty');
-    difficultySpan.textContent = difficulty.label;
-    difficultySpan.className = `oj-problem-difficulty ${difficulty.class}`;
-    
-    // 更新标签
-    const tagsDiv = document.getElementById('ojProblemTags');
-    tagsDiv.innerHTML = problem.tags.map(tag => {
-        const tagClass = difficultyMap[tag.toLowerCase()] ? `oj-tag oj-tag-${tag.toLowerCase()}` : 'oj-tag';
-        return `<span class="${tagClass}">${tag}</span>`;
-    }).join('');
-    
+    const diff = diffMap[problem.difficulty] || diffMap['easy'];
+    const diffSpan = document.getElementById('ojProblemDifficulty');
+    diffSpan.textContent = diff.label;
+    diffSpan.className = `oj-problem-difficulty ${diff.class}`;
+
     // 更新题目内容
     const contentDiv = document.getElementById('ojProblemContent');
+    const tagsHtml = problem.tags.map(t => {
+        const cls = ['easy', 'medium', 'hard'].includes(t.toLowerCase())
+            ? `oj-tag oj-tag-${t.toLowerCase()}`
+            : 'oj-tag';
+        return `<span class="${cls}">${t}</span>`;
+    }).join('');
+
+    // 使用 marked 解析 Markdown 描述
+    let descriptionHtml = problem.description || '暂无题目描述';
+    if (typeof marked !== 'undefined') {
+        try {
+            descriptionHtml = marked.parse(descriptionHtml);
+        } catch (e) {
+            console.warn('Markdown 解析失败，使用原始文本:', e);
+            descriptionHtml = `<p>${escapeHtml(problem.description || '暂无题目描述')}</p>`;
+        }
+    }
+
     contentDiv.innerHTML = `
-        <h2 id="ojProblemTitle" class="oj-problem-title">${problem.id}. ${problem.title}</h2>
-        <div class="oj-problem-tags" id="ojProblemTags">
-            ${problem.tags.map(tag => {
-                const tagClass = difficultyMap[tag.toLowerCase()] ? `oj-tag oj-tag-${tag.toLowerCase()}` : 'oj-tag';
-                return `<span class="${tagClass}">${tag}</span>`;
-            }).join('')}
-        </div>
-        <div class="oj-problem-body">
-            ${problem.description}
-            ${problem.inputFormat ? `<div class="oj-sample-section"><h4>输入格式：</h4><pre>${problem.inputFormat}</pre></div>` : ''}
-            ${problem.outputFormat ? `<div class="oj-sample-section"><h4>输出格式：</h4><pre>${problem.outputFormat}</pre></div>` : ''}
-            ${problem.sampleInput ? `
-                <div class="oj-sample-section">
-                    <h4>示例：</h4>
-                    <div class="oj-sample-block">
-                        <div class="oj-sample-label">输入：</div>
-                        <div>${problem.sampleInput}</div>
-                        <div class="oj-sample-label">输出：</div>
-                        <div>${problem.sampleOutput || ''}</div>
-                    </div>
-                </div>
-            ` : ''}
+        <h2 style="font-size: 18px; font-weight: 700; margin: 0 0 12px 0; color: #fff;">${problem.id}. ${problem.title}</h2>
+        <div class="oj-problem-tags" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;">${tagsHtml}</div>
+        <div class="oj-problem-body markdown-body" style="color: #d4d4d4; line-height: 1.8; font-size: 13px;">
+            ${descriptionHtml}
+            ${problem.inputFormat ? `<div style="margin-top: 14px;"><h4 style="color: #9cdcfe; font-size: 12px; font-weight: 600; margin-bottom: 6px;">输入格式</h4><pre style="background: #2d2d30; padding: 10px; border-radius: 4px; font-family: 'Fira Code', monospace; font-size: 12px; color: #d4d4d4;">${escapeHtml(problem.inputFormat)}</pre></div>` : ''}
+            ${problem.outputFormat ? `<div style="margin-top: 10px;"><h4 style="color: #9cdcfe; font-size: 12px; font-weight: 600; margin-bottom: 6px;">输出格式</h4><pre style="background: #2d2d30; padding: 10px; border-radius: 4px; font-family: 'Fira Code', monospace; font-size: 12px; color: #d4d4d4;">${escapeHtml(problem.outputFormat)}</pre></div>` : ''}
+            ${problem.sampleInput ? `<div style="margin-top: 14px;"><h4 style="color: #9cdcfe; font-size: 12px; font-weight: 600; margin-bottom: 6px;">示例</h4><div style="background: #2d2d30; padding: 12px; border-radius: 4px; font-family: 'Fira Code', monospace; font-size: 12px;"><div><span style="color: #858585;">输入：</span>${escapeHtml(problem.sampleInput)}</div>${problem.sampleOutput ? `<div style="margin-top: 6px;"><span style="color: #858585;">输出：</span>${escapeHtml(problem.sampleOutput)}</div>` : ''}</div></div>` : ''}
         </div>
     `;
-    
-    // 更新编辑器模板代码
-    if (problem.templateCode && problem.templateCode[OJState.currentLanguage]) {
-        OJState.editor.setValue(problem.templateCode[OJState.currentLanguage]);
+
+    // 加载当前语言的模板代码
+    const lang = OJState.currentLanguage;
+    if (problem.templateCode && problem.templateCode[lang]) {
+        OJState.editor.setValue(problem.templateCode[lang]);
+        OJState.fullscreenEditor.setValue(problem.templateCode[lang]);
     }
-    
-    // 更新导航按钮状态
-    onProblemSelected(problem.id);
-    
-    console.log('题目详情已更新:', problem.title);
+
+    // 更新导航按钮
+    updateNavButtons();
+
+    // 重置结果
+    resetResultPanel();
+
+    console.log('题目已选择:', problem.title);
+}
+
+// 重置结果面板
+function resetResultPanel() {
+    document.getElementById('ojResultBody').innerHTML = `
+        <div class="oj-empty-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #6a6a6a;">
+            <div style="font-size: 32px; margin-bottom: 8px;">▶</div>
+            <span>点击运行查看结果</span>
+        </div>
+    `;
+}
+
+// 更新导航按钮状态
+function updateNavButtons() {
+    const currentIndex = OJState.problems.findIndex(p => p.id === OJState.currentProblemId);
+    document.getElementById('ojPrevBtn').disabled = currentIndex <= 0;
+    document.getElementById('ojNextBtn').disabled = currentIndex >= OJState.problems.length - 1;
+}
+
+// 初始化OJ控件
+function initOJControls() {
+    // 返回题目列表
+    document.getElementById('ojBackToListBtn').addEventListener('click', () => {
+        window.location.href = 'oj-list.html';
+    });
+
+    // 上一题
+    document.getElementById('ojPrevBtn').addEventListener('click', () => {
+        switchToProblem(-1);
+    });
+
+    // 下一题
+    document.getElementById('ojNextBtn').addEventListener('click', () => {
+        switchToProblem(1);
+    });
+
+    // 运行代码
+    document.getElementById('ojRunBtn').addEventListener('click', runCode);
+    document.getElementById('ojFullscreenRunBtn').addEventListener('click', () => {
+        OJState.editor.setValue(OJState.fullscreenEditor.getValue());
+        exitFullscreen();
+        runCode();
+    });
+
+    // 提交代码
+    document.getElementById('ojSubmitBtn').addEventListener('click', submitCode);
+    document.getElementById('ojFullscreenSubmitBtn').addEventListener('click', () => {
+        OJState.editor.setValue(OJState.fullscreenEditor.getValue());
+        exitFullscreen();
+        submitCode();
+    });
+
+    // 格式化代码
+    document.getElementById('ojFormatBtn').addEventListener('click', formatCode);
+    document.getElementById('ojFormatBtn2').addEventListener('click', formatCode);
+    document.getElementById('ojFullscreenFormatBtn').addEventListener('click', () => formatCode(true));
+
+    // 清空代码
+    document.getElementById('ojClearBtn').addEventListener('click', () => OJState.editor.setValue(''));
+    document.getElementById('ojClearBtn2').addEventListener('click', () => OJState.editor.setValue(''));
+    document.getElementById('ojFullscreenClearBtn').addEventListener('click', () => OJState.fullscreenEditor.setValue(''));
+
+    // 复制代码
+    document.getElementById('ojCopyBtn').addEventListener('click', copyCode);
+    document.getElementById('ojCopyBtn2').addEventListener('click', copyCode);
+    document.getElementById('ojFullscreenCopyBtn').addEventListener('click', copyFullscreenCode);
+
+    // 全屏
+    document.getElementById('ojFullscreenBtn').addEventListener('click', enterFullscreen);
+    document.getElementById('ojFullscreenBtn2').addEventListener('click', enterFullscreen);
+    document.getElementById('ojExitFullscreenBtn').addEventListener('click', exitFullscreen);
+}
+
+// 切换题目
+function switchToProblem(direction) {
+    const currentIndex = OJState.problems.findIndex(p => p.id === OJState.currentProblemId);
+    const newIndex = currentIndex + direction;
+    if (newIndex >= 0 && newIndex < OJState.problems.length) {
+        selectProblem(OJState.problems[newIndex]);
+        window.scrollTo(0, 0);
+    }
 }
 
 // 格式化代码
 function formatCode(isFullscreen = false) {
     const editor = isFullscreen ? OJState.fullscreenEditor : OJState.editor;
     let code = editor.getValue();
-    
-    if (OJState.currentLanguage === 'java' || OJState.currentLanguage === 'cpp') {
+
+    if (OJState.currentLanguage === 'java' || OJState.currentLanguage === 'c') {
         code = code.replace(/\s+/g, ' ');
         code = code.replace(/\s*{\s*/g, ' {\n    ');
         code = code.replace(/\s*}\s*/g, '\n}\n');
         code = code.replace(/;\s*/g, ';\n');
+    } else if (OJState.currentLanguage === 'python') {
+        // Python 格式化（简单缩进）
+        code = code.replace(/\n\s*\n/g, '\n\n');
     }
-    
+
     editor.setValue(code);
     showToast('代码已格式化');
 }
 
+// 复制代码
+function copyCode() {
+    const code = OJState.editor.getValue();
+    navigator.clipboard.writeText(code).then(() => showToast('代码已复制')).catch(() => showToast('复制失败'));
+}
+
+// 复制全屏代码
+function copyFullscreenCode() {
+    const code = OJState.fullscreenEditor.getValue();
+    navigator.clipboard.writeText(code).then(() => showToast('代码已复制')).catch(() => showToast('复制失败'));
+}
+
+// 进入全屏
+function enterFullscreen() {
+    const overlay = document.getElementById('ojFullscreenOverlay');
+    const currentCode = OJState.editor.getValue();
+    OJState.fullscreenEditor.setValue(currentCode);
+    overlay.classList.add('active');
+    OJState.isFullscreen = true;
+    document.body.style.overflow = 'hidden';
+}
+
+// 退出全屏
+function exitFullscreen() {
+    const overlay = document.getElementById('ojFullscreenOverlay');
+    OJState.editor.setValue(OJState.fullscreenEditor.getValue());
+    overlay.classList.remove('active');
+    OJState.isFullscreen = false;
+    document.body.style.overflow = '';
+}
+
 // 运行代码
 function runCode() {
+    if (OJState.isRunning) return;
     const code = OJState.editor.getValue();
-    const language = OJState.currentLanguage;
+    const lang = OJState.currentLanguage;
     const input = document.getElementById('ojCustomInput').value;
-    
-    console.log('语言:', language);
-    console.log('代码长度:', code.length);
-    console.log('输入内容:', input ? '有输入' : '无输入');
-    
+
+    if (!code.trim()) {
+        displayRunResult({ status: 'error', message: '代码不能为空' });
+        return;
+    }
+
     OJState.isRunning = true;
     const runBtn = document.getElementById('ojRunBtn');
     runBtn.disabled = true;
-    runBtn.innerHTML = '<span class="oj-spinner" style="width:16px;height:16px;"></span> 运行中...';
+    runBtn.innerHTML = '<span class="oj-spinner" style="display:inline-block;width:12px;height:12px;border:2px solid #3c3c3c;border-top-color: #4ec9b0;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;"></span> 运行中...';
 
     document.getElementById('ojResultBody').innerHTML = `
-        <div class="oj-loading">
-            <div class="oj-spinner"></div>
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #858585;">
+            <div class="oj-spinner" style="width: 25px; height: 25px; border: 2px solid #3c3c3c; border-top-color: #4ec9b0; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 8px;"></div>
             <span>正在编译运行...</span>
         </div>
     `;
 
-    // 模拟运行结果
-    simulateRunCode(code, language, input)
-        .then(result => {
-            if (result.success) {
-                displayRunResult({
-                    status: result.status,
-                    output: result.output,
-                    message: result.message,
-                    time: result.time,
-                    memory: result.memory
-                });
-            } else {
-                displayRunResult({ status: 'error', message: result.message });
-            }
-        })
-        .catch(error => {
-            console.error('运行代码失败:', error);
-            displayRunResult({ status: 'error', message: '网络错误，无法连接后端服务' });
-        })
-        .finally(() => {
-            OJState.isRunning = false;
-            runBtn.disabled = false;
-            runBtn.innerHTML = '<span>▶</span> 运行';
-        });
-}
-
-// 模拟运行代码
-function simulateRunCode(code, language, input) {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            if (!code.trim()) {
-                resolve({ success: true, status: 'error', message: '代码不能为空' });
-                return;
-            }
-
-            if (language === 'java' && !code.includes('public static void main')) {
-                resolve({ success: true, status: 'ce', message: '编译错误: 找不到 main 方法\n请确保代码包含 public static void main(String[] args)' });
-                return;
-            }
-
-            resolve({
-                success: true,
+    setTimeout(() => {
+        // 简单模拟运行结果
+        let result;
+        if (lang === 'java' && !code.includes('class') && !code.includes('void')) {
+            result = { status: 'ce', message: '编译错误: Java代码需要包含class定义' };
+        } else if (lang === 'c' && !code.includes('#include') && !code.includes('main')) {
+            result = { status: 'ce', message: '编译错误: C代码需要包含#include头文件和main函数' };
+        } else if (lang === 'go' && !code.includes('package')) {
+            result = { status: 'ce', message: '编译错误: Go代码需要包含package声明' };
+        } else {
+            result = {
                 status: 'success',
-                output: input || '2.00000',
-                time: Math.random() * 100 + 10,
+                output: input || '42',
+                time: (Math.random() * 100 + 10).toFixed(2),
                 memory: Math.floor(Math.random() * 10000 + 5000)
-            });
-        }, 1000 + Math.random() * 1000);
-    });
+            };
+        }
+        displayRunResult(result);
+        OJState.isRunning = false;
+        runBtn.disabled = false;
+        runBtn.innerHTML = '<span>▶</span> 运行';
+    }, 1200);
 }
 
 // 提交代码
 function submitCode() {
-    if (OJState.isSubmitting) {
+    if (OJState.isSubmitting) return;
+    const code = OJState.editor.getValue();
+    const lang = OJState.currentLanguage;
+
+    if (!code.trim()) {
+        displayJudgeResult({ status: 'ce', message: '代码不能为空', results: [], passedCount: 0, totalCount: 0 });
         return;
     }
-    
-    const code = OJState.editor.getValue();
-    const language = OJState.currentLanguage;
-    
+
     OJState.isSubmitting = true;
     const submitBtn = document.getElementById('ojSubmitBtn');
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="oj-spinner" style="width:16px;height:16px;"></span> 判题中...';
-
-    document.querySelectorAll('.oj-result-tab').forEach(t => t.classList.remove('active'));
-    document.querySelector('.oj-result-tab[data-tab="submit"]').classList.add('active');
+    submitBtn.innerHTML = '<span class="oj-spinner" style="display:inline-block;width:12px;height:12px;border:2px solid #3c3c3c;border-top-color: #4ec9b0;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;"></span> 判题中...';
 
     document.getElementById('ojResultBody').innerHTML = `
-        <div class="oj-loading">
-            <div class="oj-spinner"></div>
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #858585;">
+            <div class="oj-spinner" style="width: 25px; height: 25px; border: 2px solid #3c3c3c; border-top-color: #4ec9b0; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 8px;"></div>
             <span>正在判题...</span>
         </div>
     `;
 
-    simulateJudge(code, language)
-        .then(result => {
-            displayJudgeResult(result);
-        })
-        .catch(error => {
-            console.error('提交代码失败:', error);
-            displayJudgeResult({ status: 'error', message: '网络错误，无法连接后端服务' });
-        })
-        .finally(() => {
-            OJState.isSubmitting = false;
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<span>📤</span> 提交';
-        });
-}
-
-// 模拟判题
-function simulateJudge(code, language) {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            if (!code.trim()) {
-                resolve({ status: 'ce', message: '代码不能为空', results: [], passedCount: 0, totalCount: 1 });
-                return;
-            }
-
-            if (language === 'java' && !code.includes('public static void main')) {
-                resolve({ 
-                    status: 'ce', 
-                    message: '编译错误: 找不到 main 方法\n请确保代码包含 public static void main(String[] args)',
-                    results: [],
-                    passedCount: 0,
-                    totalCount: 1
-                });
-                return;
-            }
-
-            const random = Math.random();
-            const passed = random > 0.3;
-            
-            const results = [{
-                index: 1,
-                status: passed ? 'passed' : 'failed',
-                time: Math.floor(Math.random() * 100 + 10),
-                memory: Math.floor(Math.random() * 10000 + 5000)
-            }];
-
-            resolve({
-                status: passed ? 'accepted' : 'wa',
-                results: results,
-                passedCount: passed ? 1 : 0,
-                totalCount: 1,
-                time: Math.floor(Math.random() * 200 + 50),
-                memory: Math.floor(Math.random() * 30000 + 10000)
-            });
-        }, 2000 + Math.random() * 2000);
-    });
+    setTimeout(() => {
+        const passed = Math.random() > 0.25;
+        const result = {
+            status: passed ? 'accepted' : 'wa',
+            results: [{ index: 1, status: passed ? 'passed' : 'failed', time: Math.floor(Math.random() * 100 + 10), memory: Math.floor(Math.random() * 10000 + 5000) }],
+            passedCount: passed ? 1 : 0,
+            totalCount: 1,
+            time: Math.floor(Math.random() * 200 + 50),
+            memory: Math.floor(Math.random() * 30000 + 10000),
+            message: passed ? '' : '答案错误，请检查你的算法逻辑'
+        };
+        displayJudgeResult(result);
+        OJState.isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>📤</span> 提交';
+    }, 2000);
 }
 
 // 显示运行结果
 function displayRunResult(result) {
     const body = document.getElementById('ojResultBody');
-    
+    const ok = result.status === 'success';
+    const color = ok ? '#4ec9b0' : '#f14c4c';
+
     if (result.status === 'success') {
         body.innerHTML = `
-            <div class="oj-result-status oj-status-accepted">
-                <span class="oj-status-icon">✓</span>
-                <div class="oj-status-info">
-                    <div class="oj-status-label">运行成功</div>
-                    <div class="oj-status-detail">耗时: ${result.time.toFixed(2)}ms | 内存: ${result.memory}KB</div>
+            <div style="width: 100%; padding: 4px 0;">
+                <div style="font-size: 14px; font-weight: 600; color: ${color}; margin-bottom: 10px;">✅ 运行成功</div>
+                <div style="background: #2d2d30; padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+                    <div style="color: #858585; font-size: 11px; margin-bottom: 4px;">运行输出</div>
+                    <div style="color: #d4d4d4;">${escapeHtml(String(result.output || ''))}</div>
                 </div>
-            </div>
-            <div class="oj-sample-block" style="margin-top: 1rem;">
-                <div class="oj-sample-label">运行输出</div>
-${result.output}
-            </div>
-        `;
-    } else if (result.status === 'ce') {
-        const escapedMessage = escapeHtml(result.message || '');
-        body.innerHTML = `
-            <div class="oj-result-status oj-status-error">
-                <span class="oj-status-icon">⚠</span>
-                <div class="oj-status-info">
-                    <div class="oj-status-label">编译错误</div>
-                </div>
-            </div>
-            <div class="oj-error-output oj-compile-error" style="margin-top: 1rem;">
-${escapedMessage}
-            </div>
-        `;
-    } else if (result.status === 're') {
-        body.innerHTML = `
-            <div class="oj-result-status oj-status-error">
-                <span class="oj-status-icon">⚠</span>
-                <div class="oj-status-info">
-                    <div class="oj-status-label">运行错误</div>
-                </div>
-            </div>
-            <div class="oj-error-output" style="margin-top: 1rem;">
-${result.message || 'Runtime Error: ArrayIndexOutOfBoundsException'}
+                <div style="color: #858585; font-size: 11px;">耗时: <strong style="color: #d4d4d4;">${result.time}ms</strong> | 内存: <strong style="color: #d4d4d4;">${result.memory}KB</strong></div>
             </div>
         `;
     } else {
         body.innerHTML = `
-            <div class="oj-result-status oj-status-error">
-                <span class="oj-status-icon">✗</span>
-                <div class="oj-status-info">
-                    <div class="oj-status-label">发生错误</div>
-                    <div class="oj-status-detail">${result.message}</div>
-                </div>
+            <div style="width: 100%; padding: 4px 0;">
+                <div style="font-size: 14px; font-weight: 600; color: ${color}; margin-bottom: 10px;">❌ ${result.status === 'ce' ? '编译错误' : '运行错误'}</div>
+                <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 10px; border-radius: 4px; color: #f14c4c; font-size: 12px; white-space: pre-wrap;">${escapeHtml(result.message || '未知错误')}</div>
             </div>
         `;
     }
@@ -765,197 +720,162 @@ ${result.message || 'Runtime Error: ArrayIndexOutOfBoundsException'}
 // 显示判题结果
 function displayJudgeResult(result) {
     const body = document.getElementById('ojResultBody');
-    
+
     const statusConfig = {
-        'accepted': { icon: '✓', label: '通过', class: 'oj-status-accepted' },
-        'wa': { icon: '✗', label: '答案错误', class: 'oj-status-wrong' },
-        'ce': { icon: '⚠', label: '编译失败', class: 'oj-status-error' },
-        're': { icon: '⚠', label: '运行崩溃', class: 'oj-status-error' },
-        'tle': { icon: '⏱', label: '超时', class: 'oj-status-timeout' },
-        'error': { icon: '✗', label: '错误', class: 'oj-status-error' }
+        'accepted': { icon: '✅', label: '通过', color: '#4ec9b0' },
+        'wa': { icon: '❌', label: '答案错误', color: '#f14c4c' },
+        'ce': { icon: '⚠️', label: '编译失败', color: '#cca700' },
+        're': { icon: '⚠️', label: '运行崩溃', color: '#cca700' },
+        'tle': { icon: '⏱️', label: '超时', color: '#cca700' }
     };
 
-    const config = statusConfig[result.status] || statusConfig['error'];
+    const config = statusConfig[result.status] || { icon: '❌', label: '错误', color: '#f14c4c' };
 
     let html = `
-        <div class="oj-result-status ${config.class}">
-            <span class="oj-status-icon">${config.icon}</span>
-            <div class="oj-status-info">
-                <div class="oj-status-label">${config.label}</div>
-                <div class="oj-status-detail">
-                    ${result.passedCount !== undefined ? 
-                        `通过 ${result.passedCount}/${result.totalCount} 个测试用例 | ` : ''}
-                    耗时: ${result.time}ms | 内存: ${result.memory}KB
+        <div style="width: 100%;">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #2d2d30; border-left: 3px solid ${config.color}; border-radius: 4px; margin-bottom: 12px;">
+                <span style="font-size: 18px;">${config.icon}</span>
+                <div>
+                    <div style="font-weight: 600; color: ${config.color}; font-size: 13px;">${config.label}</div>
+                    <div style="font-size: 11px; color: #858585; margin-top: 2px;">
+                        通过 ${result.passedCount}/${result.totalCount} 个测试用例 | 耗时: ${result.time}ms | 内存: ${result.memory}KB
+                    </div>
                 </div>
             </div>
-        </div>
     `;
 
     if (result.results && result.results.length > 0) {
-        html += '<div class="oj-test-results">';
-        
+        html += '<div style="margin-bottom: 12px;">';
         const progress = result.totalCount > 0 ? (result.passedCount / result.totalCount) * 100 : 0;
         html += `
-            <div class="oj-progress">
-                <div class="oj-progress-bar">
-                    <div class="oj-progress-fill" style="width: ${progress}%"></div>
+            <div style="margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                    <span style="color: #858585;">进度</span>
+                    <span style="color: #d4d4d4;">${result.passedCount}/${result.totalCount}</span>
                 </div>
-                <span class="oj-progress-text">${result.passedCount}/${result.totalCount}</span>
+                <div style="height: 6px; background: #2d2d30; border-radius: 3px; overflow: hidden;">
+                    <div style="height: 100%; width: ${progress}%; background: ${config.color}; transition: width 0.3s;"></div>
+                </div>
             </div>
         `;
 
         result.results.forEach(tc => {
-            const isPassed = tc.status === 'passed';
+            const passed = tc.status === 'passed';
             html += `
-                <div class="oj-test-item">
-                    <span class="oj-status-icon ${isPassed ? 'oj-test-passed' : 'oj-test-failed'}">
-                        ${isPassed ? '✓' : '✗'}
-                    </span>
+                <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #252526; border-radius: 4px; margin-bottom: 4px; font-size: 12px;">
+                    <span style="color: ${passed ? '#4ec9b0' : '#f14c4c'}; font-weight: 600;">${passed ? '✓' : '✗'}</span>
                     <span>测试用例 #${tc.index}</span>
-                    <span style="color: var(--text-muted); margin-left: auto;">
-                        ${tc.time}ms | ${tc.memory}KB
-                    </span>
+                    <span style="margin-left: auto; color: #858585; font-size: 11px;">${tc.time}ms | ${tc.memory}KB</span>
                 </div>
             `;
         });
-
         html += '</div>';
     }
 
     if (result.message) {
-        html += `
-            <div class="oj-error-output ${result.status === 'ce' ? 'oj-compile-error' : ''}" style="margin-top: 1rem;">
-${result.message}
-            </div>
-        `;
+        html += `<div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 10px; border-radius: 4px; color: #f14c4c; font-size: 12px; white-space: pre-wrap;">${escapeHtml(result.message)}</div>`;
     }
 
+    html += '</div>';
     body.innerHTML = html;
 }
 
 // 显示提示
 function showToast(message) {
     const toast = document.createElement('div');
-    toast.className = 'oj-toast';
     toast.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
+        position: fixed; bottom: 20px; left: 50%;
         transform: translateX(-50%);
-        background: var(--bg-card);
-        border: 1px solid var(--primary);
-        color: var(--text-primary);
-        padding: 12px 24px;
-        border-radius: 8px;
-        z-index: 10000;
-        animation: fadeIn 0.3s ease;
+        background: #252526; border: 1px solid #667eea;
+        color: #e2e8f0; padding: 12px 24px;
+        border-radius: 8px; z-index: 10000;
+        font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: opacity 0.3s;
     `;
     toast.textContent = message;
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
-        toast.style.animation = 'fadeOut 0.3s ease';
+        toast.style.opacity = '0';
         setTimeout(() => toast.remove(), 300);
     }, 2000);
 }
 
-// 全局事件处理
-window.addEventListener('unhandledrejection', function(event) {
-    console.error('未处理的Promise拒绝:', event.reason);
-    event.preventDefault();
-});
+// 可拖动分栏 - 水平
+function initResizableLayout() {
+    const leftPanel = document.getElementById('ojResizableLeft');
+    const rightPanel = document.getElementById('ojResizableRight');
+    const handle = document.getElementById('ojResizeHandle');
 
-window.addEventListener('error', function(event) {
-    console.error('全局错误:', event.error);
-});
+    if (!leftPanel || !rightPanel || !handle) return;
 
-// 显示题目列表
-function showProblemList() {
-    if (OJ_PROBLEMS.length === 0) {
-        showToast('暂无题目数据');
-        return;
-    }
-    
-    let html = `
-        <div style="position: fixed; top: 50px; left: 20px; right: 20px; max-height: 60vh; background: #1a1a2e; border: 1px solid rgba(102, 126, 234, 0.2); border-radius: 8px; padding: 16px; z-index: 1000; overflow-y: auto;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h3 style="color: #f0f1f5; margin: 0;">题目列表</h3>
-                <button onclick="this.parentElement.parentElement.remove()" style="padding: 4px 8px; background: rgba(239, 68, 68, 0.2); border: none; border-radius: 4px; color: #ef4444; cursor: pointer;">关闭</button>
-            </div>
-            <div style="display: grid; gap: 6px;">
-    `;
-    
-    OJ_PROBLEMS.forEach((problem, index) => {
-        const isCurrent = OJState.currentProblemId === problem.id;
-        html += `
-            <div onclick="selectProblem(${problem.id}); this.parentElement.parentElement.parentElement.remove()" 
-                 style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: ${isCurrent ? 'rgba(102, 126, 234, 0.2)' : 'rgba(0, 0, 0, 0.2)'}; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
-                <div>
-                    <span style="color: #667eea; margin-right: 8px;">${problem.problemNo || index + 1}</span>
-                    <span style="color: ${isCurrent ? '#a5b4fc' : '#f0f1f5'};">${problem.title}</span>
-                </div>
-                <span style="padding: 2px 8px; border-radius: 10px; font-size: 11px; ${getDifficultyStyle(problem.difficulty)}">${problem.difficulty}</span>
-            </div>
-        `;
+    let isResizing = false, startX = 0, startWidth = 0;
+
+    handle.addEventListener('mousedown', e => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = leftPanel.offsetWidth;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
     });
-    
-    html += `</div></div>`;
-    
-    document.body.insertAdjacentHTML('beforeend', html);
+
+    document.addEventListener('mousemove', e => {
+        if (!isResizing) return;
+        const deltaX = e.clientX - startX;
+        const containerWidth = leftPanel.parentElement.offsetWidth;
+        let newLeftWidth = startWidth + deltaX;
+        newLeftWidth = Math.max(200, Math.min(newLeftWidth, containerWidth * 0.7));
+        leftPanel.style.flex = `0 0 ${newLeftWidth}px`;
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (!isResizing) return;
+        isResizing = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    });
 }
 
-// 获取难度样式
-function getDifficultyStyle(difficulty) {
-    const styles = {
-        'easy': 'background: rgba(72, 199, 142, 0.15); color: #48c78a;',
-        'medium': 'background: rgba(251, 191, 36, 0.15); color: #fbbf24;',
-        'hard': 'background: rgba(239, 68, 68, 0.15); color: #ef4444;'
-    };
-    return styles[difficulty] || styles['medium'];
+// 可拖动分栏 - 垂直
+function initVerticalResize() {
+    const handle = document.getElementById('ojVerticalResizeHandle');
+    const topPanel = document.getElementById('ojVerticalTop');
+    const bottomPanel = document.getElementById('ojVerticalBottom');
+    const container = document.getElementById('ojVerticalLayout');
+
+    if (!handle || !topPanel || !bottomPanel || !container) return;
+
+    let isResizing = false, startY = 0, startHeight = 0;
+
+    handle.addEventListener('mousedown', e => {
+        isResizing = true;
+        startY = e.clientY;
+        startHeight = topPanel.offsetHeight;
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', e => {
+        if (!isResizing) return;
+        const deltaY = e.clientY - startY;
+        let newHeight = startHeight + deltaY;
+        newHeight = Math.max(80, Math.min(newHeight, container.offsetHeight * 0.85));
+        topPanel.style.flex = `0 0 ${newHeight}px`;
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (!isResizing) return;
+        isResizing = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    });
 }
 
-// 切换到上一题
-function switchToPrevProblem() {
-    if (OJ_PROBLEMS.length === 0) return;
-    
-    const currentIndex = OJ_PROBLEMS.findIndex(p => p.id === OJState.currentProblemId);
-    if (currentIndex > 0) {
-        selectProblem(OJ_PROBLEMS[currentIndex - 1].id);
-        updateNavButtons(currentIndex - 1);
-    }
-}
-
-// 切换到下一题
-function switchToNextProblem() {
-    if (OJ_PROBLEMS.length === 0) return;
-    
-    const currentIndex = OJ_PROBLEMS.findIndex(p => p.id === OJState.currentProblemId);
-    if (currentIndex < OJ_PROBLEMS.length - 1) {
-        selectProblem(OJ_PROBLEMS[currentIndex + 1].id);
-        updateNavButtons(currentIndex + 1);
-    }
-}
-
-// 更新导航按钮状态
-function updateNavButtons(currentIndex) {
-    const prevBtn = document.getElementById('ojPrevBtn');
-    const nextBtn = document.getElementById('ojNextBtn');
-    
-    prevBtn.disabled = currentIndex === 0;
-    nextBtn.disabled = currentIndex >= OJ_PROBLEMS.length - 1;
-}
-
-// 更新导航按钮状态（在选择题目后调用）
-function onProblemSelected(problemId) {
-    const currentIndex = OJ_PROBLEMS.findIndex(p => p.id === problemId);
-    updateNavButtons(currentIndex);
-}
-
-document.addEventListener('submit', function(e) {
+// 防止表单提交
+document.addEventListener('submit', e => {
     e.preventDefault();
     e.stopPropagation();
-    e.stopImmediatePropagation();
     return false;
 }, true);
-
-document.addEventListener('DOMContentLoaded', initOJ);

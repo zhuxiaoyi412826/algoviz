@@ -17,8 +17,8 @@ function addOjNav(dir) {
         const algoLinkRegex = /(<a href="\/pages\/algorithms\.html"[^>]*>算法演示<\/a>)/;
         
         // If OJ link is not already there, add it
-        if (algoLinkRegex.test(content) && !content.includes('href="/pages/oj.html"')) {
-            content = content.replace(algoLinkRegex, '$1\n                <a href="/pages/oj.html" class="nav-link">在线OJ</a>');
+        if (algoLinkRegex.test(content) && !content.includes('href="/pages/oj-list.html"')) {
+            content = content.replace(algoLinkRegex, '$1\n                <a href="/pages/oj-list.html" class="nav-link">在线OJ</a>');
         }
         
         if (content !== originalContent) {
