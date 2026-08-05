@@ -13,6 +13,14 @@ const LANGUAGE_CONFIG = {
     go: { label: 'Go', mode: 'text/x-go', ext: 'go' }
 };
 
+// 空模板（编辑器默认显示）
+const EMPTY_TEMPLATES = {
+    java: 'public class Main {\n    public static void main(String[] args) {\n        // 在此处编写你的代码\n        int a = 12;\n        int b = 28;\n        int sum = a + b;\n        System.out.println(sum);\n    }\n}',
+    c: '#include <stdio.h>\n\nint main() {\n    // 在此处编写你的代码\n    return 0;\n}',
+    python: 'def main():\n    # 在此处编写你的代码\n    pass\n\nif __name__ == "__main__":\n    main()',
+    go: 'package main\n\nimport "fmt"\n\nfunc main() {\n    // 在此处编写你的代码\n    fmt.Println("Hello")\n}'
+};
+
 // 离线题目数据
 const OFFLINE_PROBLEMS = [
     {
@@ -115,6 +123,14 @@ const OJState = {
     isSubmitting: false
 };
 
+// HTML 转义函数
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', initOJ);
 
@@ -202,12 +218,7 @@ async function loadProblems() {
                     outputFormat: problem.outputFormat || '',
                     sampleInput: problem.sampleInput || '',
                     sampleOutput: problem.sampleOutput || '',
-                    templateCode: {
-                        java: problem.template || '',
-                        c: problem.cTemplate || problem.cppTemplate || '',
-                        python: problem.pythonTemplate || '',
-                        go: problem.goTemplate || ''
-                    }
+                    referenceSolution: problem.template || ''
                 };
             });
         } else {
@@ -272,6 +283,8 @@ function initTabs() {
     document.querySelectorAll('.oj-problem-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             const tabName = tab.dataset.tab;
+            console.log('标签页切换:', tabName);
+            
             // 更新标签状态
             document.querySelectorAll('.oj-problem-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
@@ -290,6 +303,7 @@ function initTabs() {
             } else if (tabName === 'solution') {
                 document.getElementById('ojSolutionContent').style.display = 'block';
                 langBar.style.display = 'flex';
+                console.log('调用 renderSolutionContent, currentProblem:', !!OJState.currentProblem);
                 renderSolutionContent();
             } else if (tabName === 'submissions') {
                 document.getElementById('ojSubmissionsContent').style.display = 'block';
@@ -321,10 +335,8 @@ function initLanguageSwitchers() {
         const fsSelect = document.getElementById('ojFullscreenLangSelect');
         if (fsSelect.value !== lang) fsSelect.value = lang;
 
-        // 加载题目模板
-        if (OJState.currentProblem && OJState.currentProblem.templateCode[lang]) {
-            OJState.editor.setValue(OJState.currentProblem.templateCode[lang]);
-        }
+        // 加载空模板
+        OJState.editor.setValue(EMPTY_TEMPLATES[lang] || '');
     });
 
     // 解法标签页语言切换
@@ -343,66 +355,86 @@ function initLanguageSwitchers() {
         const mainSelect = document.getElementById('ojLangSelect');
         if (mainSelect.value !== lang) mainSelect.value = lang;
 
-        if (OJState.currentProblem && OJState.currentProblem.templateCode[lang]) {
-            OJState.editor.setValue(OJState.currentProblem.templateCode[lang]);
-            OJState.fullscreenEditor.setValue(OJState.currentProblem.templateCode[lang]);
-        }
+        // 加载空模板
+        OJState.editor.setValue(EMPTY_TEMPLATES[lang] || '');
+        OJState.fullscreenEditor.setValue(EMPTY_TEMPLATES[lang] || '');
     });
 }
 
-// 渲染解法内容
+// 渲染解法内容（显示后端参考解法）
 function renderSolutionContent() {
-    const content = document.getElementById('ojSolutionContent');
-    if (!OJState.currentProblem) return;
+    try {
+        const content = document.getElementById('ojSolutionContent');
+        if (!content) {
+            console.error('找不到 ojSolutionContent 元素');
+            return;
+        }
+        
+        if (!OJState.currentProblem) {
+            content.innerHTML = '<div style="padding: 20px; color: #f14c4c;">错误：未选择题目</div>';
+            return;
+        }
 
-    const lang = OJState.currentSolutionLang;
-    const template = OJState.currentProblem.templateCode[lang] || '暂无该语言的模板代码';
-    const langLabel = LANGUAGE_CONFIG[lang].label;
+        const lang = OJState.currentSolutionLang || 'java';
+        const langLabel = LANGUAGE_CONFIG[lang]?.label || 'Java';
+        const referenceSolution = OJState.currentProblem.referenceSolution || '';
 
-    content.innerHTML = `
-        <div style="margin-bottom: 16px;">
-            <div style="font-size: 12px; color: #858585; margin-bottom: 8px;">
-                <span style="background: rgba(102,126,234,0.15); color: #a5b4fc; padding: 2px 8px; border-radius: 4px; margin-right: 8px;">${langLabel} 模板</span>
-                <span style="color: #666;">以下是该题的 ${langLabel} 解法模板</span>
+        console.log('渲染解法内容:', {
+            problemId: OJState.currentProblem.id,
+            problemTitle: OJState.currentProblem.title,
+            hasReferenceSolution: !!referenceSolution,
+            solutionLength: referenceSolution.length
+        });
+
+        let solutionHtml = '';
+        if (referenceSolution) {
+            solutionHtml = referenceSolution;
+        } else {
+            solutionHtml = '暂无该题目的参考解法';
+        }
+
+        content.innerHTML = `
+            <div style="margin-bottom: 16px;">
+                <div style="font-size: 12px; color: #858585; margin-bottom: 8px;">
+                    <span style="background: rgba(102,126,234,0.15); color: #a5b4fc; padding: 2px 8px; border-radius: 4px; margin-right: 8px;">${langLabel} 参考解法</span>
+                    <span style="color: #666;">以下是该题的参考解法</span>
+                </div>
+                <pre style="background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 6px; padding: 12px; font-family: 'Fira Code', monospace; font-size: 13px; line-height: 1.6; color: #d4d4d4; overflow-x: auto; white-space: pre-wrap; word-break: break-all;">${escapeHtml(solutionHtml)}</pre>
+                <div style="margin-top: 12px; display: flex; gap: 8px;">
+                    <button onclick="copyReferenceSolution()" style="padding: 6px 12px; background: rgba(102,126,234,0.15); border: 1px solid rgba(102,126,234,0.3); border-radius: 4px; color: #a5b4fc; cursor: pointer; font-size: 12px;">📋 复制解法</button>
+                    <button onclick="applyReferenceSolution()" style="padding: 6px 12px; background: rgba(78,201,176,0.15); border: 1px solid rgba(78,201,176,0.3); border-radius: 4px; color: #4ec9b0; cursor: pointer; font-size: 12px;">✅ 应用到编辑器</button>
+                </div>
             </div>
-            <pre style="background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 6px; padding: 12px; font-family: 'Fira Code', monospace; font-size: 13px; line-height: 1.6; color: #d4d4d4; overflow-x: auto; white-space: pre-wrap; word-break: break-all;">${escapeHtml(template)}</pre>
-            <div style="margin-top: 12px; display: flex; gap: 8px;">
-                <button onclick="copyTemplate('${lang}')" style="padding: 6px 12px; background: rgba(102,126,234,0.15); border: 1px solid rgba(102,126,234,0.3); border-radius: 4px; color: #a5b4fc; cursor: pointer; font-size: 12px;">📋 复制模板</button>
-                <button onclick="applyTemplate('${lang}')" style="padding: 6px 12px; background: rgba(78,201,176,0.15); border: 1px solid rgba(78,201,176,0.3); border-radius: 4px; color: #4ec9b0; cursor: pointer; font-size: 12px;">✅ 应用到编辑器</button>
-            </div>
-        </div>
-    `;
+        `;
+    } catch (e) {
+        console.error('渲染解法内容失败:', e);
+        const content = document.getElementById('ojSolutionContent');
+        if (content) {
+            content.innerHTML = `<div style="padding: 20px; color: #f14c4c;">加载解法失败: ${escapeHtml(e.message)}</div>`;
+        }
+    }
 }
 
-// 转义HTML
-function escapeHtml(str) {
-    if (!str) return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
-// 复制模板到剪贴板
-function copyTemplate(lang) {
+// 复制参考解法
+function copyReferenceSolution() {
     if (!OJState.currentProblem) return;
-    const template = OJState.currentProblem.templateCode[lang] || '';
-    navigator.clipboard.writeText(template).then(() => {
-        showToast('模板已复制到剪贴板');
+    const solution = OJState.currentProblem.referenceSolution || '';
+    navigator.clipboard.writeText(solution).then(() => {
+        showToast('参考解法已复制到剪贴板');
     }).catch(() => showToast('复制失败'));
 }
 
-// 应用模板到编辑器
-function applyTemplate(lang) {
+// 应用参考解法到编辑器
+function applyReferenceSolution() {
     if (!OJState.currentProblem) return;
-    const template = OJState.currentProblem.templateCode[lang] || '';
-    OJState.editor.setValue(template);
-    OJState.currentLanguage = lang;
-
-    // 同步语言选择
-    document.getElementById('ojLangSelect').value = lang;
-    OJState.editor.setOption('mode', LANGUAGE_CONFIG[lang].mode);
-
-    showToast('模板已应用到编辑器');
+    const solution = OJState.currentProblem.referenceSolution || '';
+    if (!solution) {
+        showToast('暂无参考解法');
+        return;
+    }
+    OJState.editor.setValue(solution);
+    OJState.fullscreenEditor.setValue(solution);
+    showToast('参考解法已应用到编辑器');
 }
 
 // 选择题目并显示详情
@@ -454,18 +486,23 @@ function selectProblem(problem) {
         </div>
     `;
 
-    // 加载当前语言的模板代码
+    // 加载空模板（编辑器默认显示）
     const lang = OJState.currentLanguage;
-    if (problem.templateCode && problem.templateCode[lang]) {
-        OJState.editor.setValue(problem.templateCode[lang]);
-        OJState.fullscreenEditor.setValue(problem.templateCode[lang]);
-    }
+    const emptyTemplate = EMPTY_TEMPLATES[lang] || '';
+    OJState.editor.setValue(emptyTemplate);
+    OJState.fullscreenEditor.setValue(emptyTemplate);
 
     // 更新导航按钮
     updateNavButtons();
 
     // 重置结果
     resetResultPanel();
+
+    // 如果当前显示的是解法标签，重新渲染
+    const activeTab = document.querySelector('.oj-problem-tab.active');
+    if (activeTab && activeTab.dataset.tab === 'solution') {
+        renderSolutionContent();
+    }
 
     console.log('题目已选择:', problem.title);
 }
@@ -601,8 +638,8 @@ function exitFullscreen() {
     document.body.style.overflow = '';
 }
 
-// 运行代码
-function runCode() {
+// 运行代码（调用后端真实接口）
+async function runCode() {
     if (OJState.isRunning) return;
     const code = OJState.editor.getValue();
     const lang = OJState.currentLanguage;
@@ -610,6 +647,11 @@ function runCode() {
 
     if (!code.trim()) {
         displayRunResult({ status: 'error', message: '代码不能为空' });
+        return;
+    }
+
+    if (!OJState.currentProblem) {
+        displayRunResult({ status: 'error', message: '请先选择一道题目' });
         return;
     }
 
@@ -625,32 +667,57 @@ function runCode() {
         </div>
     `;
 
-    setTimeout(() => {
-        // 简单模拟运行结果
-        let result;
-        if (lang === 'java' && !code.includes('class') && !code.includes('void')) {
-            result = { status: 'ce', message: '编译错误: Java代码需要包含class定义' };
-        } else if (lang === 'c' && !code.includes('#include') && !code.includes('main')) {
-            result = { status: 'ce', message: '编译错误: C代码需要包含#include头文件和main函数' };
-        } else if (lang === 'go' && !code.includes('package')) {
-            result = { status: 'ce', message: '编译错误: Go代码需要包含package声明' };
-        } else {
-            result = {
-                status: 'success',
-                output: input || '42',
-                time: (Math.random() * 100 + 10).toFixed(2),
-                memory: Math.floor(Math.random() * 10000 + 5000)
+    try {
+        const response = await fetch(`${API_BASE}/submissions/run`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                problemId: OJState.currentProblem.id,
+                code: code,
+                language: lang,
+                input: input
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            const statusMap = {
+                'SUCCESS': 'success',
+                'CE': 'ce',
+                'RE': 'error',
+                'TLE': 'error'
             };
+            const displayStatus = statusMap[data.status] || 'error';
+            
+            let result = {
+                status: displayStatus,
+                output: data.output || '',
+                time: data.runtime || 0,
+                memory: data.memory || 0
+            };
+            
+            if (data.compileError) {
+                result.message = data.compileError;
+            } else if (data.error) {
+                result.message = data.error;
+            }
+            
+            displayRunResult(result);
+        } else {
+            displayRunResult({ status: 'error', message: data.message || '运行失败' });
         }
-        displayRunResult(result);
+    } catch (error) {
+        displayRunResult({ status: 'error', message: '无法连接到服务器: ' + error.message });
+    } finally {
         OJState.isRunning = false;
         runBtn.disabled = false;
         runBtn.innerHTML = '<span>▶</span> 运行';
-    }, 1200);
+    }
 }
 
-// 提交代码
-function submitCode() {
+// 提交代码（调用后端真实接口 + 轮询判题结果）
+async function submitCode() {
     if (OJState.isSubmitting) return;
     const code = OJState.editor.getValue();
     const lang = OJState.currentLanguage;
@@ -660,34 +727,120 @@ function submitCode() {
         return;
     }
 
+    if (!OJState.currentProblem) {
+        displayJudgeResult({ status: 'ce', message: '请先选择一道题目', results: [], passedCount: 0, totalCount: 0 });
+        return;
+    }
+
     OJState.isSubmitting = true;
     const submitBtn = document.getElementById('ojSubmitBtn');
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="oj-spinner" style="display:inline-block;width:12px;height:12px;border:2px solid #3c3c3c;border-top-color: #4ec9b0;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;"></span> 判题中...';
+    submitBtn.innerHTML = '<span class="oj-spinner" style="display:inline-block;width:12px;height:12px;border:2px solid #3c3c3c;border-top-color: #4ec9b0;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;"></span> 提交中...';
 
     document.getElementById('ojResultBody').innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #858585;">
             <div class="oj-spinner" style="width: 25px; height: 25px; border: 2px solid #3c3c3c; border-top-color: #4ec9b0; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 8px;"></div>
-            <span>正在判题...</span>
+            <span>正在提交代码...</span>
         </div>
     `;
 
-    setTimeout(() => {
-        const passed = Math.random() > 0.25;
-        const result = {
-            status: passed ? 'accepted' : 'wa',
-            results: [{ index: 1, status: passed ? 'passed' : 'failed', time: Math.floor(Math.random() * 100 + 10), memory: Math.floor(Math.random() * 10000 + 5000) }],
-            passedCount: passed ? 1 : 0,
-            totalCount: 1,
-            time: Math.floor(Math.random() * 200 + 50),
-            memory: Math.floor(Math.random() * 30000 + 10000),
-            message: passed ? '' : '答案错误，请检查你的算法逻辑'
-        };
-        displayJudgeResult(result);
+    try {
+        // 1. 提交代码
+        const submitResponse = await fetch(`${API_BASE}/submissions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                problemId: OJState.currentProblem.id,
+                code: code,
+                language: lang,
+                userId: 1,
+                username: '前端用户'
+            })
+        });
+
+        const submitData = await submitResponse.json();
+        
+        if (!submitData.success) {
+            displayJudgeResult({ status: 'ce', message: submitData.message || '提交失败', results: [], passedCount: 0, totalCount: 0 });
+            OJState.isSubmitting = false;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>📤</span> 提交';
+            return;
+        }
+
+        const submissionId = submitData.submissionId;
+        
+        // 2. 轮询判题结果
+        document.getElementById('ojResultBody').innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #858585;">
+                <div class="oj-spinner" style="width: 25px; height: 25px; border: 2px solid #3c3c3c; border-top-color: #4ec9b0; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 8px;"></div>
+                <span>判题中...</span>
+            </div>
+        `;
+
+        const maxPollCount = 30; // 最多轮询30次
+        let pollCount = 0;
+        
+        while (pollCount < maxPollCount) {
+            await new Promise(resolve => setTimeout(resolve, 500)); // 等待500ms
+            
+            const detailResponse = await fetch(`${API_BASE}/submissions/${submissionId}`);
+            const detailData = await detailResponse.json();
+            
+            if (detailData.success && detailData.submission) {
+                const submission = detailData.submission;
+                const status = submission.status;
+                
+                if (status !== 'PENDING' && status !== 'JUDGING') {
+                    // 判题完成
+                    const statusMap = {
+                        'AC': 'accepted',
+                        'WA': 'wa',
+                        'CE': 'ce',
+                        'RE': 're',
+                        'TLE': 'tle',
+                        'MLE': 'tle'
+                    };
+                    
+                    const displayStatus = statusMap[status] || 'wa';
+                    const judgeLog = submission.judgeLog || '';
+                    const errorMessage = submission.errorMessage || '';
+                    
+                    // 解析判题日志获取通过用例数
+                    let passedCount = 0;
+                    let totalCount = 0;
+                    const logLines = judgeLog.split('\n').filter(l => l.trim());
+                    totalCount = logLines.length;
+                    passedCount = (judgeLog.match(/通过/g) || []).length;
+                    
+                    const result = {
+                        status: displayStatus,
+                        results: [],
+                        passedCount: passedCount,
+                        totalCount: totalCount || 1,
+                        time: submission.runtime || 0,
+                        memory: submission.memory || 0,
+                        message: errorMessage || judgeLog
+                    };
+                    
+                    displayJudgeResult(result);
+                    break;
+                }
+            }
+            
+            pollCount++;
+        }
+        
+        if (pollCount >= maxPollCount) {
+            displayJudgeResult({ status: 'wa', message: '判题超时，请稍后查看结果', results: [], passedCount: 0, totalCount: 0 });
+        }
+    } catch (error) {
+        displayJudgeResult({ status: 'ce', message: '无法连接到服务器: ' + error.message, results: [], passedCount: 0, totalCount: 0 });
+    } finally {
         OJState.isSubmitting = false;
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<span>📤</span> 提交';
-    }, 2000);
+    }
 }
 
 // 显示运行结果
