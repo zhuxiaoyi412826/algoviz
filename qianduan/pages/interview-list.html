@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>面试题目 - 刷题练习</title>
+    <link rel="icon" type="image/png" href="../images/tubiao.png">
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* ========== 容器 ========== */
+        .list-container {
+            width: 100%;
+            padding: 20px 32px;
+        }
+
+        /* ========== 头部 ========== */
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .list-title-wrap {
+            display: flex;
+            flex-direction: column;
+        }
+        .list-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .list-title-icon {
+            font-size: 28px;
+        }
+        .list-subtitle {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .list-header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* ========== 按钮 ========== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--primary);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border: none;
+            color: white;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+        .theme-btn {
+            width: 38px;
+            height: 38px;
+            padding: 0;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        /* ========== 筛选区 ========== */
+        .list-filters {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 240px;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 10px 14px 10px 38px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+        .search-box::before {
+            content: '🔍';
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+        }
+        .filter-select {
+            padding: 10px 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .filter-select:focus {
+            border-color: var(--primary);
+        }
+        .filter-select option {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        /* ========== 统计 ========== */
+        .list-stats {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .list-stats strong {
+            color: var(--primary);
+            font-weight: 600;
+        }
+        .stats-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .stats-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .stats-dot.easy { background: var(--success); }
+        .stats-dot.medium { background: var(--warning); }
+        .stats-dot.hard { background: var(--danger); }
+
+        /* ========== 表格 ========== */
+        .problem-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .problem-table thead {
+            background: var(--bg-card-hover);
+        }
+        .problem-table th {
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+        }
+        .problem-table td {
+            padding: 14px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        .problem-table tbody tr {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .problem-table tbody tr:hover {
+            background: rgba(102, 126, 234, 0.08);
+        }
+        .problem-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .problem-no {
+            color: var(--primary);
+            font-weight: 600;
+            font-family: 'Fira Code', monospace;
+        }
+        .problem-name {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        .problem-name:hover {
+            color: var(--primary);
+        }
+
+        /* ========== 难度标签 ========== */
+        .diff-badge {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .diff-easy { background: rgba(72, 199, 142, 0.15); color: var(--success); }
+        .diff-medium { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+        .diff-hard { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+
+        /* ========== 标签 ========== */
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(102, 126, 234, 0.15);
+            color: var(--primary-light);
+            border-radius: 10px;
+            font-size: 11px;
+            margin-right: 4px;
+            margin-bottom: 2px;
+        }
+
+        /* ========== 状态徽章 ========== */
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .status-solved { background: rgba(72, 199, 142, 0.15); color: var(--success); }
+        .status-attempted { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+        .status-todo { background: rgba(100, 116, 139, 0.15); color: var(--text-muted); }
+
+        /* ========== 加载/空/错误 ========== */
+        .list-loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        .list-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .list-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .list-empty-icon { font-size: 48px; margin-bottom: 16px; }
+
+        /* ========== 分页 ========== */
+        .pagination-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .pagination-info {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .pagination-info strong {
+            color: var(--primary);
+            font-weight: 600;
+        }
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .page-btn {
+            padding: 6px 14px;
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .page-btn:hover:not(:disabled) {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+        .page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .page-info {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .page-info strong {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* ========== 响应式 ========== */
+        @media (max-width: 768px) {
+            .list-header { flex-direction: column; align-items: stretch; }
+            .search-box { min-width: 100%; }
+            .problem-table { font-size: 12px; }
+            .problem-table th, .problem-table td { padding: 10px 12px; }
+            .col-hide { display: none; }
+        }
+    </style>
+</head>
+<body onload="initTheme(); initList();">
+    <div class="list-container">
+        <!-- 头部：标题 + 返回按钮 + 主题切换 在同一行 -->
+        <div class="list-header">
+            <div class="list-title-wrap">
+                <div class="list-title">
+                    <span class="list-title-icon">💼</span>
+                    面试题目
+                </div>
+                <div class="list-subtitle">精选面试高频题目，助力你的求职之路</div>
+            </div>
+            <div class="list-header-actions">
+                <a href="../index.html" class="btn">← 返回首页</a>
+                <button class="btn theme-btn" id="themeToggle" aria-label="切换主题">
+                    <span class="theme-icon">☀️</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 筛选 -->
+        <div class="list-filters">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索题目名称或标签...">
+            </div>
+            <select class="filter-select" id="difficultyFilter">
+                <option value="">全部难度</option>
+                <option value="easy">简单</option>
+                <option value="medium">中等</option>
+                <option value="hard">困难</option>
+            </select>
+            <select class="filter-select" id="tagFilter">
+                <option value="">全部标签</option>
+            </select>
+            <select class="filter-select" id="statusFilter">
+                <option value="">全部状态</option>
+                <option value="todo">未做</option>
+                <option value="attempted">尝试过</option>
+                <option value="solved">已通过</option>
+            </select>
+        </div>
+
+        <!-- 统计 -->
+        <div class="list-stats" id="statsBar">
+            共 <strong id="totalCount">0</strong> 道题目
+            <span class="stats-item"><span class="stats-dot easy"></span> 简单 <strong id="easyCount">0</strong></span>
+            <span class="stats-item"><span class="stats-dot medium"></span> 中等 <strong id="mediumCount">0</strong></span>
+            <span class="stats-item"><span class="stats-dot hard"></span> 困难 <strong id="hardCount">0</strong></span>
+        </div>
+
+        <!-- 列表 -->
+        <div id="listContent">
+            <div class="list-loading">
+                <div class="list-spinner"></div>
+                <div>加载题目列表中...</div>
+            </div>
+        </div>
+
+        <!-- 分页 -->
+        <div class="pagination-bar" id="paginationBar" style="display: none;">
+            <div class="pagination-info">
+                显示第 <strong id="pageStart">1</strong> - <strong id="pageEnd">0</strong> 条，共 <strong id="pageTotal">0</strong> 条
+            </div>
+            <div class="pagination-controls">
+                <select class="filter-select" id="pageSizeSelect">
+                    <option value="20">20 条/页</option>
+                    <option value="50">50 条/页</option>
+                    <option value="100">100 条/页</option>
+                </select>
+                <button class="page-btn" id="prevPageBtn">← 上一页</button>
+                <span class="page-info">第 <strong id="currentPage">1</strong> / <strong id="totalPages">1</strong> 页</span>
+                <button class="page-btn" id="nextPageBtn">下一页 →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== 静态题目数据 ==========
+        var STATIC_PROBLEMS = [
+            { id: 1, problemNo: '001', title: '两数之和', difficulty: 'easy', tags: ['数组', '哈希表'] },
+            { id: 2, problemNo: '002', title: '反转链表', difficulty: 'easy', tags: ['链表', '递归'] },
+            { id: 3, problemNo: '003', title: 'LRU 缓存', difficulty: 'medium', tags: ['链表', '哈希表', '设计'] },
+            { id: 4, problemNo: '004', title: '无重复字符的最长子串', difficulty: 'medium', tags: ['字符串', '滑动窗口', '哈希表'] },
+            { id: 5, problemNo: '005', title: '二叉树的层序遍历', difficulty: 'medium', tags: ['树', '广度优先搜索', '二叉树'] },
+            { id: 6, problemNo: '006', title: '合并区间', difficulty: 'medium', tags: ['数组', '排序'] },
+            { id: 7, problemNo: '007', title: '接雨水', difficulty: 'hard', tags: ['栈', '数组', '双指针', '动态规划'] },
+            { id: 8, problemNo: '008', title: '正则表达式匹配', difficulty: 'hard', tags: ['字符串', '动态规划', '递归'] },
+            { id: 9, problemNo: '009', title: '最长回文子串', difficulty: 'medium', tags: ['字符串', '动态规划'] },
+            { id: 10, problemNo: '010', title: '数组中的第K个最大元素', difficulty: 'medium', tags: ['数组', '快速选择', '排序', '堆'] }
+        ];
+
+        // ========== 状态 ==========
+        var allProblems = [];
+        var filteredProblems = [];
+        var currentPage = 1;
+        var pageSize = 20;
+
+        var DIFF_MAP = {
+            'easy':   { label: '简单', cls: 'diff-easy' },
+            'medium': { label: '中等', cls: 'diff-medium' },
+            'hard':   { label: '困难', cls: 'diff-hard' }
+        };
+
+        // ========== 主题 ==========
+        function initTheme() {
+            var saved = localStorage.getItem('algoviz-theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+            var icon = document.querySelector('.theme-icon');
+            if (icon) icon.textContent = saved === 'dark' ? '🌙' : '☀️';
+        }
+
+        function toggleTheme() {
+            var cur = document.documentElement.getAttribute('data-theme') || 'light';
+            var next = cur === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('algoviz-theme', next);
+            document.documentElement.setAttribute('data-theme', next);
+            var icon = document.querySelector('.theme-icon');
+            if (icon) icon.textContent = next === 'dark' ? '🌙' : '☀️';
+        }
+
+        // ========== 做题状态 ==========
+        function getStatus(no) {
+            return localStorage.getItem('iw_status_' + no) || 'todo';
+        }
+
+        // ========== 初始化 ==========
+        function initList() {
+            // 绑定主题切换
+            var themeBtn = document.getElementById('themeToggle');
+            if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+
+            // 注入静态数据 + 状态
+            allProblems = STATIC_PROBLEMS.map(function(p) {
+                p.status = getStatus(p.problemNo);
+                return p;
+            });
+
+            buildTagFilter();
+            updateStats();
+            applyFilters();
+
+            // 绑定筛选事件
+            document.getElementById('searchInput').addEventListener('input', applyFilters);
+            document.getElementById('difficultyFilter').addEventListener('change', applyFilters);
+            document.getElementById('tagFilter').addEventListener('change', applyFilters);
+            document.getElementById('statusFilter').addEventListener('change', applyFilters);
+            document.getElementById('pageSizeSelect').addEventListener('change', function(e) {
+                pageSize = parseInt(e.target.value);
+                currentPage = 1;
+                render();
+            });
+            document.getElementById('prevPageBtn').addEventListener('click', function() {
+                if (currentPage > 1) { currentPage--; render(); }
+            });
+            document.getElementById('nextPageBtn').addEventListener('click', function() {
+                var tp = Math.ceil(filteredProblems.length / pageSize);
+                if (currentPage < tp) { currentPage++; render(); }
+            });
+        }
+
+        // ========== 标签筛选器 ==========
+        function buildTagFilter() {
+            var set = {};
+            allProblems.forEach(function(p) { p.tags.forEach(function(t) { set[t] = true; }); });
+            var tags = Object.keys(set).sort();
+            var sel = document.getElementById('tagFilter');
+            sel.innerHTML = '<option value="">全部标签</option>';
+            tags.forEach(function(t) {
+                var opt = document.createElement('option');
+                opt.value = t; opt.textContent = t;
+                sel.appendChild(opt);
+            });
+        }
+
+        // ========== 统计 ==========
+        function updateStats() {
+            var e = 0, m = 0, h = 0;
+            allProblems.forEach(function(p) {
+                if (p.difficulty === 'easy') e++;
+                else if (p.difficulty === 'medium') m++;
+                else if (p.difficulty === 'hard') h++;
+            });
+            document.getElementById('totalCount').textContent = allProblems.length;
+            document.getElementById('easyCount').textContent = e;
+            document.getElementById('mediumCount').textContent = m;
+            document.getElementById('hardCount').textContent = h;
+        }
+
+        // ========== 筛选 ==========
+        function applyFilters() {
+            var kw = document.getElementById('searchInput').value.toLowerCase().trim();
+            var dv = document.getElementById('difficultyFilter').value;
+            var tv = document.getElementById('tagFilter').value;
+            var sv = document.getElementById('statusFilter').value;
+
+            filteredProblems = allProblems.slice();
+
+            if (kw) {
+                filteredProblems = filteredProblems.filter(function(p) {
+                    return p.title.toLowerCase().indexOf(kw) !== -1 ||
+                           p.tags.some(function(t) { return t.toLowerCase().indexOf(kw) !== -1; });
+                });
+            }
+            if (dv) filteredProblems = filteredProblems.filter(function(p) { return p.difficulty === dv; });
+            if (tv) filteredProblems = filteredProblems.filter(function(p) { return p.tags.indexOf(tv) !== -1; });
+            if (sv) filteredProblems = filteredProblems.filter(function(p) { return p.status === sv; });
+
+            currentPage = 1;
+            render();
+        }
+
+        // ========== 渲染 ==========
+        function render() {
+            var content = document.getElementById('listContent');
+            var bar = document.getElementById('paginationBar');
+
+            if (filteredProblems.length === 0) {
+                bar.style.display = 'none';
+                content.innerHTML = '<div class="list-empty"><div class="list-empty-icon">📭</div><div>未找到匹配的题目</div></div>';
+                return;
+            }
+
+            var totalPages = Math.max(1, Math.ceil(filteredProblems.length / pageSize));
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            var start = (currentPage - 1) * pageSize;
+            var end = Math.min(start + pageSize, filteredProblems.length);
+            var pageData = filteredProblems.slice(start, end);
+
+            // 构建表格
+            var html = '<table class="problem-table"><thead><tr>' +
+                '<th style="width:60px">状态</th>' +
+                '<th style="width:80px">编号</th>' +
+                '<th style="width:35%">题目名称</th>' +
+                '<th style="width:90px">难度</th>' +
+                '<th>标签</th>' +
+                '</tr></thead><tbody>';
+
+            pageData.forEach(function(p) {
+                var d = DIFF_MAP[p.difficulty] || DIFF_MAP['easy'];
+                var tags = p.tags.map(function(t) { return '<span class="tag">' + t + '</span>'; }).join('');
+
+                var sb = '';
+                if (p.status === 'solved') sb = '<span class="status-badge status-solved">✓</span>';
+                else if (p.status === 'attempted') sb = '<span class="status-badge status-attempted">●</span>';
+                else sb = '<span class="status-badge status-todo">○</span>';
+
+                html += '<tr onclick="goToProblem(\'' + p.problemNo + '\')">' +
+                    '<td style="text-align:center">' + sb + '</td>' +
+                    '<td class="problem-no">' + p.problemNo + '</td>' +
+                    '<td class="problem-name">' + p.title + '</td>' +
+                    '<td><span class="diff-badge ' + d.cls + '">' + d.label + '</span></td>' +
+                    '<td>' + tags + '</td>' +
+                    '</tr>';
+            });
+
+            html += '</tbody></table>';
+            content.innerHTML = html;
+
+            // 分页
+            document.getElementById('pageStart').textContent = filteredProblems.length === 0 ? 0 : start + 1;
+            document.getElementById('pageEnd').textContent = end;
+            document.getElementById('pageTotal').textContent = filteredProblems.length;
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('totalPages').textContent = totalPages;
+            document.getElementById('prevPageBtn').disabled = currentPage <= 1;
+            document.getElementById('nextPageBtn').disabled = currentPage >= totalPages;
+            bar.style.display = 'flex';
+        }
+
+        // ========== 跳转 ==========
+        function goToProblem(no) {
+            window.location.href = 'oj.html?id=' + no;
+        }
+    </script>
+</body>
+</html>
