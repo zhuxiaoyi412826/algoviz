@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>其他算法 - AlgoViz</title>
+    <link rel="icon" type="image/png" href="../../images/tubiao.png">
+    <link rel="stylesheet" href="../../styles/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        .nav-avatar {
+            font-size: 1rem;
+            display: inline-block;
+            width: 24px; height: 24px;
+            line-height: 24px;
+            text-align: center;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+        }
+
+        .page-header {
+            text-align: center;
+            padding: 2rem 1rem 1rem;
+        }
+        .page-header h1 {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .algo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            padding: 1rem 0 2rem;
+        }
+
+        .algo-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .algo-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            border-color: var(--primary);
+        }
+        .algo-card-header {
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .algo-card-icon {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+        .algo-card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .algo-card-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            padding: 0 1.5rem 1rem;
+            line-height: 1.5;
+        }
+        .algo-card-meta {
+            padding: 0.5rem 1.5rem 1.25rem;
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .meta-tag {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: var(--hover-bg);
+            color: var(--text-secondary);
+        }
+        .meta-tag.time { background: #dbeafe; color: #1e40af; }
+        .meta-tag.space { background: #f0fdf4; color: #15803d; }
+
+        .algo-detail {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+        .algo-card.expanded .algo-detail {
+            max-height: 800px;
+        }
+        .algo-detail-inner {
+            padding: 0 1.5rem 1.5rem;
+            border-top: 1px solid var(--border);
+            margin-top: 0.5rem;
+            padding-top: 1rem;
+        }
+        .algo-detail-inner h4 {
+            color: var(--primary);
+            font-size: 0.9rem;
+            margin: 0.75rem 0 0.4rem;
+        }
+        .algo-detail-inner p, .algo-detail-inner li {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        .algo-detail-inner ul {
+            padding-left: 1.2rem;
+            margin: 0.3rem 0;
+        }
+        .code-block {
+            background: #1e1e2e;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 0.8rem 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+        }
+        .expand-hint {
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            padding-bottom: 0.75rem;
+        }
+        .algo-card.expanded .expand-hint span::after { content: ' ▲'; }
+        .expand-hint span::after { content: ' ▼'; }
+    </style>
+</head>
+<body data-theme="light">
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="../../pages/video.html" class="nav-logo">
+                <span class="nav-logo-icon">📊</span>
+                <span class="text-gradient">AlgoViz</span>
+            </a>
+            <div class="nav-links">
+                <a href="../../index.html" class="nav-link">首页</a>
+                <a href="../../pages/datastructures.html" class="nav-link">数据结构</a>
+                <a href="../../pages/algorithms.html" class="nav-link active">算法演示</a>
+                <a href="../../pages/oj-list.html" class="nav-link">在线OJ</a>
+                <a href="../../pages/products.html" class="nav-link">商品</a>
+                <a href="../../pages/ai.html" class="nav-link ai-link"><span>✨</span> AI助手</a>
+            </div>
+            <div class="nav-actions">
+                <button id="themeToggle" class="theme-switch" aria-label="切换主题">
+                    <div class="theme-switch-handle">
+                        <span class="theme-icon">☀️</span>
+                    </div>
+                </button>
+                <a href="javascript:void(0)" class="nav-link" id="profileLink">
+                    <span class="nav-avatar" id="navAvatar">👤</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+            <div class="page-header">
+                <h1>🧩 其他算法</h1>
+                <p>位运算、数学、概率、模拟、分治、滑动窗口、前缀和、枚举等经典算法</p>
+            </div>
+
+            <div class="algo-grid">
+                <!-- 位运算 -->
+                <div class="algo-card" onclick="toggleCard(this)">
+                    <div class="algo-card-header">
+                        <span class="algo-card-icon">⚡</span>
+                        <span class="algo-card-title">位运算</span>
+                    </div>
+                    <div class="algo-card-desc">直接对二进制位进行操作，包括与、或、异或、移位等，常用于状态压缩和高效计算。</div>
+                    <div class="algo-card-meta">
+                        <span class="meta-tag time">时间: O(1)</span>
+                        <span class="meta-tag space">空间: O(1)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="algo-detail">
+                        <div class="algo-detail-inner">
+                            <h4>常用技巧</h4>
+                            <ul>
+                                <li><code>n & 1</code> 判断奇偶</li>
+                                <li><code>n ^ n = 0</code> 异或去重</li>
+                                <li><code>n & (n-1)</code> 消除最低位的1（判断2的幂）</li>
+                                <li><code>1 &lt;&lt; k</code> 生成第k位掩码</li>
+                            </ul>
+                            <h4>示例：只出现一次的数字</h4>
+                            <div class="code-block">int singleNumber(int[] nums) {
+    int result = 0;
+    for (int num : nums) {
+        result ^= num;  // 异或去重
+    }
+    return result;
+}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数学算法 -->
+                <div class="algo-card" onclick="toggleCard(this)">
+                    <div class="algo-card-header">
+                        <span class="algo-card-icon">🔢</span>
+                        <span class="algo-card-title">数学算法</span>
+                    </div>
+                    <div class="algo-card-desc">素数筛法、最大公约数、快速幂、矩阵快速幂等数论与代数算法。</div>
+                    <div class="algo-card-meta">
+                        <span class="meta-tag time">时间: O(√n) ~ O(log n)</span>
+                        <span class="meta-tag space">空间: O(1) ~ O(n)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="algo-detail">
+                        <div class="algo-detail-inner">
+                            <h4>核心算法</h4>
+                            <ul>
+                                <li><b>辗转相除法(GCD)</b>：O(log n)</li>
+                                <li><b>快速幂</b>：O(log n) 计算 a^n</li>
+                                <li><b>埃氏筛</b>：O(n log log n) 筛素数</li>
+                                <li><b>欧拉筛</b>：O(n) 线性筛素数</li>
+                            </ul>
+                            <h4>示例：快速幂</h4>
+                            <div class="code-block">long fastPow(long base, long exp, long mod) {
+    long result = 1;
+    while (exp > 0) {
+        if ((exp & 1) == 1)
+            result = result * base % mod;
+        base = base * base % mod;
+        exp >>= 1;
+    }
+    return result;
+}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 概率/随机算法 -->
+                <div class="algo-card" onclick="toggleCard(this)">
+                    <div class="algo-card-header">
+                        <span class="algo-card-icon">🎲</span>
+                        <span class="algo-card-title">概率与随机算法</span>
+                    </div>
+                    <div class="algo-card-desc">利用随机性求解问题，包括随机洗牌、蓄水池抽样、蒙特卡洛方法等。</div>
+                    <div class="algo-card-meta">
+                        <span class="meta-tag time">时间: O(n)</span>
+                        <span class="meta-tag space">空间: O(1) ~ O(k)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="algo-detail">
+                        <div class="algo-detail-inner">
+                            <h4>经典算法</h4>
+                            <ul>
+                                <li><b>Fisher-Yates 洗牌</b>：O(n) 生成均匀随机排列</li>
+                                <li><b>蓄水池抽样</b>：从未知大小数据流中随机选取 k 个</li>
+                                <li><b>蒙特卡洛</b>：用随机采样近似求解</li>
+                            </ul>
+                            <h4>示例：蓄水池抽样</h4>
+                            <div class="code-block">int[] reservoirSample(int[] stream, int k) {
+    int[] reservoir = new int[k];
+    for (int i = 0; i < k; i++)
+        reservoir[i] = stream[i];
+    Random rand = new Random();
+    for (int i = k; i < stream.length; i++) {
+        int j = rand.nextInt(i + 1);
+        if (j < k) reservoir[j] = stream[i];
+    }
+    return reservoir;
+}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 模拟算法 -->
+                <div class="algo-card" onclick="toggleCard(this)">
+                    <div class="algo-card-header">
+                        <span class="algo-card-icon">🔄</span>
+                        <span class="algo-card-title">模拟算法</span>
+                    </div>
+                    <div class="algo-card-desc">按照题目描述的规则逐步模拟过程，常用于没有复杂数学模型的场景题。</div>
+                    <div class="algo-card-meta">
+                        <span class="meta-tag time">时间: O(n)</span>
+                        <span class="meta-tag space">空间: O(n)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="algo-detail">
+                        <div class="algo-detail-inner">
+                            <h4>解题要点</h4>
+                            <ul>
+                                <li>仔细阅读题意，确定模拟规则</li>
+                                <li>注意边界条件和特殊情况</li>
+                                <li>合理选择数据结构（数组、队列、栈等）</li>
+                                <li>常见场景：螺旋矩阵、生命游戏、约瑟夫环</li>
+                            </ul>
+                            <h4>示例：螺旋矩阵遍历</h4>
+                            <div class="code-block">List&lt;Integer&gt; spiralOrder(int[][] matrix) {
+    List&lt;Integer&gt; res = new ArrayList&lt;&gt;();
+    int top = 0, bottom = matrix.length - 1;
+    int left = 0, right = matrix[0].length - 1;
+    while (top &lt;= bottom && left &lt;= right) {
+        for (int i = left; i &lt;= right; i++) res.add(matrix[top][i]);
+        top++;
+        for (int i = top; i &lt;= bottom; i++) res.add(matrix[i][right]);
+        right--;
+        if (top &lt;= bottom) {
+            for (int i = right; i &gt;= left; i--) res.add(matrix[bottom][i]);
+            bottom--;
+        }
+        if (left &lt;= right) {
+            for (int i = bottom; i &gt;= top; i--) res.add(matrix[i][left]);
+            left++;
+        }
+    }
+    return res;
+}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分治算法 -->
+                <div class="algo-card" onclick="toggleCard(this)">
+                    <div class="algo-card-header">
+                        <span class="algo-card-icon">🔀</span>
+                        <span class="algo-card-title">分治算法</span>
+                    </div>
+                    <div class="algo-card-desc">将问题分解为子问题分别求解，再合并结果。经典应用包括归并排序、快速排序、最近点对等。</div>
+                    <div class="algo-card-meta">
+                        <span class="meta-tag time">时间: O(n log n)</span>
+                        <span class="meta-tag space">空间: O(log n)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="algo-detail">
+                        <div class="algo-detail-inner">
+                            <h4>三步法</h4>
+                            <ul>
+                                <li><b>分解</b>：将问题拆为规模更小的子问题</li>
+                                <li><b>解决</b>：递归求解子问题（足够小时直接求解）</li>
+                                <li><b>合并</b>：将子问题的解组合为原问题的解</li>
+                            </ul>
+                            <h4>示例：归并排序</h4>
+                            <div class="code-block">void mergeSort(int[] arr, int left, int right) {
+    if (left &gt;= right) return;
+    int mid = left + (right - left) / 2;
+    mergeSort(arr, left, mid);
+    mergeSort(arr, mid + 1, right);
+    merge(arr, left, mid, right);
+}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 滑动窗口 -->
+                <div class="algo-card" onclick="toggleCard(this)">
+                    <div class="algo-card-header">
+                        <span class="algo-card-icon">🪟</span>
+                        <span class="algo-card-title">滑动窗口</span>
+                    </div>
+                    <div class="algo-card-desc">维护一个窗口在数组/字符串上滑动，高效解决连续子序列问题，避免重复计算。</div>
+                    <div class="algo-card-meta">
+                        <span class="meta-tag time">时间: O(n)</span>
+                        <span class="meta-tag space">空间: O(k)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="algo-detail">
+                        <div class="algo-detail-inner">
+                            <h4>适用场景</h4>
+                            <ul>
+                                <li>固定窗口：窗口大小不变</li>
+                                <li>可变窗口：窗口大小动态调整</li>
+                                <li>经典题目：最长无重复子串、最小覆盖子串、滑动窗口最大值</li>
+                            </ul>
+                            <h4>示例：最长无重复字符子串</h4>
+                            <div class="code-block">int lengthOfLongestSubstring(String s) {
+    Map&lt;Character, Integer&gt; map = new HashMap&lt;&gt;();
+    int maxLen = 0, left = 0;
+    for (int right = 0; right &lt; s.length(); right++) {
+        char c = s.charAt(right);
+        if (map.containsKey(c))
+            left = Math.max(left, map.get(c) + 1);
+        map.put(c, right);
+        maxLen = Math.max(maxLen, right - left + 1);
+    }
+    return maxLen;
+}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 前缀和/差分 -->
+                <div class="algo-card" onclick="toggleCard(this)">
+                    <div class="algo-card-header">
+                        <span class="algo-card-icon">📊</span>
+                        <span class="algo-card-title">前缀和与差分</span>
+                    </div>
+                    <div class="algo-card-desc">预处理数组实现区间求和（前缀和）或区间更新（差分），将 O(n) 操作降为 O(1)。</div>
+                    <div class="algo-card-meta">
+                        <span class="meta-tag time">预处理 O(n), 查询 O(1)</span>
+                        <span class="meta-tag space">空间: O(n)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="algo-detail">
+                        <div class="algo-detail-inner">
+                            <h4>前缀和公式</h4>
+                            <ul>
+                                <li><code>prefix[i] = arr[0] + arr[1] + ... + arr[i-1]</code></li>
+                                <li>区间和 <code>sum(l, r) = prefix[r+1] - prefix[l]</code></li>
+                            </ul>
+                            <h4>差分公式</h4>
+                            <ul>
+                                <li>区间 [l,r] 加 val：<code>diff[l] += val; diff[r+1] -= val;</code></li>
+                                <li>还原：对 diff 做前缀和得到修改后的数组</li>
+                            </ul>
+                            <h4>示例：前缀和</h4>
+                            <div class="code-block">int[] prefix = new int[n + 1];
+for (int i = 0; i &lt; n; i++)
+    prefix[i + 1] = prefix[i] + arr[i];
+// 查询 [l, r] 的区间和
+int rangeSum = prefix[r + 1] - prefix[l];</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 枚举算法 -->
+                <div class="algo-card" onclick="toggleCard(this)">
+                    <div class="algo-card-header">
+                        <span class="algo-card-icon">📋</span>
+                        <span class="algo-card-title">枚举算法</span>
+                    </div>
+                    <div class="algo-card-desc">遍历所有可能的情况寻找解，简单直接。通过剪枝优化可大幅减少搜索空间。</div>
+                    <div class="algo-card-meta">
+                        <span class="meta-tag time">时间: O(n^k)</span>
+                        <span class="meta-tag space">空间: O(1)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="algo-detail">
+                        <div class="algo-detail-inner">
+                            <h4>优化策略</h4>
+                            <ul>
+                                <li><b>剪枝</b>：提前终止不可能产生解的分支</li>
+                                <li><b>减少枚举变量</b>：利用约束关系减少循环层数</li>
+                                <li><b>枚举顺序</b>：选择有利顺序提前命中或排除</li>
+                            </ul>
+                            <h4>示例：两数之和（枚举法）</h4>
+                            <div class="code-block">int[] twoSum(int[] nums, int target) {
+    for (int i = 0; i &lt; nums.length; i++) {
+        for (int j = i + 1; j &lt; nums.length; j++) {
+            if (nums[i] + nums[j] == target)
+                return new int[]{i, j};
+        }
+    }
+    return new int[]{};
+}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; padding: 1rem 0 2rem;">
+                <a href="../../pages/algorithms.html" style="display: inline-block; padding: 0.75rem 1.5rem; background: var(--primary); color: white; border-radius: 8px; text-decoration: none; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                    ← 返回算法列表
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-slogan">AlgoViz - 数据结构与算法可视化学习平台 · 让学习变得更有趣</div>
+                <div class="footer-bottom-row">
+                    <span>AlgoViz © 2026</span>
+                    <span class="footer-divider">|</span>
+                    <a href="https://github.com/zhuxiaoyi412826/AlgoViz" target="_blank" class="footer-github">GitHub</a>
+                    <span class="footer-divider">|</span>
+                    <a href="../../pages/changelog.html" class="footer-link">更新日志</a>
+                    <span class="footer-divider">|</span>
+                    <a href="../../pages/suggestion.html" class="footer-link">建议我</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // 主题切换
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('algoviz-theme', theme);
+            var icon = document.querySelector('.theme-icon');
+            if (icon) icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+            document.body.style.background = theme === 'dark' ? '#0f0f23' : '#f5f7fa';
+        }
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme') || 'light';
+            setTheme(current === 'dark' ? 'light' : 'dark');
+        }
+        window.toggleTheme = toggleTheme;
+        setTheme(localStorage.getItem('algoviz-theme') || 'light');
+        document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+        // 卡片展开/折叠
+        function toggleCard(card) {
+            card.classList.toggle('expanded');
+        }
+
+        // 登录状态
+        (function() {
+            var isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+            var navAvatar = document.getElementById('navAvatar');
+            var profileLink = document.getElementById('profileLink');
+            if (isLoggedIn) {
+                navAvatar.textContent = localStorage.getItem('userAvatar') || '👤';
+                profileLink.href = '../profile.html';
+            } else {
+                navAvatar.textContent = '👨';
+                profileLink.href = '../login.html';
+            }
+        })();
+    </script>
+</body>
+</html>

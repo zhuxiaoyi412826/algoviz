@@ -265,10 +265,10 @@
                 if (isLoggedIn) {
                     var userAvatar = localStorage.getItem('userAvatar') || '👤';
                     navAvatar.textContent = userAvatar;
-                    profileLink.href = '/pages/profile.html';
+                    profileLink.href = 'profile.html';
                 } else {
                     navAvatar.textContent = '👨';
-                    profileLink.href = '/pages/login.html';
+                    profileLink.href = 'login.html';
                 }
             }
 
@@ -491,6 +491,19 @@
                                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
                             <span class="algo-name">
                                 <h2 style="margin: 0; color: black;">字符串算法</h2>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="algo-category">
+                    <div style="display: flex; align-items: stretch; gap: 1rem; margin-bottom: 1.5rem;">
+                        <button class="algo-btn active" style="flex-shrink: 0; display: flex; align-items: center; justify-content: center; min-width: 150px; cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease;" 
+                                onclick="window.location.href='../html/algo/Other.html'" 
+                                onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.15)';" 
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                            <span class="algo-name">
+                                <h2 style="margin: 0; color: black;">其他算法</h2>
                             </span>
                         </button>
                     </div>

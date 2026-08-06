@@ -403,7 +403,7 @@
         function checkLoginStatus() {
             var isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
             if (!isLoggedIn) {
-                window.location.href = '/pages/login.html';
+                window.location.href = 'login.html';
             }
         }
         
@@ -411,7 +411,7 @@
         function logout() {
             localStorage.removeItem('isLoggedIn');
             localStorage.removeItem('userAvatar');
-            window.location.href = '/index.html';
+            window.location.href = '../index.html';
         }
         
         window.toggleTheme = toggleTheme;

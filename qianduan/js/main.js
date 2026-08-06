@@ -37,11 +37,9 @@ document.addEventListener('DOMContentLoaded', function() {
         profileLink.addEventListener('click', function(e) {
             e.preventDefault();
             const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-            if (isLoggedIn) {
-                window.location.href = '/pages/profile.html';
-            } else {
-                window.location.href = '/pages/login.html';
-            }
+            const isInPages = window.location.pathname.includes('/pages/');
+            const target = isLoggedIn ? 'profile.html' : 'login.html';
+            window.location.href = isInPages ? target : 'pages/' + target;
         });
     }
 });

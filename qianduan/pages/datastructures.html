@@ -121,10 +121,10 @@
             if (isLoggedIn) {
                 var userAvatar = localStorage.getItem('userAvatar') || '👤';
                 navAvatar.textContent = userAvatar;
-                profileLink.href = '/pages/profile.html';
+                profileLink.href = 'profile.html';
             } else {
                 navAvatar.textContent = '👨';
-                profileLink.href = '/pages/login.html';
+                profileLink.href = 'login.html';
             }
         }
         
@@ -186,7 +186,20 @@
                         <span class="ds-name">堆</span>
                     </button>
                 </div>
-            </div>    
+            </div>
+
+            <!-- 高级数据结构入口 -->
+            <div class="ds-selector" style="margin-top: 1.5rem;">
+                <div style="text-align: center;">
+                    <button class="ds-btn" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 1rem 2.5rem; cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease;"
+                            onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.12)';"
+                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+                            onclick="window.location.href='../html/DS/advanced.html'">
+                        <span class="ds-icon">🚀</span>
+                        <span class="ds-name">高级数据结构</span>
+                    </button>
+                </div>
+            </div>
         </div>
     
     

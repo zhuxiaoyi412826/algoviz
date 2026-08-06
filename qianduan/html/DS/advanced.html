@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高级数据结构 - AlgoViz</title>
+    <link rel="icon" type="image/png" href="../../images/tubiao.png">
+    <link rel="stylesheet" href="../../styles/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        .nav-avatar {
+            font-size: 1rem; display: inline-block;
+            width: 24px; height: 24px; line-height: 24px;
+            text-align: center; border-radius: 50%;
+            background: var(--primary); color: white;
+        }
+        .page-header { text-align: center; padding: 2rem 1rem 1rem; }
+        .page-header h1 { font-size: 2rem; color: var(--primary); margin-bottom: 0.5rem; }
+        .page-header p { color: var(--text-secondary); font-size: 0.95rem; }
+
+        .ds-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem; padding: 1rem 0 2rem;
+        }
+        .ds-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px; overflow: hidden;
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        .ds-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            border-color: var(--primary);
+        }
+        .ds-card-header { padding: 1.25rem 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
+        .ds-card-icon { font-size: 2rem; flex-shrink: 0; }
+        .ds-card-title { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+        .ds-card-desc { font-size: 0.85rem; color: var(--text-secondary); padding: 0 1.5rem 1rem; line-height: 1.5; }
+        .ds-card-meta { padding: 0.5rem 1.5rem 1.25rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .meta-tag { font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; background: var(--hover-bg); color: var(--text-secondary); }
+        .meta-tag.time { background: #dbeafe; color: #1e40af; }
+        .meta-tag.space { background: #f0fdf4; color: #15803d; }
+
+        .ds-detail { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+        .ds-card.expanded .ds-detail { max-height: 900px; }
+        .ds-detail-inner { padding: 0 1.5rem 1.5rem; border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 1rem; }
+        .ds-detail-inner h4 { color: var(--primary); font-size: 0.9rem; margin: 0.75rem 0 0.4rem; }
+        .ds-detail-inner p, .ds-detail-inner li { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; }
+        .ds-detail-inner ul { padding-left: 1.2rem; margin: 0.3rem 0; }
+        .code-block {
+            background: #1e1e2e; color: #e2e8f0;
+            border-radius: 8px; padding: 0.8rem 1rem;
+            font-family: 'Fira Code', monospace; font-size: 0.8rem;
+            line-height: 1.5; overflow-x: auto; margin: 0.5rem 0;
+        }
+        .expand-hint { text-align: center; font-size: 0.75rem; color: var(--text-secondary); padding-bottom: 0.75rem; }
+        .ds-card.expanded .expand-hint span::after { content: ' ▲'; }
+        .expand-hint span::after { content: ' ▼'; }
+    </style>
+</head>
+<body data-theme="light">
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="../../pages/video.html" class="nav-logo">
+                <span class="nav-logo-icon">📊</span>
+                <span class="text-gradient">AlgoViz</span>
+            </a>
+            <div class="nav-links">
+                <a href="../../index.html" class="nav-link">首页</a>
+                <a href="../../pages/datastructures.html" class="nav-link active">数据结构</a>
+                <a href="../../pages/algorithms.html" class="nav-link">算法演示</a>
+                <a href="../../pages/oj-list.html" class="nav-link">在线OJ</a>
+                <a href="../../pages/products.html" class="nav-link">商品</a>
+                <a href="../../pages/ai.html" class="nav-link ai-link"><span>✨</span> AI助手</a>
+            </div>
+            <div class="nav-actions">
+                <button id="themeToggle" class="theme-switch" aria-label="切换主题">
+                    <div class="theme-switch-handle"><span class="theme-icon">☀️</span></div>
+                </button>
+                <a href="javascript:void(0)" class="nav-link" id="profileLink">
+                    <span class="nav-avatar" id="navAvatar">👤</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main">
+        <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+            <div class="page-header">
+                <h1>🚀 高级数据结构</h1>
+                <p>红黑树 · B+树 · 并查集 · 四叉树 · 树状数组 · Bloom Filter · Trie字典树 · 斐波那契堆 · 十字链表</p>
+            </div>
+
+            <div class="ds-grid">
+                <!-- 红黑树 -->
+                <div class="ds-card" onclick="toggleCard(this)">
+                    <div class="ds-card-header">
+                        <span class="ds-card-icon">🔴</span>
+                        <span class="ds-card-title">红黑树</span>
+                    </div>
+                    <div class="ds-card-desc">自平衡二叉搜索树，通过颜色标记和旋转操作保持平衡，保证最坏情况下 O(log n) 的查找、插入、删除。</div>
+                    <div class="ds-card-meta">
+                        <span class="meta-tag time">查找/插入/删除: O(log n)</span>
+                        <span class="meta-tag space">空间: O(n)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="ds-detail"><div class="ds-detail-inner">
+                        <h4>五条性质</h4>
+                        <ul>
+                            <li>每个节点是红色或黑色</li>
+                            <li>根节点是黑色</li>
+                            <li>每个叶子节点(NIL)是黑色</li>
+                            <li>红色节点的子节点必须是黑色（不能有连续红节点）</li>
+                            <li>从任一节点到其所有叶子节点的路径包含相同数量的黑色节点</li>
+                        </ul>
+                        <h4>核心操作</h4>
+                        <ul>
+                            <li><b>左旋/右旋</b>：调整树结构，不破坏 BST 性质</li>
+                            <li><b>插入调整</b>：变色 + 旋转，保证红黑性质</li>
+                            <li><b>删除调整</b>：更复杂，需处理双黑节点</li>
+                        </ul>
+                        <h4>应用场景</h4>
+                        <ul>
+                            <li>Java TreeMap / TreeSet 的底层实现</li>
+                            <li>C++ std::map / std::set 的底层实现</li>
+                            <li>Linux 内核进程调度 (CFS)</li>
+                        </ul>
+                        <h4>示例：左旋操作</h4>
+                        <div class="code-block">void leftRotate(Node *x) {
+    Node *y = x->right;       // y 为 x 的右子
+    x->right = y->left;       // y 的左子挂到 x 右侧
+    if (y->left != NIL)
+        y->left->parent = x;
+    y->parent = x->parent;    // y 接替 x 的位置
+    if (x->parent == NIL)
+        root = y;
+    else if (x == x->parent->left)
+        x->parent->left = y;
+    else
+        x->parent->right = y;
+    y->left = x;              // x 成为 y 的左子
+    x->parent = y;
+}</div>
+                    </div></div>
+                </div>
+
+                <!-- B+树 -->
+                <div class="ds-card" onclick="toggleCard(this)">
+                    <div class="ds-card-header">
+                        <span class="ds-card-icon">🌿</span>
+                        <span class="ds-card-title">B+树</span>
+                    </div>
+                    <div class="ds-card-desc">多路平衡搜索树，所有数据存储在叶子节点，叶子节点通过链表连接，是数据库索引的首选结构。</div>
+                    <div class="ds-card-meta">
+                        <span class="meta-tag time">查找/插入/删除: O(log n)</span>
+                        <span class="meta-tag space">空间: O(n)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="ds-detail"><div class="ds-detail-inner">
+                        <h4>与 B 树的区别</h4>
+                        <ul>
+                            <li>所有数据只在叶子节点，内部节点仅存索引</li>
+                            <li>叶子节点通过双向链表连接，支持范围查询</li>
+                            <li>内部节点更多 → 树更矮 → 磁盘 I/O 更少</li>
+                        </ul>
+                        <h4>核心特性</h4>
+                        <ul>
+                            <li>每个节点最多 m 个子节点（m 阶 B+树）</li>
+                            <li>每个非根节点至少 ⌈m/2⌉ 个子节点</li>
+                            <li>所有叶子节点在同一层</li>
+                        </ul>
+                        <h4>应用场景</h4>
+                        <ul>
+                            <li>MySQL InnoDB 索引结构</li>
+                            <li>文件系统目录索引</li>
+                            <li>数据库范围查询优化</li>
+                        </ul>
+                        <h4>示例：B+树节点结构</h4>
+                        <div class="code-block">class BPlusNode {
+    boolean isLeaf;            // 是否为叶子节点
+    int[] keys;                // 关键字数组
+    BPlusNode[] children;      // 内部节点的子节点指针
+    BPlusNode next;            // 叶子节点的后继指针(链表)
+    Object[] data;             // 叶子节点存储的数据
+    int keyCount;              // 当前关键字数量
+}</div>
+                    </div></div>
+                </div>
+
+                <!-- 并查集 -->
+                <div class="ds-card" onclick="toggleCard(this)">
+                    <div class="ds-card-header">
+                        <span class="ds-card-icon">🔗</span>
+                        <span class="ds-card-title">并查集</span>
+                    </div>
+                    <div class="ds-card-desc">用于管理不相交集合的数据结构，支持高效合并集合和查找元素所属集合，配合路径压缩近乎 O(1)。</div>
+                    <div class="ds-card-meta">
+                        <span class="meta-tag time">查找/合并: O(α(n)) ≈ O(1)</span>
+                        <span class="meta-tag space">空间: O(n)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="ds-detail"><div class="ds-detail-inner">
+                        <h4>两种优化</h4>
+                        <ul>
+                            <li><b>路径压缩</b>：查找时将路径上的节点直接指向根</li>
+                            <li><b>按秩合并</b>：小树挂到大树下，保持平衡</li>
+                        </ul>
+                        <h4>应用场景</h4>
+                        <ul>
+                            <li>Kruskal 最小生成树算法中的环检测</li>
+                            <li>网络连通性问题</li>
+                            <li>社交网络好友分组</li>
+                            <li>等价关系判定</li>
+                        </ul>
+                        <h4>示例：带路径压缩和按秩合并</h4>
+                        <div class="code-block">int[] parent = new int[n];
+int[] rank = new int[n];
+
+int find(int x) {
+    if (parent[x] != x)
+        parent[x] = find(parent[x]); // 路径压缩
+    return parent[x];
+}
+
+void union(int x, int y) {
+    int px = find(x), py = find(y);
+    if (px == py) return;
+    if (rank[px] &lt; rank[py]) {      // 按秩合并
+        parent[px] = py;
+    } else if (rank[px] &gt; rank[py]) {
+        parent[py] = px;
+    } else {
+        parent[py] = px;
+        rank[px]++;
+    }
+}</div>
+                    </div></div>
+                </div>
+
+                <!-- 四叉树 -->
+                <div class="ds-card" onclick="toggleCard(this)">
+                    <div class="ds-card-header">
+                        <span class="ds-card-icon">🔲</span>
+                        <span class="ds-card-title">四叉树</span>
+                    </div>
+                    <div class="ds-card-desc">将二维空间递归划分为四个象限的树结构，广泛用于空间分区、图像处理和碰撞检测。</div>
+                    <div class="ds-card-meta">
+                        <span class="meta-tag time">查找/插入: O(log n)</span>
+                        <span class="meta-tag space">空间: O(n)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="ds-detail"><div class="ds-detail-inner">
+                        <h4>结构原理</h4>
+                        <ul>
+                            <li>每个节点将空间分成 NW、NE、SW、SE 四个子区域</li>
+                            <li>当子区域内对象超过阈值时继续分裂</li>
+                            <li>叶子节点存储实际数据（点、矩形等）</li>
+                        </ul>
+                        <h4>应用场景</h4>
+                        <ul>
+                            <li>2D 游戏碰撞检测（如 Bullet 引擎）</li>
+                            <li>图像压缩（同色区域合并）</li>
+                            <li>地理信息系统 (GIS) 空间查询</li>
+                            <li>粒子系统空间分区</li>
+                        </ul>
+                        <h4>示例：四叉树节点</h4>
+                        <div class="code-block">class QuadTreeNode {
+    int x, y, width, height;     // 区域边界
+    QuadTreeNode[] children;      // 4个子节点 NW,NE,SW,SE
+    List&lt;Point&gt; points;          // 存储的点
+    int capacity;                 // 分裂阈值
+    boolean isDivided;
+
+    void insert(Point p) {
+        if (points.size() &lt; capacity) {
+            points.add(p);
+        } else {
+            if (!isDivided) subdivide();
+            // 插入到对应子象限
+            for (QuadTreeNode child : children)
+                if (child.contains(p)) child.insert(p);
+        }
+    }
+}</div>
+                    </div></div>
+                </div>
+
+                <!-- 树状数组 -->
+                <div class="ds-card" onclick="toggleCard(this)">
+                    <div class="ds-card-header">
+                        <span class="ds-card-icon">📊</span>
+                        <span class="ds-card-title">树状数组 (BIT)</span>
+                    </div>
+                    <div class="ds-card-desc">利用二进制索引实现的前缀和数据结构，支持 O(log n) 的单点更新和区间求和，代码极其简洁。</div>
+                    <div class="ds-card-meta">
+                        <span class="meta-tag time">更新/查询: O(log n)</span>
+                        <span class="meta-tag space">空间: O(n)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="ds-detail"><div class="ds-detail-inner">
+                        <h4>核心思想：lowbit</h4>
+                        <ul>
+                            <li><code>lowbit(x) = x & (-x)</code>：取 x 最低位的 1</li>
+                            <li>每个节点 tree[i] 管辖范围：<code>[i - lowbit(i) + 1, i]</code></li>
+                            <li>前缀和 = 沿 lowbit 跳跃求和</li>
+                        </ul>
+                        <h4>与线段树对比</h4>
+                        <ul>
+                            <li>优点：代码极短，常数小，1D 场景首选</li>
+                            <li>缺点：只能做前缀类操作，不能区间更新（线段树可以）</li>
+                        </ul>
+                        <h4>应用场景</h4>
+                        <ul>
+                            <li>逆序对计数</li>
+                            <li>动态前缀和</li>
+                            <li>二维矩阵子矩阵求和</li>
+                        </ul>
+                        <h4>示例：单点更新 + 前缀查询</h4>
+                        <div class="code-block">int[] tree = new int[n + 1];
+
+int lowbit(int x) { return x & (-x); }
+
+void update(int i, int delta) {      // 单点更新
+    for (; i &lt;= n; i += lowbit(i))
+        tree[i] += delta;
+}
+
+int query(int i) {                    // 前缀和 [1, i]
+    int sum = 0;
+    for (; i &gt; 0; i -= lowbit(i))
+        sum += tree[i];
+    return sum;
+}
+// 区间和 [l, r] = query(r) - query(l - 1)</div>
+                    </div></div>
+                </div>
+
+                <!-- Bloom Filter -->
+                <div class="ds-card" onclick="toggleCard(this)">
+                    <div class="ds-card-header">
+                        <span class="ds-card-icon">🌸</span>
+                        <span class="ds-card-title">Bloom Filter</span>
+                    </div>
+                    <div class="ds-card-desc">空间效率极高的概率型数据结构，用于判断元素是否在集合中，可能有误判但不会漏判。</div>
+                    <div class="ds-card-meta">
+                        <span class="meta-tag time">插入/查询: O(k)</span>
+                        <span class="meta-tag space">空间: O(m) bits</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="ds-detail"><div class="ds-detail-inner">
+                        <h4>工作原理</h4>
+                        <ul>
+                            <li>一个 m 位的位数组，初始全为 0</li>
+                            <li>k 个独立的哈希函数</li>
+                            <li>插入：对元素做 k 次哈希，对应位置 1</li>
+                            <li>查询：若 k 个位置全为 1 → 可能在集合中；任一为 0 → 一定不在</li>
+                        </ul>
+                        <h4>特性</h4>
+                        <ul>
+                            <li><b>假阳性</b>：可能误判存在（可接受）</li>
+                            <li><b>无假阴性</b>：说不在就一定不在</li>
+                            <li>不支持删除（可用 Counting Bloom Filter 解决）</li>
+                        </ul>
+                        <h4>应用场景</h4>
+                        <ul>
+                            <li>缓存穿透防护（Redis 前置过滤）</li>
+                            <li>垃圾邮件/URL 过滤</li>
+                            <li>数据库 HBase/LevelDB 读过滤</li>
+                            <li>爬虫 URL 去重</li>
+                        </ul>
+                        <h4>示例：Bloom Filter 实现</h4>
+                        <div class="code-block">class BloomFilter {
+    BitSet bits = new BitSet(m);  // m 位数组
+    int k;                         // 哈希函数个数
+
+    void add(String item) {
+        for (int i = 0; i &lt; k; i++) {
+            int hash = hash(item, i) % m;
+            bits.set(hash);
+        }
+    }
+
+    boolean mightContain(String item) {
+        for (int i = 0; i &lt; k; i++) {
+            int hash = hash(item, i) % m;
+            if (!bits.get(hash)) return false; // 一定不在
+        }
+        return true;  // 可能在
+    }
+}</div>
+                    </div></div>
+                </div>
+
+                <!-- Trie 字典树 -->
+                <div class="ds-card" onclick="toggleCard(this)">
+                    <div class="ds-card-header">
+                        <span class="ds-card-icon">🔠</span>
+                        <span class="ds-card-title">Trie 字典树</span>
+                    </div>
+                    <div class="ds-card-desc">前缀树，将字符串按字符分解存储在树中，高效支持前缀搜索、自动补全和词频统计。</div>
+                    <div class="ds-card-meta">
+                        <span class="meta-tag time">插入/查找: O(L)</span>
+                        <span class="meta-tag space">空间: O(N×L)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="ds-detail"><div class="ds-detail-inner">
+                        <h4>结构特点</h4>
+                        <ul>
+                            <li>根节点为空，每个边代表一个字符</li>
+                            <li>从根到某节点的路径构成一个字符串前缀</li>
+                            <li>标记结束节点表示一个完整单词</li>
+                            <li>公共前缀共享路径，节省空间</li>
+                        </ul>
+                        <h4>应用场景</h4>
+                        <ul>
+                            <li>搜索引擎自动补全/联想</li>
+                            <li>拼写检查与纠错</li>
+                            <li>IP 路由表最长前缀匹配</li>
+                            <li>敏感词过滤系统</li>
+                        </ul>
+                        <h4>示例：Trie 插入与查找</h4>
+                        <div class="code-block">class TrieNode {
+    TrieNode[] children = new TrieNode[26];
+    boolean isEnd;
+}
+
+class Trie {
+    TrieNode root = new TrieNode();
+
+    void insert(String word) {
+        TrieNode node = root;
+        for (char c : word.toCharArray()) {
+            int idx = c - 'a';
+            if (node.children[idx] == null)
+                node.children[idx] = new TrieNode();
+            node = node.children[idx];
+        }
+        node.isEnd = true;
+    }
+
+    boolean search(String word) {
+        TrieNode node = root;
+        for (char c : word.toCharArray()) {
+            int idx = c - 'a';
+            if (node.children[idx] == null) return false;
+            node = node.children[idx];
+        }
+        return node.isEnd;
+    }
+}</div>
+                    </div></div>
+                </div>
+
+                <!-- 斐波那契堆 -->
+                <div class="ds-card" onclick="toggleCard(this)">
+                    <div class="ds-card-header">
+                        <span class="ds-card-icon">📉</span>
+                        <span class="ds-card-title">斐波那契堆</span>
+                    </div>
+                    <div class="ds-card-desc">支持 O(1) 插入和合并操作的优先队列，理论上比二叉堆更优，是 Dijkstra 算法的最佳配套结构。</div>
+                    <div class="ds-card-meta">
+                        <span class="meta-tag time">插入/合并: O(1), 删除最小: O(log n)</span>
+                        <span class="meta-tag space">空间: O(n)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="ds-detail"><div class="ds-detail-inner">
+                        <h4>与二叉堆对比</h4>
+                        <ul>
+                            <li>插入：O(1) vs 二叉堆 O(log n)</li>
+                            <li>合并：O(1) vs 二叉堆 O(n)</li>
+                            <li>删除最小：均摊 O(log n)，但常数较大</li>
+                            <li>减小键值：O(1) 均摊（Dijkstra 关键优化）</li>
+                        </ul>
+                        <h4>核心思想</h4>
+                        <ul>
+                            <li>由一组最小堆有序树组成的森林</li>
+                            <li>延迟合并策略：先标记，后续统一级联切除</li>
+                            <li>节点度数服从斐波那契数列 → 得名</li>
+                        </ul>
+                        <h4>应用场景</h4>
+                        <ul>
+                            <li>Dijkstra 最短路径算法（O(E + V log V)）</li>
+                            <li>Prim 最小生成树算法</li>
+                            <li>理论分析中的渐进最优优先队列</li>
+                        </ul>
+                        <h4>示例：斐波那契堆节点结构</h4>
+                        <div class="code-block">class FibNode {
+    int key;              // 节点值
+    int degree;           // 度数(子节点个数)
+    boolean marked;       // 是否被标记(曾失去子节点)
+    FibNode parent;
+    FibNode child;        // 任意一个子节点
+    FibNode left, right;  // 双向链表兄弟指针
+}</div>
+                    </div></div>
+                </div>
+
+                <!-- 十字链表 -->
+                <div class="ds-card" onclick="toggleCard(this)">
+                    <div class="ds-card-header">
+                        <span class="ds-card-icon">✖️</span>
+                        <span class="ds-card-title">十字链表</span>
+                    </div>
+                    <div class="ds-card-desc">稀疏矩阵的高效存储结构，每个非零元素同时处于行链表和列链表中，支持快速行列遍历。</div>
+                    <div class="ds-card-meta">
+                        <span class="meta-tag time">访问: O(行/列长度)</span>
+                        <span class="meta-tag space">空间: O(非零元素数)</span>
+                    </div>
+                    <div class="expand-hint"><span>点击展开详情</span></div>
+                    <div class="ds-detail"><div class="ds-detail-inner">
+                        <h4>结构原理</h4>
+                        <ul>
+                            <li>每个非零元素用一个节点存储：row, col, value</li>
+                            <li>两个指针：right（同行下一个）、down（同列下一个）</li>
+                            <li>行头指针数组 + 列头指针数组</li>
+                            <li>相比三元组法，支持高效插入/删除</li>
+                        </ul>
+                        <h4>与邻接表/三元组对比</h4>
+                        <ul>
+                            <li>三元组：简单但不支持高效修改</li>
+                            <li>邻接表：只适合行遍历，列遍历困难</li>
+                            <li>十字链表：行列双向遍历，最适合动态稀疏矩阵</li>
+                        </ul>
+                        <h4>应用场景</h4>
+                        <ul>
+                            <li>稀疏矩阵运算（加法、乘法、转置）</li>
+                            <li>有限元素分析 (FEA) 中的刚度矩阵</li>
+                            <li>图的有向图邻接存储（行=出边，列=入边）</li>
+                        </ul>
+                        <h4>示例：十字链表节点</h4>
+                        <div class="code-block">class OLNode {
+    int row, col;          // 行号、列号
+    double value;          // 非零元素值
+    OLNode right;          // 同行下一个非零元素
+    OLNode down;           // 同列下一个非零元素
+}
+
+class CrossList {
+    OLNode[] rhead;        // 行头指针数组
+    OLNode[] chead;        // 列头指针数组
+    int rows, cols;        // 矩阵行列数
+}</div>
+                    </div></div>
+                </div>
+            </div>
+
+            <div style="text-align: center; padding: 1rem 0 2rem;">
+                <a href="../../pages/datastructures.html" style="display: inline-block; padding: 0.75rem 1.5rem; background: var(--primary); color: white; border-radius: 8px; text-decoration: none; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                    ← 返回数据结构列表
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-slogan">AlgoViz - 数据结构与算法可视化学习平台 · 让学习变得更有趣</div>
+                <div class="footer-bottom-row">
+                    <span>AlgoViz © 2026</span>
+                    <span class="footer-divider">|</span>
+                    <a href="https://github.com/zhuxiaoyi412826/AlgoViz" target="_blank" class="footer-github">GitHub</a>
+                    <span class="footer-divider">|</span>
+                    <a href="../../pages/changelog.html" class="footer-link">更新日志</a>
+                    <span class="footer-divider">|</span>
+                    <a href="../../pages/suggestion.html" class="footer-link">建议我</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('algoviz-theme', theme);
+            var icon = document.querySelector('.theme-icon');
+            if (icon) icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+            document.body.style.background = theme === 'dark' ? '#0f0f23' : '#f5f7fa';
+        }
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme') || 'light';
+            setTheme(current === 'dark' ? 'light' : 'dark');
+        }
+        window.toggleTheme = toggleTheme;
+        setTheme(localStorage.getItem('algoviz-theme') || 'light');
+        document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+        function toggleCard(card) { card.classList.toggle('expanded'); }
+
+        (function() {
+            var isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+            var navAvatar = document.getElementById('navAvatar');
+            var profileLink = document.getElementById('profileLink');
+            if (isLoggedIn) {
+                navAvatar.textContent = localStorage.getItem('userAvatar') || '👤';
+                profileLink.href = '../profile.html';
+            } else {
+                navAvatar.textContent = '👨';
+                profileLink.href = '../login.html';
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -122,10 +122,10 @@
             if (isLoggedIn) {
                 var userAvatar = localStorage.getItem('userAvatar') || '👤';
                 navAvatar.textContent = userAvatar;
-                profileLink.href = '/pages/profile.html';
+                profileLink.href = 'pages/profile.html';
             } else {
                 navAvatar.textContent = '👨';
-                profileLink.href = '/pages/login.html';
+                profileLink.href = 'pages/login.html';
             }
         }
         

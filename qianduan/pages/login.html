@@ -450,7 +450,7 @@
                         localStorage.setItem('token', result.token || '');
                         
                         alert('扫码登录成功！');
-                        window.location.href = '/pages/profile.html';
+                        window.location.href = 'profile.html';
                     } else if (result.message === '验证码无效或已过期') {
                         console.log('❌ 验证码无效或已过期');
                         clearInterval(pollInterval);
@@ -492,7 +492,7 @@
                     localStorage.setItem('userAvatar', '👤');
                     localStorage.setItem('userInfo', JSON.stringify(result.userInfo));
                     localStorage.setItem('token', result.token);
-                    window.location.href = '/pages/profile.html';
+                    window.location.href = 'profile.html';
                     return;
                 }
                 
@@ -511,7 +511,7 @@
         function simulateLogin() {
             localStorage.setItem('isLoggedIn', 'true');
             localStorage.setItem('userAvatar', '👤');
-            window.location.href = '/pages/profile.html';
+            window.location.href = 'profile.html';
         }
         
         window.toggleTheme = toggleTheme;

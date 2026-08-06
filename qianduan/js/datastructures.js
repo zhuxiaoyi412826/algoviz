@@ -203,14 +203,14 @@ function initVisualizers() {
 function selectDataStructure(ds) {
     // 数据结构页面映射
     const pageMap = {
-        array: '/html/DS/arr/index.html',
-        linkedlist: '/html/DS/linklist/index.html',
-        stack: '/html/DS/stack/index.html',
-        queue: '/html/DS/queue/index.html',
-        tree: '/html/DS/tree/index.html',
-        hash: '/html/DS/hash/index.html',
-        graph: '/html/DS/graph/index.html',
-        heap: '/html/DS/heap/index.html'
+        array: '../html/DS/arr/index.html',
+        linkedlist: '../html/DS/linklist/index.html',
+        stack: '../html/DS/stack/index.html',
+        queue: '../html/DS/queue/index.html',
+        tree: '../html/DS/tree/index.html',
+        hash: '../html/DS/hash/index.html',
+        graph: '../html/DS/graph/index.html',
+        heap: '../html/DS/heap/index.html'
     };
     
     // 检查是否有对应的独立页面
