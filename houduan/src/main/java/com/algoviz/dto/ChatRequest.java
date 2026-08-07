@@ -1,8 +1,11 @@
 package com.algoviz.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
+@Schema(description = "聊天请求")
 public class ChatRequest {
+    @Schema(description = "消息列表")
     private List<Message> messages;
 
     public ChatRequest() {}
@@ -19,8 +22,11 @@ public class ChatRequest {
         this.messages = messages;
     }
 
+    @Schema(description = "单条消息")
     public static class Message {
+        @Schema(description = "角色")
         private String role;
+        @Schema(description = "内容")
         private String content;
 
         public Message() {}

@@ -1,11 +1,20 @@
 package com.algoviz.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "测试用例实体")
 public class TestCase {
+    @Schema(description = "主键ID")
     private String id;
+    @Schema(description = "题目ID")
     private String problemId;
+    @Schema(description = "输入")
     private String input;
+    @Schema(description = "预期输出")
     private String output;
+    @Schema(description = "分值")
     private Integer score;
+    @Schema(description = "是否为示例用例")
     private Boolean isSample;
 
     public TestCase() {}

@@ -1,18 +1,34 @@
 package com.algoviz.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "支付记录实体")
 public class PaymentRecord {
+    @Schema(description = "主键ID")
     private String id;
+    @Schema(description = "订单号")
     private String orderId;
+    @Schema(description = "商品ID")
     private String productId;
+    @Schema(description = "商品名称")
     private String productName;
+    @Schema(description = "支付金额")
     private Integer amount;
+    @Schema(description = "支付方式")
     private String paymentMethod;
+    @Schema(description = "交易ID")
     private String transactionId;
+    @Schema(description = "支付状态")
     private String status;
+    @Schema(description = "退款状态")
     private String refundStatus;
+    @Schema(description = "退款原因")
     private String refundReason;
+    @Schema(description = "创建时间")
     private String createTime;
+    @Schema(description = "支付时间")
     private String payTime;
+    @Schema(description = "退款时间")
     private String refundTime;
 
     public PaymentRecord() {}

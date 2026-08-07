@@ -1,17 +1,24 @@
 package com.algoviz.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 /**
  * 批量添加题目响应 DTO
  */
+@Schema(description = "批量添加题目响应")
 public class BatchAddProblemsResponse {
 
+    @Schema(description = "是否成功")
     private Boolean success;
+    @Schema(description = "消息")
     private String message;
+    @Schema(description = "成功数")
     private Integer successCount;
+    @Schema(description = "失败数")
     private Integer failedCount;
-    private List<String> failedReasons;  // 失败题目的原因列表
+    @Schema(description = "失败原因列表")
+    private List<String> failedReasons;
 
     public Boolean getSuccess() { return success; }
     public void setSuccess(Boolean success) { this.success = success; }

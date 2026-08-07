@@ -1,12 +1,22 @@
 package com.algoviz.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "AI提示词实体")
 public class AIPrompt {
+    @Schema(description = "主键ID")
     private String id;
+    @Schema(description = "标题")
     private String title;
+    @Schema(description = "分类")
     private String category;
+    @Schema(description = "内容")
     private String content;
+    @Schema(description = "使用次数")
     private Integer usageCount;
+    @Schema(description = "状态")
     private String status;
+    @Schema(description = "创建时间")
     private String createdAt;
 
     public AIPrompt() {}

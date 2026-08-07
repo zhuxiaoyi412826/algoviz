@@ -1,17 +1,32 @@
 package com.algoviz.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "文件存储实体")
 public class FileStorage {
+    @Schema(description = "主键ID")
     private String id;
+    @Schema(description = "文件名")
     private String fileName;
+    @Schema(description = "原始文件名")
     private String originalName;
+    @Schema(description = "文件类型")
     private String fileType;
+    @Schema(description = "文件大小")
     private Long fileSize;
+    @Schema(description = "文件路径")
     private String filePath;
+    @Schema(description = "存储类型")
     private String storageType;
+    @Schema(description = "存储桶名称")
     private String bucketName;
+    @Schema(description = "下载链接")
     private String downloadUrl;
+    @Schema(description = "上传者ID")
     private String uploaderId;
+    @Schema(description = "上传者名称")
     private String uploaderName;
+    @Schema(description = "创建时间")
     private String createTime;
 
     public FileStorage() {}

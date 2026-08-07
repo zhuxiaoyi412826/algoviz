@@ -1,12 +1,21 @@
 package com.algoviz.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "查询订单响应")
 public class QueryOrderResponse {
     
+    @Schema(description = "是否成功")
     private boolean success;
+    @Schema(description = "消息")
     private String message;
+    @Schema(description = "订单状态")
     private String status;
+    @Schema(description = "订单ID")
     private String orderId;
+    @Schema(description = "商品名称")
     private String productName;
+    @Schema(description = "金额")
     private int amount;
     
     public static QueryOrderResponse success(String status, String orderId, 

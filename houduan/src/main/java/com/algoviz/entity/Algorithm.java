@@ -1,15 +1,28 @@
 package com.algoviz.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "算法实体")
 public class Algorithm {
+    @Schema(description = "主键ID")
     private String id;
+    @Schema(description = "名称")
     private String name;
+    @Schema(description = "分类")
     private String category;
+    @Schema(description = "描述")
     private String description;
+    @Schema(description = "时间复杂度")
     private String timeComplexity;
+    @Schema(description = "空间复杂度")
     private String spaceComplexity;
+    @Schema(description = "伪代码")
     private String pseudocode;
+    @Schema(description = "状态")
     private String status;
+    @Schema(description = "创建时间")
     private String createdAt;
+    @Schema(description = "更新时间")
     private String updatedAt;
 
     public Algorithm() {}

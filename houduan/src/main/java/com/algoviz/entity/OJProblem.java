@@ -2,20 +2,34 @@ package com.algoviz.entity;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
+@Schema(description = "OJ题目实体")
 public class OJProblem {
+    @Schema(description = "主键ID")
     private Long id;
+    @Schema(description = "题目编号")
     private String problemNo;
+    @Schema(description = "题目标题")
     private String title;
+    @Schema(description = "难度")
     private String difficulty;
+    @Schema(description = "标签")
     private String tags;
+    @Schema(description = "题目描述")
     private String description;
+    @Schema(description = "代码模板")
     private String template;
+    @Schema(description = "状态")
     private String status;
+    @Schema(description = "提交次数")
     private Integer submissionCount;
+    @Schema(description = "通过率")
     private Double acRate;
+    @Schema(description = "创建时间")
     private String createdAt;
+    @Schema(description = "更新时间")
     private String updatedAt;
 
     public OJProblem() {}
@@ -28,9 +42,12 @@ public class OJProblem {
     public void setTitle(String title) { this.title = title; }
     public String getDifficulty() { return difficulty; }
     public void setDifficulty(String difficulty) { this.difficulty = difficulty; }
+
+    @Schema(description = "标签")
     @JsonGetter("tags")
     public String getTags() { return tags; }
 
+    @Schema(description = "标签")
     @JsonSetter("tags")
     public void setTags(Object tags) {
         if (tags == null) {

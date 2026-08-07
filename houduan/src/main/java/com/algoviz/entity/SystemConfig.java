@@ -1,11 +1,20 @@
 package com.algoviz.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "系统配置实体")
 public class SystemConfig {
+    @Schema(description = "配置键")
     private String key;
+    @Schema(description = "配置值")
     private String value;
+    @Schema(description = "类型")
     private String type;
+    @Schema(description = "标签")
     private String label;
+    @Schema(description = "描述")
     private String description;
+    @Schema(description = "配置分组")
     private String configGroup;
 
     public SystemConfig() {}

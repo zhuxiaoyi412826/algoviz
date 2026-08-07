@@ -1,8 +1,14 @@
 package com.algoviz.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "统一API响应封装")
 public class ApiResponse<T> {
+    @Schema(description = "状态码")
     private int code;
+    @Schema(description = "消息")
     private String message;
+    @Schema(description = "数据")
     private T data;
 
     public ApiResponse() {}

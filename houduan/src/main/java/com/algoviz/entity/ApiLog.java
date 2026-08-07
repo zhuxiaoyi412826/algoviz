@@ -1,16 +1,30 @@
 package com.algoviz.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "API日志实体")
 public class ApiLog {
+    @Schema(description = "主键ID")
     private String id;
+    @Schema(description = "API路径")
     private String apiPath;
+    @Schema(description = "HTTP方法")
     private String httpMethod;
+    @Schema(description = "状态码")
     private Integer statusCode;
+    @Schema(description = "响应时间(ms)")
     private Long responseTime;
+    @Schema(description = "客户端IP")
     private String clientIp;
+    @Schema(description = "请求体")
     private String requestBody;
+    @Schema(description = "响应体")
     private String responseBody;
+    @Schema(description = "错误信息")
     private String errorMessage;
+    @Schema(description = "用户ID")
     private String userId;
+    @Schema(description = "创建时间")
     private String createTime;
 
     public ApiLog() {}

@@ -1,14 +1,26 @@
 package com.algoviz.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "登录日志实体")
 public class LoginLog {
+    @Schema(description = "主键ID")
     private String id;
+    @Schema(description = "用户ID")
     private String userId;
+    @Schema(description = "用户名")
     private String username;
+    @Schema(description = "IP地址")
     private String ip;
+    @Schema(description = "设备")
     private String device;
+    @Schema(description = "登录地点")
     private String location;
+    @Schema(description = "登录时间")
     private String loginTime;
+    @Schema(description = "状态")
     private String status;
+    @Schema(description = "失败原因")
     private String failReason;
 
     public LoginLog() {}

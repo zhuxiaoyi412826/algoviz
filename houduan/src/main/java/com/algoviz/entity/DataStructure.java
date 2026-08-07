@@ -1,12 +1,22 @@
 package com.algoviz.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "数据结构实体")
 public class DataStructure {
+    @Schema(description = "主键ID")
     private String id;
+    @Schema(description = "名称")
     private String name;
+    @Schema(description = "类型")
     private String type;
+    @Schema(description = "描述")
     private String description;
+    @Schema(description = "状态")
     private String status;
+    @Schema(description = "创建时间")
     private String createdAt;
+    @Schema(description = "更新时间")
     private String updatedAt;
 
     public DataStructure() {}

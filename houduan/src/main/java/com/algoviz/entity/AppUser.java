@@ -1,16 +1,30 @@
 package com.algoviz.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "前台用户实体")
 public class AppUser {
+    @Schema(description = "用户ID")
     private String id;
+    @Schema(description = "微信OpenID")
     private String openid;
+    @Schema(description = "昵称")
     private String nickname;
+    @Schema(description = "头像")
     private String avatar;
+    @Schema(description = "绑定时间")
     private String bindTime;
+    @Schema(description = "状态")
     private String status;
+    @Schema(description = "数据结构访问次数")
     private Integer dsVisits;
+    @Schema(description = "算法访问次数")
     private Integer algoVisits;
+    @Schema(description = "OJ访问次数")
     private Integer ojVisits;
+    @Schema(description = "AI对话次数")
     private Integer aiDialogues;
+    @Schema(description = "最后访问时间")
     private String lastVisitTime;
 
     public AppUser() {}
