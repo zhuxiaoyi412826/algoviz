@@ -90,6 +90,12 @@ const routes: RouteRecordRaw[] = [
             meta: { title: 'OJ题目管理' }
           },
           {
+            path: 'interview-problem',
+            name: 'InterviewProblem',
+            component: () => import('@/views/content/InterviewProblem.vue'),
+            meta: { title: '面试题目管理' }
+          },
+          {
             path: 'testcase',
             name: 'TestCase',
             component: () => import('@/views/content/TestCase.vue'),

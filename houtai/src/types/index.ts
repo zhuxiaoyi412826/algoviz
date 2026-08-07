@@ -83,6 +83,23 @@ export interface OJProblem {
   updateTime: string
 }
 
+export interface InterviewProblem {
+  id: string
+  problemNo: string
+  title: string
+  difficulty: 'easy' | 'medium' | 'hard'
+  tags: string[]
+  category: string
+  description: string
+  inputFormat: string
+  outputFormat: string
+  solution: string
+  status: 'online' | 'offline'
+  isFrequent: boolean
+  viewCount: number
+  createTime: string
+}
+
 export interface TestCase {
   id: string
   problemId: string

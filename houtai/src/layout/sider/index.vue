@@ -39,6 +39,7 @@ const menuList = [
       { path: '/content/algorithm', name: 'Algorithm', meta: { title: '算法可视化' } },
       { path: '/content/animation-config', name: 'AnimationConfig', meta: { title: '动画参数配置' } },
       { path: '/content/problem', name: 'Problem', meta: { title: 'OJ题目管理' } },
+      { path: '/content/interview-problem', name: 'InterviewProblem', meta: { title: '面试题目管理' } },
       { path: '/content/testcase', name: 'TestCase', meta: { title: '测试用例管理' } },
       { path: '/content/judge-config', name: 'JudgeConfig', meta: { title: '判题规则配置' } },
       { path: '/content/ai-prompt', name: 'AIPrompt', meta: { title: 'AI快捷提示词' } },

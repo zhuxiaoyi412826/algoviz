@@ -3,6 +3,7 @@ import type {
   DataStructure,
   Algorithm,
   OJProblem,
+  InterviewProblem,
   TestCase,
   AIPrompt
 } from '@/types'
@@ -103,4 +104,42 @@ export const aiConfigApi = {
 
   getDialogues: (params?: any) =>
     request.get<{ list: any[]; total: number }>('/content/ai-dialogue', { params })
+}
+
+export const interviewProblemApi = {
+  getList: (params?: any) =>
+    request.get<{ list: InterviewProblem[]; total: number }>('/interview/admin/problems', { params }),
+
+  getById: (id: string) =>
+    request.get<InterviewProblem>(`/interview/admin/problems/${id}`),
+
+  create: (data: Partial<InterviewProblem>) =>
+    request.post<InterviewProblem>('/interview/admin/problems', data),
+
+  update: (id: string, data: Partial<InterviewProblem>) =>
+    request.put<InterviewProblem>(`/interview/admin/problems/${id}`, data),
+
+  delete: (id: string) =>
+    request.delete<void>(`/interview/admin/problems/${id}`),
+
+  changeStatus: (id: string, status: string) =>
+    request.put<void>(`/interview/admin/problems/${id}/status`, { status }),
+
+  batchImport: (formData: FormData) =>
+    request.post<any>('/interview/admin/problems/batch-import', formData),
+
+  importJson: (formData: FormData) =>
+    request.post<any>('/interview/admin/problems/import-json', formData),
+
+  exportJson: () =>
+    request.get<Blob>('/interview/admin/problems/export-json', { responseType: 'blob' }),
+
+  aiGenerate: (data: any) =>
+    request.post<any>('/interview/admin/ai/generate', data),
+
+  batchSave: (data: any) =>
+    request.post<any>('/interview/admin/problems/batch-save', data),
+
+  getStats: () =>
+    request.get<any>('/interview/admin/problems/stats')
 }
