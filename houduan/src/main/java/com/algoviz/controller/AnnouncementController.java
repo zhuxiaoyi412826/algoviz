@@ -24,17 +24,65 @@ public class AnnouncementController {
     @Autowired
     private AnnouncementMapper announcementMapper;
 
+    /**
+     * 将 status 字段规范为字符串：0 -> published, 1 -> draft, 其他字符串大小写统一
+     */
+    private String normalizeStatus(String rawStatus) {
+        if (rawStatus == null) return "draft";
+        String s = rawStatus.trim();
+        switch (s) {
+            case "0":
+            case "published":
+            case "online":
+            case "PUBLISHED":
+            case "ONLINE":
+            case "true":
+                return "published";
+            case "1":
+            case "2":
+            case "draft":
+            case "DRAFT":
+            case "offline":
+            case "OFFLINE":
+            case "false":
+                return "draft";
+            default:
+                return s.toLowerCase();
+        }
+    }
+
+    /**
+     * 将 Announcement 列表中每个对象的 status 统一为字符串规范
+     */
+    private void normalizeList(List<Announcement> list) {
+        if (list == null) return;
+        for (Announcement a : list) {
+            if (a.getStatus() != null) {
+                String normalized = normalizeStatus(a.getStatus());
+                // 如果 DB 存的是 0/1，但 publish_time 空，则推断为 draft
+                if ("published".equals(normalized) && a.getPublishTime() == null) {
+                    // 没有发布时间但被标记为已发布，设置一个时间
+                    a.setPublishTime(a.getCreateTime() != null ? a.getCreateTime() : java.time.LocalDateTime.now());
+                }
+                a.setStatus(normalized);
+            } else {
+                a.setStatus("draft");
+            }
+        }
+    }
+
     @GetMapping
     @Operation(summary = "获取公告列表", description = "获取所有公告（管理后台使用）")
     public Map<String, Object> getAllAnnouncements() {
         logger.info("获取公告列表");
-        
+
         Map<String, Object> result = new HashMap<>();
         List<Announcement> announcements = announcementMapper.getAllAnnouncements();
-        
+        normalizeList(announcements);
+
         result.put("success", true);
         result.put("announcements", announcements);
-        
+
         return result;
     }
 
@@ -42,13 +90,15 @@ public class AnnouncementController {
     @Operation(summary = "获取已发布公告", description = "获取已发布的公告（前端展示使用）")
     public Map<String, Object> getPublishedAnnouncements() {
         logger.info("获取已发布公告");
-        
+
         Map<String, Object> result = new HashMap<>();
         List<Announcement> announcements = announcementMapper.getPublishedAnnouncements();
-        
+        normalizeList(announcements);
+        logger.info("查询到已发布公告数量：{}", announcements.size());
+
         result.put("success", true);
         result.put("announcements", announcements);
-        
+
         return result;
     }
 
@@ -56,41 +106,55 @@ public class AnnouncementController {
     @Operation(summary = "获取公告详情", description = "根据ID获取公告详情")
     public Map<String, Object> getAnnouncementById(@PathVariable Long id) {
         logger.info("获取公告详情：{}", id);
-        
+
         Map<String, Object> result = new HashMap<>();
         Announcement announcement = announcementMapper.findById(String.valueOf(id));
-        
+
         if (announcement != null) {
+            if (announcement.getStatus() != null) {
+                announcement.setStatus(normalizeStatus(announcement.getStatus()));
+            } else {
+                announcement.setStatus("draft");
+            }
             result.put("success", true);
             result.put("announcement", announcement);
         } else {
             result.put("success", false);
             result.put("message", "公告不存在");
         }
-        
+
         return result;
     }
 
     @PostMapping
-    @Operation(summary = "创建公告", description = "创建新公告")
-    public Map<String, Object> createAnnouncement(@RequestBody Map<String, String> body) {
-        logger.info("创建公告");
+    @Operation(summary = "创建公告", description = "创建新公告，status=published 可直接发布")
+    public Map<String, Object> createAnnouncement(@RequestBody Map<String, Object> body) {
+        logger.info("创建公告：title={}", body.get("title"));
         
         Map<String, Object> result = new HashMap<>();
         
         try {
             Announcement announcement = new Announcement();
-            announcement.setTitle(body.get("title"));
-            announcement.setContent(body.get("content"));
-            announcement.setStatus("DRAFT");
+            announcement.setTitle((String) body.get("title"));
+            announcement.setContent((String) body.get("content"));
+            announcement.setType(body.get("type") != null ? (String) body.get("type") : "notice");
+            announcement.setIsTop(body.get("isTop") != null ? Boolean.valueOf(body.get("isTop").toString()) : false);
+            
+            String status = body.get("status") != null ? (String) body.get("status") : "draft";
+            announcement.setStatus(status);
             announcement.setSortOrder(announcementMapper.getMaxSortOrder() + 1);
             announcement.setCreateTime(LocalDateTime.now());
             announcement.setUpdateTime(LocalDateTime.now());
             
+            if ("published".equals(status)) {
+                announcement.setPublishTime(LocalDateTime.now());
+            }
+            
             announcementMapper.insert(announcement);
             
             result.put("success", true);
-            result.put("message", "公告创建成功");
+            result.put("message", "published".equals(status) ? "公告发布成功" : "公告创建成功");
+            result.put("id", announcement.getId());
             
         } catch (Exception e) {
             logger.error("创建公告失败", e);
@@ -103,7 +167,7 @@ public class AnnouncementController {
 
     @PutMapping("/{id}")
     @Operation(summary = "更新公告", description = "更新公告内容")
-    public Map<String, Object> updateAnnouncement(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    public Map<String, Object> updateAnnouncement(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         logger.info("更新公告：{}", id);
         
         Map<String, Object> result = new HashMap<>();
@@ -116,10 +180,12 @@ public class AnnouncementController {
                 return result;
             }
             
-            announcement.setTitle(body.get("title"));
-            announcement.setContent(body.get("content"));
-            if (body.get("sortOrder") != null) {
-                announcement.setSortOrder(Integer.parseInt(body.get("sortOrder")));
+            announcement.setTitle((String) body.get("title"));
+            announcement.setContent((String) body.get("content"));
+            announcement.setType(body.get("type") != null ? (String) body.get("type") : announcement.getType());
+            announcement.setIsTop(body.get("isTop") != null ? Boolean.valueOf(body.get("isTop").toString()) : announcement.getIsTop());
+            if (body.get("status") != null) {
+                announcement.setStatus((String) body.get("status"));
             }
             
             announcementMapper.update(announcement);
@@ -151,7 +217,7 @@ public class AnnouncementController {
                 return result;
             }
             
-            announcementMapper.updateAnnouncementStatus(id, "PUBLISHED");
+            announcementMapper.updateAnnouncementStatus(id, "published");
             
             result.put("success", true);
             result.put("message", "发布成功");
@@ -180,7 +246,7 @@ public class AnnouncementController {
                 return result;
             }
             
-            announcementMapper.updateAnnouncementStatus(id, "DRAFT");
+            announcementMapper.updateAnnouncementStatus(id, "draft");
             
             result.put("success", true);
             result.put("message", "已取消发布");

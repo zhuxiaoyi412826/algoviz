@@ -12,6 +12,10 @@ public class Announcement {
     private String title;
     @Schema(description = "内容")
     private String content;
+    @Schema(description = "类型")
+    private String type;
+    @Schema(description = "是否置顶")
+    private Boolean isTop;
     @Schema(description = "状态")
     private String status;
     @Schema(description = "排序")
@@ -48,6 +52,22 @@ public class Announcement {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public Boolean getIsTop() {
+        return isTop;
+    }
+
+    public void setIsTop(Boolean isTop) {
+        this.isTop = isTop;
     }
 
     public String getStatus() {

@@ -3,65 +3,90 @@
     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
     
 <mapper namespace="com.algoviz.mapper.AnnouncementMapper">
+
+    <sql id="statusPublishedCase">
+        CASE
+            WHEN CAST(a.status AS CHAR) IN ('0', 'published', 'online', 'ONLINE', 'PUBLISHED') THEN 'published'
+            ELSE 'draft'
+        END AS status_normalized
+    </sql>
     
     <resultMap id="AnnouncementResultMap" type="com.algoviz.entity.Announcement">
         <id column="id" property="id" />
         <result column="title" property="title" />
         <result column="content" property="content" />
+        <result column="type" property="type" />
+        <result column="is_top" property="isTop" />
         <result column="status" property="status" />
         <result column="sort_order" property="sortOrder" />
         <result column="publish_time" property="publishTime" />
         <result column="create_time" property="createTime" />
         <result column="update_time" property="updateTime" />
     </resultMap>
-    
+
+    <!-- 兼容整数(0=发布, 1=草稿)和字符串 -->
+    <sql id="wherePublished">
+        CAST(status AS CHAR) IN ('0', 'published', 'online', 'ONLINE', 'PUBLISHED', 'true')
+    </sql>
+
     <select id="findByPage" resultMap="AnnouncementResultMap">
-        SELECT * FROM announcement ORDER BY sort_order ASC, create_time DESC LIMIT #{offset}, #{pageSize}
+        SELECT * FROM announcement ORDER BY COALESCE(is_top, 0) DESC, sort_order ASC, create_time DESC LIMIT #{offset}, #{pageSize}
     </select>
-    
+
     <select id="count" resultType="int">
         SELECT COUNT(*) FROM announcement
     </select>
-    
+
     <select id="getAllAnnouncements" resultMap="AnnouncementResultMap">
-        SELECT * FROM announcement ORDER BY sort_order ASC, create_time DESC
+        SELECT * FROM announcement ORDER BY COALESCE(is_top, 0) DESC, sort_order ASC, create_time DESC
     </select>
-    
+
     <select id="getPublishedAnnouncements" resultMap="AnnouncementResultMap">
-        SELECT * FROM announcement WHERE status = 'PUBLISHED' ORDER BY sort_order ASC, create_time DESC
+        SELECT * FROM announcement
+        WHERE
+          -- 兼容整数（0=发布, 1=草稿）和字符串（published/draft）
+          (
+            CAST(COALESCE(status, '') AS CHAR) IN ('0', 'published', 'ONLINE', 'PUBLISHED', 'online')
+          )
+        ORDER BY COALESCE(is_top, 0) DESC, COALESCE(sort_order, 0) ASC, COALESCE(publish_time, create_time) DESC
     </select>
-    
+
     <select id="findById" resultMap="AnnouncementResultMap">
         SELECT * FROM announcement WHERE id = #{id}
     </select>
-    
-    <insert id="insert">
-        INSERT INTO announcement (title, content, status, sort_order, publish_time, create_time, update_time)
-        VALUES (#{title}, #{content}, #{status}, #{sortOrder}, #{publishTime}, #{createTime}, #{updateTime})
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO announcement (title, content, type, is_top, status, sort_order, publish_time, create_time, update_time)
+        VALUES (#{title}, #{content}, #{type}, #{isTop}, #{status}, #{sortOrder}, #{publishTime}, #{createTime}, #{updateTime})
     </insert>
-    
+
     <update id="update">
-        UPDATE announcement SET 
+        UPDATE announcement SET
             title = #{title},
             content = #{content},
+            type = #{type},
+            is_top = #{isTop},
             status = #{status},
             sort_order = #{sortOrder},
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
-    
+
     <update id="updateAnnouncementStatus">
-        UPDATE announcement SET 
+        UPDATE announcement SET
             status = #{status},
-            publish_time = CASE WHEN #{status} = 'PUBLISHED' THEN CURRENT_TIMESTAMP ELSE publish_time END,
+            publish_time = CASE
+                WHEN #{status} IN ('published', 'online') OR #{status} = '0' THEN COALESCE(publish_time, CURRENT_TIMESTAMP)
+                ELSE publish_time
+            END,
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
-    
+
     <delete id="deleteById">
         DELETE FROM announcement WHERE id = #{id}
     </delete>
-    
+
     <select id="getMaxSortOrder" resultType="int">
         SELECT COALESCE(MAX(sort_order), 0) FROM announcement
     </select>
