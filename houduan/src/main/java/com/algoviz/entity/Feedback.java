@@ -20,6 +20,10 @@ public class Feedback {
     private String title;
     @Schema(description = "内容")
     private String content;
+    @Schema(description = "图片(二进制MEDIUMBLOB)")
+    private byte[] images;
+    @Schema(description = "图片数量")
+    private Integer imageCount;
     @Schema(description = "状态")
     private String status;
     @Schema(description = "回复")
@@ -88,6 +92,22 @@ public class Feedback {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public byte[] getImages() {
+        return images;
+    }
+
+    public void setImages(byte[] images) {
+        this.images = images;
+    }
+
+    public Integer getImageCount() {
+        return imageCount;
+    }
+
+    public void setImageCount(Integer imageCount) {
+        this.imageCount = imageCount;
     }
 
     public String getStatus() {

@@ -323,6 +323,7 @@
         }
         
         .form-file {
+            display: block;
             padding: 0.75rem 1rem;
             border: 2px dashed var(--border);
             border-radius: 8px;
@@ -336,12 +337,74 @@
             background: var(--hover-bg);
         }
         
+        .form-file.dragover {
+            border-color: var(--primary);
+            background: rgba(124, 58, 237, 0.1);
+        }
+        
         .form-file input {
             display: none;
         }
         
         .form-file-label {
             color: var(--text-secondary);
+        }
+        
+        .image-preview-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .image-preview-item {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--hover-bg);
+        }
+        
+        .image-preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .image-preview-item .remove-image {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .image-preview-item .remove-image:hover {
+            background: #ef4444;
+        }
+        
+        .image-preview-item .image-size {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.55);
+            color: white;
+            font-size: 11px;
+            text-align: center;
+            padding: 2px 0;
         }
         
         .captcha-container {
@@ -614,7 +677,7 @@
                 
                 <div class="qrcode-section">
                     <div class="qrcode-title">微信二维码</div>
-                    <img src="/images/1.jpg" alt="微信二维码" class="qrcode-img" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><rect fill=%22%23f0f0f0%22 width=%22200%22 height=%22200%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23999%22>微信二维码</text></svg>'">
+                    <img src="../images/1.jpg" alt="微信二维码" class="qrcode-img" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><rect fill=%22%23f0f0f0%22 width=%22200%22 height=%22200%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23999%22>微信二维码</text></svg>'">
                 </div>
             </div>
             
@@ -626,13 +689,13 @@
                             <label class="form-label">
                                 姓名 / 称呼 <span class="required">*</span>
                             </label>
-                            <input type="text" class="form-input" name="name" placeholder="请输入您的姓名" required>
+                            <input type="text" class="form-input" name="username" placeholder="请输入您的姓名" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">
                                 联系电话 / 邮箱 <span class="required">*</span>
                             </label>
-                            <input type="text" class="form-input" name="contact" placeholder="请输入联系方式" required>
+                            <input type="text" class="form-input" name="email" placeholder="请输入联系方式" required>
                         </div>
                     </div>
                     
@@ -642,10 +705,9 @@
                         </label>
                         <select class="form-select" name="type" required>
                             <option value="">请选择留言类型</option>
-                            <option value="consult">咨询</option>
-                            <option value="cooperation">合作</option>
-                            <option value="complaint">投诉</option>
-                            <option value="suggestion">建议</option>
+                            <option value="visualization">可视化相关</option>
+                            <option value="oj">OJ题目相关</option>
+                            <option value="ai">AI功能相关</option>
                             <option value="other">其他</option>
                         </select>
                     </div>
@@ -658,14 +720,15 @@
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">图片 / 附件上传（可选）</label>
-                        <label class="form-file">
-                            <input type="file" name="attachment" accept="image/*,.pdf,.doc,.docx" onchange="handleFileSelect(this)">
+                        <label class="form-label">图片上传（可选，单张不超过 2MB）</label>
+                        <label class="form-file" id="dropZone">
+                            <input type="file" name="files" id="fileInput" accept="image/jpeg,image/png,image/gif,image/bmp,image/webp" multiple onchange="handleFileSelect(this)">
                             <div class="form-file-label" id="fileLabel">
-                                📎 点击选择文件或拖拽文件到此处<br>
-                                <small>支持 JPG、PNG、PDF、Word 格式</small>
+                                📷 点击选择图片或拖拽图片到此处<br>
+                                <small>支持 JPG、PNG、GIF、BMP、WEBP 格式，最多 5 张</small>
                             </div>
                         </label>
+                        <div id="imagePreviewList" class="image-preview-list"></div>
                     </div>
                     
                     <div class="form-group">
@@ -722,6 +785,10 @@
 
     <script>
         let captchaText = '';
+        let selectedFiles = [];
+        const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+        const MAX_IMAGE_COUNT = 5;
+        const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp'];
         
         function generateCaptcha() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -738,19 +805,114 @@
         }
         
         function handleFileSelect(input) {
-            const file = input.files[0];
-            if (file) {
-                document.getElementById('fileLabel').innerHTML = `📄 ${file.name}<br><small>已选择文件</small>`;
+            handleFiles(input.files);
+        }
+        
+        function handleFiles(fileList) {
+            const files = Array.from(fileList);
+            let rejected = [];
+            
+            for (let file of files) {
+                if (selectedFiles.length >= MAX_IMAGE_COUNT) {
+                    rejected.push(file.name + '（最多上传5张）');
+                    break;
+                }
+                if (!ALLOWED_TYPES.includes(file.type)) {
+                    rejected.push(file.name + '（格式不支持）');
+                    continue;
+                }
+                if (file.size > MAX_IMAGE_SIZE) {
+                    rejected.push(file.name + '（超过2MB限制）');
+                    continue;
+                }
+                selectedFiles.push(file);
+            }
+            
+            if (rejected.length > 0) {
+                alert('以下文件未通过校验：\n' + rejected.join('\n'));
+            }
+            
+            renderImagePreview();
+        }
+        
+        function renderImagePreview() {
+            const container = document.getElementById('imagePreviewList');
+            container.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const div = document.createElement('div');
+                    div.className = 'image-preview-item';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" alt="${file.name}">
+                        <button type="button" class="remove-image" data-index="${index}">×</button>
+                        <span class="image-size">${formatSize(file.size)}</span>
+                    `;
+                    container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+            
+            // 更新上传区域提示
+            const fileLabel = document.getElementById('fileLabel');
+            if (selectedFiles.length > 0) {
+                fileLabel.innerHTML = `📷 已选择 ${selectedFiles.length} 张图片，点击继续添加<br><small>支持 JPG、PNG、GIF、BMP、WEBP 格式，最多 5 张</small>`;
+            } else {
+                fileLabel.innerHTML = `📷 点击选择图片或拖拽图片到此处<br><small>支持 JPG、PNG、GIF、BMP、WEBP 格式，最多 5 张</small>`;
             }
         }
+        
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+        }
+        
+        // 图片预览点击删除
+        document.getElementById('imagePreviewList').addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-image')) {
+                const index = parseInt(e.target.getAttribute('data-index'));
+                selectedFiles.splice(index, 1);
+                renderImagePreview();
+            }
+        });
+        
+        // 拖拽支持
+        const dropZone = document.getElementById('dropZone');
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.add('dragover');
+            });
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.remove('dragover');
+            });
+        });
+        dropZone.addEventListener('drop', function(e) {
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        });
         
         async function submitForm(e) {
             e.preventDefault();
             
             const form = e.target;
-            const formData = new FormData(form);
+            const formData = new FormData();
             
-            const captchaInput = formData.get('captcha');
+            // 表单字段名匹配后端
+            const username = form.querySelector('[name="username"]').value;
+            const email = form.querySelector('[name="email"]').value;
+            const type = form.querySelector('[name="type"]').value;
+            const title = '用户留言';
+            const content = form.querySelector('[name="content"]').value;
+            const captchaInput = form.querySelector('[name="captcha"]').value;
+            
             if (captchaInput.toLowerCase() !== captchaText.toLowerCase()) {
                 alert('验证码错误，请重新输入！');
                 refreshCaptcha();
@@ -758,22 +920,24 @@
                 return;
             }
             
+            formData.append('username', username);
+            formData.append('email', email);
+            formData.append('type', type);
+            formData.append('title', title);
+            formData.append('content', content);
+            
+            // 追加图片文件
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
+            
             document.getElementById('submitBtn').disabled = true;
             document.getElementById('submitBtn').textContent = '提交中...';
             
             try {
                 const response = await fetch('http://localhost:80/api/feedback', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        username: formData.get('name'),
-                        email: formData.get('contact'),
-                        type: formData.get('type'),
-                        title: '用户留言',
-                        content: formData.get('content')
-                    })
+                    body: formData
                 });
                 
                 const data = await response.json();
@@ -781,7 +945,9 @@
                 if (data.success) {
                     document.getElementById('successModal').classList.add('show');
                     form.reset();
-                    document.getElementById('fileLabel').innerHTML = '📎 点击选择文件或拖拽文件到此处<br><small>支持 JPG、PNG、PDF、Word 格式</small>';
+                    selectedFiles = [];
+                    renderImagePreview();
+                    document.getElementById('fileLabel').innerHTML = '📷 点击选择图片或拖拽图片到此处<br><small>支持 JPG、PNG、GIF、BMP、WEBP 格式，最多 5 张</small>';
                 } else {
                     alert('提交失败：' + (data.message || '未知错误'));
                 }

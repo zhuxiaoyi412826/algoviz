@@ -12,6 +12,8 @@
         <result column="type" property="type" />
         <result column="title" property="title" />
         <result column="content" property="content" />
+        <result column="images" property="images" jdbcType="BLOB" />
+        <result column="image_count" property="imageCount" />
         <result column="status" property="status" />
         <result column="reply" property="reply" />
         <result column="reply_time" property="replyTime" />
@@ -20,36 +22,43 @@
     </resultMap>
     
     <select id="findByPage" resultMap="FeedbackResultMap">
-        SELECT * FROM feedback ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
+        SELECT id, user_id, username, email, type, title, content, image_count, status, reply, reply_time, create_time, update_time
+        FROM feedback ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
     </select>
     
     <select id="count" resultType="int">
         SELECT COUNT(*) FROM feedback
     </select>
     
+    <!-- 列表接口不返回 images BLOB，避免网络传输过大 -->
     <select id="getAllFeedbacks" resultMap="FeedbackResultMap">
-        SELECT * FROM feedback ORDER BY create_time DESC
+        SELECT id, user_id, username, email, type, title, content, image_count, status, reply, reply_time, create_time, update_time
+        FROM feedback ORDER BY create_time DESC
     </select>
     
     <select id="getFeedbacksByUserId" resultMap="FeedbackResultMap">
-        SELECT * FROM feedback WHERE user_id = #{userId} ORDER BY create_time DESC
+        SELECT id, user_id, username, email, type, title, content, image_count, status, reply, reply_time, create_time, update_time
+        FROM feedback WHERE user_id = #{userId} ORDER BY create_time DESC
     </select>
     
     <select id="getFeedbacksByStatus" resultMap="FeedbackResultMap">
-        SELECT * FROM feedback WHERE status = #{status} ORDER BY create_time DESC
+        SELECT id, user_id, username, email, type, title, content, image_count, status, reply, reply_time, create_time, update_time
+        FROM feedback WHERE status = #{status} ORDER BY create_time DESC
     </select>
     
     <select id="getFeedbacksByType" resultMap="FeedbackResultMap">
-        SELECT * FROM feedback WHERE type = #{type} ORDER BY create_time DESC
+        SELECT id, user_id, username, email, type, title, content, image_count, status, reply, reply_time, create_time, update_time
+        FROM feedback WHERE type = #{type} ORDER BY create_time DESC
     </select>
     
+    <!-- 详情接口返回完整的 images BLOB -->
     <select id="findById" resultMap="FeedbackResultMap">
         SELECT * FROM feedback WHERE id = #{id}
     </select>
     
-    <insert id="insert">
-        INSERT INTO feedback (user_id, username, email, type, title, content, status, create_time, update_time)
-        VALUES (#{userId}, #{username}, #{email}, #{type}, #{title}, #{content}, #{status}, #{createTime}, #{updateTime})
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO feedback (user_id, username, email, type, title, content, images, image_count, status, create_time, update_time)
+        VALUES (#{userId}, #{username}, #{email}, #{type}, #{title}, #{content}, #{images, jdbcType=BLOB}, #{imageCount}, #{status}, #{createTime}, #{updateTime})
     </insert>
     
     <update id="update">
@@ -57,6 +66,8 @@
             type = #{type},
             title = #{title},
             content = #{content},
+            images = #{images, jdbcType=BLOB},
+            image_count = #{imageCount},
             status = #{status},
             reply = #{reply},
             reply_time = #{replyTime},
@@ -72,7 +83,7 @@
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
-        <!-- email -->
+    
     <delete id="deleteById">
         DELETE FROM feedback WHERE id = #{id}
     </delete>
