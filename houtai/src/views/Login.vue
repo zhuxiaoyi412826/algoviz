@@ -54,6 +54,8 @@ const handleLogin = async () => {
 
       userStore.setToken(mockToken)
       userStore.setUserInfo(mockUser)
+      try { localStorage.setItem('token', mockToken) } catch (e) {}
+      try { localStorage.setItem('userInfo', JSON.stringify(mockUser)) } catch (e) {}
 
       ElMessage.success('登录成功')
       router.push('/')

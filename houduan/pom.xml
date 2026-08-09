@@ -83,6 +83,13 @@
             <version>1.18.30</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- jsoup：Markdown 内容 XSS 过滤（面试题目模块使用） -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.17.2</version>
+        </dependency>
         
         <!-- 测试依赖 -->
         <dependency>

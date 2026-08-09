@@ -432,19 +432,15 @@
         </div>
     </div>
 
+    <script src="../js/interview-api.js"></script>
     <script>
-        // ========== 静态题目数据 ==========
+        // ========== 静态题目数据（后端不可用时作降级兜底） ==========
         var STATIC_PROBLEMS = [
-            { id: 1, problemNo: '001', title: '两数之和', difficulty: 'easy', tags: ['数组', '哈希表'] },
-            { id: 2, problemNo: '002', title: '反转链表', difficulty: 'easy', tags: ['链表', '递归'] },
-            { id: 3, problemNo: '003', title: 'LRU 缓存', difficulty: 'medium', tags: ['链表', '哈希表', '设计'] },
-            { id: 4, problemNo: '004', title: '无重复字符的最长子串', difficulty: 'medium', tags: ['字符串', '滑动窗口', '哈希表'] },
-            { id: 5, problemNo: '005', title: '二叉树的层序遍历', difficulty: 'medium', tags: ['树', '广度优先搜索', '二叉树'] },
-            { id: 6, problemNo: '006', title: '合并区间', difficulty: 'medium', tags: ['数组', '排序'] },
-            { id: 7, problemNo: '007', title: '接雨水', difficulty: 'hard', tags: ['栈', '数组', '双指针', '动态规划'] },
-            { id: 8, problemNo: '008', title: '正则表达式匹配', difficulty: 'hard', tags: ['字符串', '动态规划', '递归'] },
-            { id: 9, problemNo: '009', title: '最长回文子串', difficulty: 'medium', tags: ['字符串', '动态规划'] },
-            { id: 10, problemNo: '010', title: '数组中的第K个最大元素', difficulty: 'medium', tags: ['数组', '快速选择', '排序', '堆'] }
+            { id: 1, problemNo: 'MS001', title: '两数之和', difficulty: 'easy', tags: ['数组', '哈希表'], category: '数组', isFrequent: 1 },
+            { id: 2, problemNo: 'MS002', title: '反转链表', difficulty: 'easy', tags: ['链表', '递归'], category: '链表', isFrequent: 1 },
+            { id: 3, problemNo: 'MS003', title: 'LRU 缓存', difficulty: 'medium', tags: ['链表', '哈希表', '设计'], category: '设计', isFrequent: 1 },
+            { id: 4, problemNo: 'MS004', title: '二叉树的层序遍历', difficulty: 'medium', tags: ['树', '广度优先搜索', '二叉树'], category: '树', isFrequent: 0 },
+            { id: 5, problemNo: 'MS005', title: '接雨水', difficulty: 'hard', tags: ['栈', '数组', '双指针', '动态规划'], category: '数组', isFrequent: 1 }
         ];
 
         // ========== 状态 ==========
@@ -482,16 +478,42 @@
         }
 
         // ========== 初始化 ==========
-        function initList() {
+        function normalizeProblem(p) {
+            // 兼容后端（tags 字符串 / tagList 数组 / isFrequent 0|1）
+            var tags = Array.isArray(p.tagList) && p.tagList.length > 0 ? p.tagList : window.InterviewApi.splitTags(p.tags);
+            return {
+                id: p.id,
+                problemNo: p.problemNo || ('ID' + p.id),
+                title: p.title || '',
+                difficulty: p.difficulty || 'easy',
+                tags: tags,
+                category: p.category || '',
+                isFrequent: p.isFrequent || 0,
+                status: getStatus(p.problemNo || p.id)
+            };
+        }
+
+        async function fetchAllProblems() {
+            try {
+                if (window.InterviewApi && window.InterviewApi.listProblems) {
+                    var page = await window.InterviewApi.listProblems({ page: 1, pageSize: 2000 });
+                    if (page && Array.isArray(page.list) && page.list.length > 0) {
+                        return page.list.map(normalizeProblem);
+                    }
+                }
+            } catch (e) {
+                console.warn('[interview] 使用后端列表失败，降级到静态兜底：', e);
+            }
+            return STATIC_PROBLEMS.map(normalizeProblem);
+        }
+
+        async function initList() {
             // 绑定主题切换
             var themeBtn = document.getElementById('themeToggle');
             if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
-            // 注入静态数据 + 状态
-            allProblems = STATIC_PROBLEMS.map(function(p) {
-                p.status = getStatus(p.problemNo);
-                return p;
-            });
+            // 从后端加载全部题目
+            allProblems = await fetchAllProblems();
 
             buildTagFilter();
             updateStats();
@@ -629,7 +651,7 @@
 
         // ========== 跳转 ==========
         function goToProblem(no) {
-            window.location.href = 'oj.html?id=' + no;
+            window.location.href = 'interview-detail.html?id=' + encodeURIComponent(no);
         }
     </script>
 </body>

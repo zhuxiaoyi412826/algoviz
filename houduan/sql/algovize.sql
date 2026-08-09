@@ -502,3 +502,188 @@ ALTER TABLE `user` ADD COLUMN `status` TINYINT DEFAULT 1 COMMENT '1:正常 0:封
 UPDATE `user` SET `avatar_url` = CONCAT('https://i.pravatar.cc/150?u=', `id`), `updated_at` = NOW() WHERE `avatar_url` IS NULL OR `avatar_url` = '';
 
 SELECT 'user 表字段变更完成' AS message;
+
+-- ============================================================================
+-- 7. 面试题目模块：5 张表 + 示例数据
+-- ============================================================================
+
+-- 7.1 面试题目主表
+CREATE TABLE IF NOT EXISTS `interview_problem` (
+    `id`                BIGINT          NOT NULL AUTO_INCREMENT    COMMENT '主键自增',
+    `problem_no`        VARCHAR(32)     NOT NULL                   COMMENT '题目编号，唯一（如 MS001）',
+    `title`             VARCHAR(255)    NOT NULL                   COMMENT '题目标题',
+    `difficulty`        VARCHAR(20)     NOT NULL DEFAULT 'medium'  COMMENT '难度：easy / medium / hard',
+    `tags`              VARCHAR(500)    DEFAULT NULL               COMMENT '标签，逗号分隔（如：数组,哈希表,双指针）',
+    `category`          VARCHAR(50)     DEFAULT NULL               COMMENT '分类：数组/链表/树/图/动态规划/数学/其他',
+    `description`       MEDIUMTEXT                                  COMMENT '题目描述（Markdown）',
+    `input_format`      TEXT           DEFAULT NULL                COMMENT '输入格式（Markdown）',
+    `output_format`     TEXT           DEFAULT NULL                COMMENT '输出格式（Markdown）',
+    `solution`          MEDIUMTEXT     NOT NULL                    COMMENT '参考答案/题解（Markdown）',
+    `status`            VARCHAR(20)    NOT NULL DEFAULT 'ACTIVE'   COMMENT '状态：ACTIVE=上线 / INACTIVE=下线',
+    `is_frequent`       TINYINT(1)     DEFAULT 0                   COMMENT '是否高频：1=是 0=否',
+    `is_deleted`        TINYINT(1)     DEFAULT 0                   COMMENT '逻辑删除：1=已删除 0=正常',
+    `view_count`        INT            DEFAULT 0                   COMMENT '累计浏览数（阅读量）',
+    `like_count`        INT            DEFAULT 0                   COMMENT '点赞数（冗余计数）',
+    `dislike_count`     INT            DEFAULT 0                   COMMENT '点踩数（冗余计数）',
+    `created_by`        VARCHAR(64)    DEFAULT NULL                COMMENT '创建人（管理员ID）',
+    `updated_by`        VARCHAR(64)    DEFAULT NULL                COMMENT '最后更新人',
+    `created_at`        DATETIME       DEFAULT CURRENT_TIMESTAMP   COMMENT '创建时间',
+    `updated_at`        DATETIME       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_interview_problem_no` (`problem_no`),
+    KEY `idx_interview_filter` (`status`, `category`, `difficulty`, `is_deleted`),
+    KEY `idx_interview_difficulty` (`difficulty`),
+    KEY `idx_interview_is_frequent` (`is_frequent`),
+    KEY `idx_interview_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='面试题目表';
+
+-- 7.2 用户收藏记录表
+CREATE TABLE IF NOT EXISTS `interview_favorite` (
+    `id`           BIGINT        NOT NULL AUTO_INCREMENT    COMMENT '主键',
+    `user_id`      BIGINT        NOT NULL                   COMMENT '用户ID（关联 user.id）',
+    `problem_id`   BIGINT        NOT NULL                   COMMENT '题目ID（关联 interview_problem.id）',
+    `problem_no`   VARCHAR(32)   DEFAULT NULL               COMMENT '冗余：题目编号',
+    `collect_time` DATETIME      DEFAULT CURRENT_TIMESTAMP  COMMENT '收藏时间',
+    `created_at`   DATETIME      DEFAULT CURRENT_TIMESTAMP  COMMENT '创建时间',
+    `updated_at`   DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_problem` (`user_id`, `problem_id`),
+    KEY `idx_favorite_user_collect` (`user_id`, `collect_time`),
+    KEY `idx_favorite_problem_id` (`problem_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='面试题目收藏表';
+
+-- 7.3 用户浏览历史记录表
+CREATE TABLE IF NOT EXISTS `interview_history` (
+    `id`          BIGINT        NOT NULL AUTO_INCREMENT    COMMENT '主键',
+    `user_id`     BIGINT        NOT NULL                   COMMENT '用户ID（关联 user.id）',
+    `problem_id`  BIGINT        NOT NULL                   COMMENT '题目ID（关联 interview_problem.id）',
+    `view_time`   DATETIME      DEFAULT CURRENT_TIMESTAMP  COMMENT '浏览时间',
+    `created_at`  DATETIME      DEFAULT CURRENT_TIMESTAMP  COMMENT '创建时间',
+    `updated_at`  DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_history_user_view` (`user_id`, `view_time`),
+    KEY `idx_history_problem_id` (`problem_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='面试题目浏览历史表';
+
+-- 7.4 用户点赞点踩记录表
+CREATE TABLE IF NOT EXISTS `interview_like` (
+    `id`          BIGINT        NOT NULL AUTO_INCREMENT    COMMENT '主键',
+    `user_id`     BIGINT        NOT NULL                   COMMENT '用户ID（关联 user.id）',
+    `problem_id`  BIGINT        NOT NULL                   COMMENT '题目ID（关联 interview_problem.id）',
+    `type`        VARCHAR(10)   NOT NULL                   COMMENT '类型：like=点赞 / dislike=点踩',
+    `created_at`  DATETIME      DEFAULT CURRENT_TIMESTAMP  COMMENT '创建时间',
+    `updated_at`  DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_problem` (`user_id`, `problem_id`),
+    KEY `idx_like_problem_id` (`problem_id`),
+    KEY `idx_like_user_type` (`user_id`, `type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='面试题目点赞点踩表';
+
+-- 7.5 面试题目标签字典表
+CREATE TABLE IF NOT EXISTS `interview_tag` (
+    `id`         BIGINT        NOT NULL AUTO_INCREMENT,
+    `name`       VARCHAR(50)   NOT NULL                   COMMENT '标签名（唯一）',
+    `category`   VARCHAR(50)   DEFAULT NULL               COMMENT '标签分类',
+    `use_count`  INT           DEFAULT 0                   COMMENT '使用次数',
+    `sort_order` INT           DEFAULT 0                   COMMENT '排序值（小在前）',
+    `created_at` DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_tag_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='面试题目标签字典';
+
+-- 7.6 初始化示例面试题（仅当表空时插入，保证幂等）
+INSERT INTO `interview_problem` (`problem_no`, `title`, `difficulty`, `tags`, `category`, `description`, `input_format`, `output_format`, `solution`, `status`, `is_frequent`)
+SELECT * FROM (
+    SELECT
+        'MS001' AS problem_no,
+        '两数之和' AS title,
+        'easy' AS difficulty,
+        '数组,哈希表' AS tags,
+        '数组' AS category,
+        '## 题目描述\n给定一个整数数组 `nums` 和一个整数目标值 `target`，请你在该数组中找出 **和为目标值** 的那 **两个** 整数，并返回它们的数组下标。' AS description,
+        '## 输入格式\n- 第一行：整数 n（数组长度）\n- 第二行：n 个整数（数组 nums）\n- 第三行：整数 target' AS input_format,
+        '## 输出格式\n两个整数（数组下标），空格分隔' AS output_format,
+        '## 题解\n使用哈希表，时间复杂度 O(n)，空间 O(n)。\n\n```java\npublic int[] twoSum(int[] nums, int target) {\n    Map<Integer, Integer> map = new HashMap<>();\n    for (int i = 0; i < nums.length; i++) {\n        if (map.containsKey(target - nums[i])) {\n            return new int[]{map.get(target - nums[i]), i};\n        }\n        map.put(nums[i], i);\n    }\n    return new int[0];\n}\n```' AS solution,
+        'ACTIVE' AS status,
+        1 AS is_frequent
+    UNION ALL
+    SELECT 'MS002', '反转链表', 'easy', '链表,递归,迭代', '链表',
+        '## 题目描述\n给你单链表的头节点 `head`，请你反转链表，并返回反转后的链表。',
+        '## 输入格式\n- 第一行：整数 n（节点数）\n- 第二行：n 个整数，按顺序为链表节点值',
+        '## 输出格式\n反转后链表的节点值，空格分隔',
+        '## 题解\n### 方法一：迭代（双指针）\n```java\npublic ListNode reverseList(ListNode head) {\n    ListNode prev = null, cur = head;\n    while (cur != null) {\n        ListNode nxt = cur.next;\n        cur.next = prev;\n        prev = cur;\n        cur = nxt;\n    }\n    return prev;\n}\n```',
+        'ACTIVE', 1
+    UNION ALL
+    SELECT 'MS003', 'LRU 缓存', 'medium', '链表,哈希表,设计,双向链表', '设计',
+        '## 题目描述\n请你设计并实现一个满足 **LRU (最近最少使用)** 缓存约束的数据结构。',
+        '## 输入格式\n见题目描述', '## 输出格式\n见题目描述',
+        '## 题解\n核心：HashMap + 手写双向链表，保证 O(1) 访问与更新。',
+        'ACTIVE', 1
+    UNION ALL
+    SELECT 'MS004', '二叉树的层序遍历', 'medium', '树,广度优先搜索,队列,二叉树', '树',
+        '## 题目描述\n给你二叉树的根节点 `root`，返回其节点值的 **层序遍历**（即逐层地，从左到右访问所有节点）。',
+        '## 输入格式\n以数组形式表示二叉树（层序），null 使用 -1 表示',
+        '## 输出格式\n每一行代表一层，数字空格分隔',
+        '## 题解\n```java\nList<List<Integer>> levelOrder(TreeNode root) {\n    // 队列 BFS，每次处理一层\n}\n```',
+        'ACTIVE', 0
+    UNION ALL
+    SELECT 'MS005', '接雨水', 'hard', '栈,数组,双指针,动态规划,单调栈', '数组',
+        '## 题目描述\n给定 n 个非负整数表示每个宽度为 1 的柱子的高度图，计算按此排列的柱子，下雨之后能接多少雨水。',
+        '## 输入格式\n- 第一行：整数 n\n- 第二行：n 个整数 height',
+        '## 输出格式\n一个整数（接水量）',
+        '## 题解\n双指针 O(n) O(1)：\n```java\npublic int trap(int[] h) {\n    int l = 0, r = h.length - 1, maxL = 0, maxR = 0, ans = 0;\n    while (l < r) {\n        if (h[l] < h[r]) { maxL = Math.max(maxL, h[l]); ans += maxL - h[l++]; }\n        else { maxR = Math.max(maxR, h[r]); ans += maxR - h[r--]; }\n    }\n    return ans;\n}\n```',
+        'ACTIVE', 1
+) t WHERE NOT EXISTS (SELECT 1 FROM `interview_problem` LIMIT 1);
+
+-- 7.7 初始化标签字典（仅表空时插入）
+INSERT INTO `interview_tag` (`name`, `category`, `use_count`, `sort_order`)
+SELECT * FROM (
+    SELECT '数组' AS name, '数据结构' AS category, 2 AS use_count, 1 AS sort_order
+    UNION ALL SELECT '哈希表', '数据结构', 2, 2
+    UNION ALL SELECT '链表', '数据结构', 2, 3
+    UNION ALL SELECT '递归', '算法', 1, 10
+    UNION ALL SELECT '迭代', '算法', 1, 11
+    UNION ALL SELECT '设计', '算法', 1, 12
+    UNION ALL SELECT '双向链表', '数据结构', 1, 4
+    UNION ALL SELECT '树', '数据结构', 1, 5
+    UNION ALL SELECT '广度优先搜索', '算法', 1, 13
+    UNION ALL SELECT '队列', '数据结构', 1, 6
+    UNION ALL SELECT '二叉树', '数据结构', 1, 7
+    UNION ALL SELECT '栈', '数据结构', 1, 8
+    UNION ALL SELECT '双指针', '算法', 1, 14
+    UNION ALL SELECT '动态规划', '算法', 1, 15
+    UNION ALL SELECT '单调栈', '算法', 1, 16
+    UNION ALL SELECT '字符串', '数据结构', 0, 9
+    UNION ALL SELECT '图', '数据结构', 0, 17
+    UNION ALL SELECT '贪心', '算法', 0, 18
+    UNION ALL SELECT '回溯', '算法', 0, 19
+    UNION ALL SELECT '二分', '算法', 0, 20
+    UNION ALL SELECT '数学', '算法', 0, 21
+    UNION ALL SELECT '其他', '综合', 0, 999
+    UNION ALL SELECT 'Java', 'java必备', 0, 100
+    UNION ALL SELECT '泛型', 'java必备', 0, 101
+    UNION ALL SELECT '反射', 'java必备', 0, 102
+    UNION ALL SELECT '注解', 'java必备', 0, 103
+    UNION ALL SELECT '集合', 'java必备', 0, 104
+    UNION ALL SELECT '多线程', 'java必备', 0, 105
+    UNION ALL SELECT '锁', 'java必备', 0, 106
+    UNION ALL SELECT 'JVM', 'java必备', 0, 107
+    UNION ALL SELECT '计算机网络', '计算机基础', 0, 200
+    UNION ALL SELECT '设计模式', '计算机基础', 0, 201
+    UNION ALL SELECT 'Spring', '框架', 0, 300
+    UNION ALL SELECT 'SpringBoot', '框架', 0, 301
+    UNION ALL SELECT 'MySQL', '数据库', 0, 400
+    UNION ALL SELECT 'Redis', '数据库', 0, 401
+    UNION ALL SELECT 'Docker', 'Java进阶', 0, 500
+    UNION ALL SELECT 'Git', 'Java进阶', 0, 501
+    UNION ALL SELECT 'Linux', 'Java进阶', 0, 502
+    UNION ALL SELECT 'Nginx', 'Java进阶', 0, 503
+    UNION ALL SELECT 'LLM', 'AI', 0, 600
+    UNION ALL SELECT 'RAG', 'AI', 0, 601
+    UNION ALL SELECT 'Agent', 'AI', 0, 602
+) t WHERE NOT EXISTS (SELECT 1 FROM `interview_tag` LIMIT 1);
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+SELECT '面试题目模块 5 张表 + 示例数据初始化完成' AS message;

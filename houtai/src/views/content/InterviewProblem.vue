@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import {
   ElTable, ElTableColumn, ElButton, ElTag, ElDialog, ElForm, ElFormItem,
   ElInput, ElSelect, ElOption, ElMessage, ElMessageBox, ElPagination,
@@ -7,6 +7,14 @@ import {
   ElDescriptions, ElDescriptionsItem, ElTabs, ElTabPane, ElEmpty, ElUpload
 } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, Upload, Download, View, MagicStick, Promotion, FullScreen, Aim } from '@element-plus/icons-vue'
+import {
+  listProblems, createProblem, updateProblem, deleteProblem,
+  updateProblemStatus, batchImportProblems, exportProblemsUrl,
+  aiGenerateProblems, aiBatchSave,
+  convertToFront, convertToBackend, toBackendStatus
+} from '@/api/interview'
+import type { BackendProblem, ProblemSavePayload } from '@/api/interview'
+import { renderMarkdown } from '@/utils/markdown'
 
 interface InterviewProblem {
   id: number
@@ -25,21 +33,7 @@ interface InterviewProblem {
   createTime: string
 }
 
-const mockProblems: InterviewProblem[] = [
-  { id: 1, problemNo: 'MS001', title: '两数之和', difficulty: 'easy', tags: ['数组', '哈希表'], category: '数组', description: '给定一个整数数组 nums 和一个整数目标值 target，请你在该数组中找出和为目标值 target 的那两个整数，并返回它们的数组下标。\n\n你可以假设每种输入只会对应一个答案，并且你不能使用两次相同的元素。\n\n返回的下标可以是任意顺序。', inputFormat: '数组 nums，整数 target', outputFormat: '两个索引的数组', solution: '使用哈希表，一次遍历。遍历数组时，对于每个元素，检查 target - nums[i] 是否在哈希表中。如果存在，直接返回两个索引；否则将当前元素及其索引存入哈希表。时间复杂度 O(n)，空间复杂度 O(n)。', isFrequent: true, status: 'online', viewCount: 1256, createTime: '2026-08-01 10:00:00' },
-  { id: 2, problemNo: 'MS002', title: '反转链表', difficulty: 'easy', tags: ['链表', '递归'], category: '链表', description: '给你单链表的头节点 head ，请你反转链表，并返回反转后的链表。', inputFormat: '链表头节点 head', outputFormat: '反转后的链表头节点', solution: '迭代法：使用三个指针 prev、curr、next。遍历链表，每次将 curr.next 指向 prev，然后依次推进指针。时间复杂度 O(n)，空间复杂度 O(1)。\n\n递归法：先递归到链表尾部，然后在回溯时反转指针。时间复杂度 O(n)，空间复杂度 O(n)。', isFrequent: true, status: 'online', viewCount: 980, createTime: '2026-08-01 10:05:00' },
-  { id: 3, problemNo: 'MS003', title: 'LRU 缓存', difficulty: 'medium', tags: ['链表', '哈希表', '设计'], category: '设计', description: '请你设计并实现一个满足 LRU 缓存约束的数据结构。你需要实现 LRUCache 类：\n\n- LRUCache(int capacity) 以正整数作为容量 capacity 初始化 LRU 缓存\n- int get(int key) 如果关键字 key 存在于缓存中，则返回关键字的值，否则返回 -1\n- void put(int key, int value) 如果关键字 key 已经存在，则变更其数据值 value；如果不存在，则向缓存中插入该组 key-value。如果插入操作导致关键字数量超过 capacity，则应该逐出最久未使用的关键字。\n\n函数 get 和 put 必须以 O(1) 的平均时间复杂度运行。', inputFormat: '操作序列', outputFormat: '操作结果序列', solution: '使用哈希表 + 双向链表实现。哈希表以 O(1) 查找节点，双向链表维护访问顺序。每次 get/put 时，将节点移到链表头部；超容量时，删除链表尾部节点。', isFrequent: true, status: 'online', viewCount: 756, createTime: '2026-08-02 09:30:00' },
-  { id: 4, problemNo: 'MS004', title: '无重复字符的最长子串', difficulty: 'medium', tags: ['字符串', '滑动窗口'], category: '字符串', description: '给定一个字符串 s，找出其中不含有重复字符的最长子串的长度。', inputFormat: '字符串 s', outputFormat: '最长子串长度', solution: '滑动窗口 + 哈希表。维护一个窗口 [left, right]，使用哈希表记录每个字符最近出现的位置。当遇到重复字符时，移动 left 指针跳过重复字符。时间复杂度 O(n)。', isFrequent: true, status: 'online', viewCount: 634, createTime: '2026-08-02 14:20:00' },
-  { id: 5, problemNo: 'MS005', title: '二叉树的层序遍历', difficulty: 'medium', tags: ['树', '广度优先搜索'], category: '树', description: '给你二叉树的根节点 root，返回其节点值的层序遍历。（即逐层地，从左到右访问所有节点）。', inputFormat: '二叉树根节点 root', outputFormat: '层序遍历结果数组', solution: '使用队列进行 BFS。首先将根节点入队，然后循环取出当前层的所有节点，将它们的值存入结果，并将它们的子节点入队。时间复杂度 O(n)，空间复杂度 O(n)。', isFrequent: false, status: 'online', viewCount: 423, createTime: '2026-08-03 11:00:00' },
-  { id: 6, problemNo: 'MS006', title: '合并区间', difficulty: 'medium', tags: ['数组', '排序'], category: '数组', description: '以数组 intervals 表示若干个区间的集合，其中单个区间为 intervals[i] = [starti, endi]。请你合并所有重叠的区间，并返回一个不重叠的区间数组，该数组需恰好覆盖输入中的所有区间。', inputFormat: '区间数组 intervals', outputFormat: '合并后的区间数组', solution: '先按区间起始位置排序，然后遍历排序后的区间。如果当前区间与结果数组中最后一个区间重叠，合并它们；否则直接添加。时间复杂度 O(n log n)。', isFrequent: false, status: 'online', viewCount: 356, createTime: '2026-08-03 16:45:00' },
-  { id: 7, problemNo: 'MS007', title: '接雨水', difficulty: 'hard', tags: ['数组', '双指针', '动态规划'], category: '数组', description: '给定 n 个非负整数表示每个宽度为 1 的柱子的高度图，计算按此排列的柱子，下雨之后能接多少雨水。', inputFormat: '高度数组 height', outputFormat: '能接的雨水量', solution: '方法一：双指针法。从两端向中间靠拢，每次移动较矮的指针，累加水量。时间复杂度 O(n)，空间复杂度 O(1)。\n\n方法二：动态规划。分别计算左右两侧最高柱子，取较小值减去当前高度。时间复杂度 O(n)，空间复杂度 O(n)。\n\n方法三：单调栈。维护一个单调递减栈，遇到较高柱子时结算水量。', isFrequent: true, status: 'online', viewCount: 289, createTime: '2026-08-04 08:30:00' },
-  { id: 8, problemNo: 'MS008', title: '正则表达式匹配', difficulty: 'hard', tags: ['字符串', '动态规划'], category: '动态规划', description: '给你一个字符串 s 和一个字符规律 p，请你来实现一个支持 \'.\' 和 \'*\' 的正则表达式匹配。\n\n\'.\' 匹配任意单个字符\n\'*\' 匹配零个或多个前面的那一个元素\n所谓匹配，是要涵盖整个字符串 s 的，而不是部分字符串。', inputFormat: '字符串 s 和模式 p', outputFormat: '是否匹配（true/false）', solution: '动态规划。dp[i][j] 表示 s[0:i] 与 p[0:j] 是否匹配。考虑三种情况：字符相等、p 为 \'.\'、p 为 \'*\'（需要匹配零次或多次）。时间复杂度 O(m*n)，空间复杂度 O(m*n)。', isFrequent: false, status: 'online', viewCount: 178, createTime: '2026-08-04 13:15:00' },
-  { id: 9, problemNo: 'MS009', title: '最长回文子串', difficulty: 'medium', tags: ['字符串', '动态规划'], category: '字符串', description: '给你一个字符串 s，找到 s 中最长的回文子串。', inputFormat: '字符串 s', outputFormat: '最长回文子串', solution: '方法一：中心扩展法。从每个位置向两边扩展，分别处理奇数和偶数长度的回文。时间复杂度 O(n²)，空间复杂度 O(1)。\n\n方法二：动态规划。dp[i][j] 表示 s[i:j+1] 是否为回文串。时间复杂度 O(n²)，空间复杂度 O(n²)。\n\n方法三：Manacher 算法，时间复杂度 O(n)。', isFrequent: true, status: 'online', viewCount: 567, createTime: '2026-08-05 10:20:00' },
-  { id: 10, problemNo: 'MS010', title: '数组中的第K个最大元素', difficulty: 'medium', tags: ['数组', '堆', '快速选择'], category: '数组', description: '给定整数数组 nums 和整数 k，请返回数组中第 k 个最大的元素。\n\n请注意，你需要找的是数组排序后的第 k 个最大的元素，而不是第 k 个不同的元素。你必须设计并实现时间复杂度为 O(n) 的算法解决此问题。', inputFormat: '数组 nums 和整数 k', outputFormat: '第 k 个最大的元素', solution: '方法一：小顶堆。维护一个大小为 k 的小顶堆，遍历数组时不断更新堆顶。时间复杂度 O(n log k)，空间复杂度 O(k)。\n\n方法二：快速选择（基于快速排序的分区思想）。每次 partition 后判断 pivot 位置与 k 的关系，递归处理一边。平均时间复杂度 O(n)。\n\n方法三：使用系统排序后取倒数第 k 个，时间复杂度 O(n log n)。', isFrequent: true, status: 'online', viewCount: 445, createTime: '2026-08-05 15:40:00' }
-]
-
 const allProblems = ref<InterviewProblem[]>([])
-const allProblemsCache = ref<InterviewProblem[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const dialogFullscreen = ref(false)
@@ -77,7 +71,7 @@ const formRef = ref()
 const currentProblem = ref<InterviewProblem | null>(null)
 
 const rules = {
-  problemNo: [{ required: true, message: '请输入题号', trigger: 'blur' }],
+  problemNo: [{ required: false, message: '留空时自动分配题号', trigger: 'blur' }],
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
   difficulty: [{ required: true, message: '请选择难度', trigger: 'change' }],
   description: [{ required: true, message: '请输入题目描述', trigger: 'blur' }],
@@ -123,58 +117,50 @@ const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 
-const pagedProblems = computed(() => {
-  const start = (page.value - 1) * pageSize.value
-  return allProblems.value.slice(start, start + pageSize.value)
-})
+// 后端分页，不再用 computed 切分；当前页数据就是 allProblems.value
+// pagedProblems 作为兼容返回
+const pagedProblems = allProblems
 
 onMounted(() => {
+  loadData()
+})
+
+// 分页切换 -> 重新请求
+watch([page, pageSize], () => {
   loadData()
 })
 
 const loadData = async () => {
   loading.value = true
   try {
-    await new Promise(r => setTimeout(r, 300))
-    allProblemsCache.value = JSON.parse(JSON.stringify(mockProblems))
-    applyFilter()
-  } catch (error) {
+    const res = await listProblems({
+      keyword: searchForm.keyword || undefined,
+      difficulty: searchForm.difficulty || undefined,
+      category: searchForm.category || undefined,
+      tag: searchForm.tag || undefined,
+      status: searchForm.status ? toBackendStatus(searchForm.status) : undefined,
+      page: page.value,
+      pageSize: pageSize.value,
+      sortBy: 'id',
+      order: 'desc'
+    }) as any
+
+    const backendList = (res.list || []) as BackendProblem[]
+    allProblems.value = backendList.map(convertToFront) as InterviewProblem[]
+    total.value = res.total || 0
+  } catch (error: any) {
     console.error('加载面试题失败:', error)
-    ElMessage.error('加载面试题失败')
+    ElMessage.error(error?.message || '加载面试题失败')
+    allProblems.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
 }
 
-const applyFilter = () => {
-  const kw = searchForm.keyword.trim().toLowerCase()
-  const diff = searchForm.difficulty
-  const st = searchForm.status
-  const tag = searchForm.tag
-  const cat = searchForm.category
-
-  allProblems.value = allProblemsCache.value.filter(p => {
-    if (kw) {
-      const hit =
-        (p.problemNo || '').toLowerCase().includes(kw) ||
-        (p.title || '').toLowerCase().includes(kw) ||
-        (p.tags || []).some(t => t.toLowerCase().includes(kw))
-      if (!hit) return false
-    }
-    if (diff && p.difficulty !== diff) return false
-    if (st && p.status !== st) return false
-    if (tag && !(p.tags || []).includes(tag)) return false
-    if (cat && p.category !== cat) return false
-    return true
-  })
-  total.value = allProblems.value.length
-  const maxPage = Math.max(1, Math.ceil(total.value / pageSize.value))
-  if (page.value > maxPage) page.value = 1
-}
-
 const handleSearch = () => {
   page.value = 1
-  applyFilter()
+  loadData()
 }
 
 const handleReset = () => {
@@ -184,7 +170,7 @@ const handleReset = () => {
   searchForm.tag = ''
   searchForm.category = ''
   page.value = 1
-  applyFilter()
+  loadData()
 }
 
 const handleAdd = () => {
@@ -210,7 +196,7 @@ const handleAdd = () => {
 const handleEdit = (row: InterviewProblem) => {
   dialogTitle.value = '编辑面试题'
   dialogFullscreen.value = false
-  Object.assign(formData, row)
+  Object.assign(formData, JSON.parse(JSON.stringify(row)))
   dialogVisible.value = true
 }
 
@@ -222,13 +208,14 @@ const handleView = (row: InterviewProblem) => {
 const handleDelete = async (row: InterviewProblem) => {
   try {
     await ElMessageBox.confirm(`确定要删除题目「${row.title}」吗？`, '提示', { type: 'warning' })
-    const idx = allProblemsCache.value.findIndex(p => p.id === row.id)
-    if (idx > -1) {
-      allProblemsCache.value.splice(idx, 1)
-      applyFilter()
-      ElMessage.success('删除成功')
+    await deleteProblem(row.id)
+    ElMessage.success('删除成功')
+    loadData()
+  } catch (e: any) {
+    if (e && e !== 'cancel' && !(e instanceof Error && e.message?.includes('cancel'))) {
+      // 用户取消忽略；其他错误提示
     }
-  } catch {}
+  }
 }
 
 const handleToggleStatus = async (row: InterviewProblem) => {
@@ -236,6 +223,7 @@ const handleToggleStatus = async (row: InterviewProblem) => {
   const statusLabel = targetStatus === 'online' ? '上线' : '下线'
   try {
     await ElMessageBox.confirm(`确定要${statusLabel}该题目吗？`, '提示', { type: 'warning' })
+    await updateProblemStatus(row.id, toBackendStatus(targetStatus))
     ElMessage.success(`${statusLabel}成功`)
   } catch {
     row.status = targetStatus === 'online' ? 'offline' : 'online'
@@ -246,57 +234,20 @@ const handleSubmit = async () => {
   if (!formRef.value) return
   await formRef.value.validate(async (valid: boolean) => {
     if (!valid) return
-
     try {
-      const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
-
+      const payload = convertToBackend(formData) as ProblemSavePayload
       if (formData.id) {
-        const idx = allProblemsCache.value.findIndex(p => p.id === formData.id)
-        if (idx > -1) {
-          allProblemsCache.value[idx] = {
-            ...allProblemsCache.value[idx],
-            problemNo: formData.problemNo!,
-            title: formData.title!,
-            difficulty: formData.difficulty!,
-            tags: formData.tags!,
-            category: formData.category!,
-            description: formData.description!,
-            inputFormat: formData.inputFormat || '',
-            outputFormat: formData.outputFormat || '',
-            solution: formData.solution || '',
-            isFrequent: formData.isFrequent || false,
-            status: formData.status!
-          }
-        }
+        await updateProblem(formData.id as number, payload)
         ElMessage.success('编辑成功')
       } else {
-        const newId = allProblemsCache.value.length > 0
-          ? Math.max(...allProblemsCache.value.map(p => p.id)) + 1
-          : 1
-        allProblemsCache.value.unshift({
-          id: newId,
-          problemNo: formData.problemNo!,
-          title: formData.title!,
-          difficulty: formData.difficulty!,
-          tags: formData.tags!,
-          category: formData.category!,
-          description: formData.description!,
-          inputFormat: formData.inputFormat || '',
-          outputFormat: formData.outputFormat || '',
-          solution: formData.solution || '',
-          isFrequent: formData.isFrequent || false,
-          status: formData.status!,
-          viewCount: 0,
-          createTime: now
-        })
+        await createProblem(payload)
         ElMessage.success('新增成功')
       }
-
       dialogVisible.value = false
-      applyFilter()
-    } catch (error) {
+      loadData()
+    } catch (error: any) {
       console.error('保存面试题失败:', error)
-      ElMessage.error('保存失败')
+      ElMessage.error(error?.message || '保存失败')
     }
   })
 }
@@ -328,70 +279,74 @@ const handleFileChange = async (uploadFile: any) => {
   try {
     const text = await raw.text()
     const data = JSON.parse(text)
-    const problems: InterviewProblem[] = Array.isArray(data) ? data : (data.problems || [])
+    const problemsRaw: any[] = Array.isArray(data) ? data : (data.problems || [])
 
-    if (problems.length === 0) {
+    if (problemsRaw.length === 0) {
       ElMessage.warning('文件中没有题目数据')
       return
     }
 
-    let successCount = 0
-    let failCount = 0
+    // 自动识别 JSON 格式并统一映射为后端 payload
+    // 格式A（系统标准）: { problemNo, title, difficulty, tags[], category, description, solution, ... }
+    // 格式B（0-100.json 等外部导入）: { id, tag("JavaSE,多线程"), difficulty("Medium"), question, answer }
+    const isExternalFormat = problemsRaw.some(p => p.question && p.answer && !p.description && !p.title)
 
-    for (const p of problems) {
-      if (!p.problemNo || !p.title) {
-        failCount++
-        continue
+    const payloads: ProblemSavePayload[] = problemsRaw.map(p => {
+      if (isExternalFormat) {
+        // 格式B -> 格式A 字段映射
+        const rawDifficulty = (p.difficulty || 'Medium').toLowerCase()
+        const difficulty = ['easy', 'medium', 'hard'].includes(rawDifficulty) ? rawDifficulty : 'medium'
+        const tagStr: string = p.tag || ''
+        const tags = tagStr.split(/[,，;；|]/).map(s => s.trim()).filter(Boolean)
+        const category = tags.length > 0 ? tags[0] : '未分类'
+        // question 太长时截取前30字作为标题
+        const questionStr: string = p.question || ''
+        const title = questionStr.length > 30 ? questionStr.substring(0, 30) + '...' : questionStr
+        const idNum = p.id || 0
+        const problemNo = p.problemNo || ('MS' + String(idNum).padStart(3, '0'))
+        return {
+          problemNo,
+          title,
+          difficulty,
+          category,
+          tags,
+          description: questionStr,
+          inputFormat: '',
+          outputFormat: '',
+          solution: p.answer || '',
+          status: 'ACTIVE',
+          isFrequent: 0
+        }
       }
+      // 格式A 原样映射
+      return {
+        problemNo: p.problemNo,
+        title: p.title,
+        difficulty: p.difficulty || 'medium',
+        category: p.category || '',
+        tags: p.tags || [],
+        description: p.description || '',
+        inputFormat: p.inputFormat || '',
+        outputFormat: p.outputFormat || '',
+        solution: p.solution || '',
+        status: toBackendStatus(p.status || 'offline'),
+        isFrequent: typeof p.isFrequent === 'boolean' ? (p.isFrequent ? 1 : 0) : (p.isFrequent === 1 ? 1 : 0)
+      }
+    })
 
-      const existing = allProblemsCache.value.find(x => x.problemNo === p.problemNo)
-      if (existing && !importOverwrite.value) {
-        failCount++
-        continue
-      }
-
-      if (existing && importOverwrite.value) {
-        Object.assign(existing, {
-          title: p.title,
-          difficulty: p.difficulty || 'medium',
-          tags: p.tags || [],
-          category: p.category || '',
-          description: p.description || '',
-          inputFormat: p.inputFormat || '',
-          outputFormat: p.outputFormat || '',
-          solution: p.solution || '',
-          isFrequent: p.isFrequent || false,
-          status: p.status || 'offline'
-        })
-      } else {
-        const newId = allProblemsCache.value.length > 0
-          ? Math.max(...allProblemsCache.value.map(x => x.id)) + 1
-          : allProblems.value.length + 1
-        allProblemsCache.value.push({
-          id: newId,
-          problemNo: p.problemNo,
-          title: p.title,
-          difficulty: p.difficulty || 'medium',
-          tags: p.tags || [],
-          category: p.category || '',
-          description: p.description || '',
-          inputFormat: p.inputFormat || '',
-          outputFormat: p.outputFormat || '',
-          solution: p.solution || '',
-          isFrequent: p.isFrequent || false,
-          status: p.status || 'offline',
-          viewCount: 0,
-          createTime: new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
-        })
-      }
-      successCount++
+    const res = await batchImportProblems(payloads, importOverwrite.value)
+    const failNum = res?.failNum ?? 0
+    const succNum = res?.successNum ?? 0
+    if (failNum > 0) {
+      ElMessage.warning(`导入完成：成功 ${succNum} 道，失败 ${failNum} 道`)
+      if (res?.failList?.length) ElMessageBox.alert(res.failList.join('<br/>'), '失败明细', { dangerouslyUseHTMLString: true, type: 'warning' })
+    } else {
+      ElMessage.success(`导入完成：成功 ${succNum} 道`)
     }
-
-    ElMessage.success(`导入完成：成功 ${successCount} 道${failCount > 0 ? `，失败 ${failCount} 道` : ''}`)
     importVisible.value = false
-    applyFilter()
-  } catch (e) {
-    ElMessage.error('导入异常：' + (e as Error).message)
+    loadData()
+  } catch (e: any) {
+    ElMessage.error('导入异常：' + (e.message || e))
   } finally {
     importLoading.value = false
   }
@@ -426,36 +381,19 @@ const downloadTemplate = () => {
 }
 
 const handleExport = () => {
-  const exportData = allProblems.value.map(p => ({
-    problemNo: p.problemNo,
-    title: p.title,
-    difficulty: p.difficulty,
-    tags: p.tags,
-    category: p.category,
-    description: p.description,
-    inputFormat: p.inputFormat,
-    outputFormat: p.outputFormat,
-    solution: p.solution,
-    isFrequent: p.isFrequent,
-    status: p.status,
-    viewCount: p.viewCount,
-    createTime: p.createTime
-  }))
-
-  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
+  // 直接调用后端导出接口（避免前端遍历导致分页缺失）
+  const url = exportProblemsUrl(searchForm.difficulty || undefined, searchForm.category || undefined)
   const a = document.createElement('a')
   a.href = url
-  a.download = `interview_problems_${new Date().getTime()}.json`
+  a.download = `interview_problems_${Date.now()}.json`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-  ElMessage.success('JSON 文件导出成功')
+  ElMessage.success('已提交导出，文件下载中...')
 }
 
 const getDifficultyType = (difficulty: string) => {
-  const map: Record<string, string> = { easy: 'success', medium: 'warning', hard: 'danger' }
+  const map: Record<string, 'success' | 'warning' | 'danger' | 'info'> = { easy: 'success', medium: 'warning', hard: 'danger' }
   return map[difficulty] || 'info'
 }
 
@@ -499,17 +437,8 @@ const aiEditForm = ref({
   isFrequent: false
 })
 
-const aiTagOptions = [
-  '数组', '链表', '栈', '队列', '哈希表', '树', '二叉树', '图', '堆', '并查集',
-  '动态规划', '回溯', '贪心', '分治', '排序', '查找', '二分查找', '字符串', '数学',
-  '位运算', '模拟', '递归', '广度优先搜索', '深度优先搜索', '滑动窗口', '前缀和', '双指针', '设计'
-]
-
-const aiDifficultyOptions = [
-  { label: '简单', value: 'easy' },
-  { label: '中等', value: 'medium' },
-  { label: '困难', value: 'hard' }
-]
+const aiTagOptions = tagOptions
+const aiDifficultyOptions = difficultyOptions
 
 const handleAIGenerate = () => {
   aiConfigForm.knowledgePoints = []
@@ -521,7 +450,7 @@ const handleAIGenerate = () => {
   aiDialogVisible.value = true
 }
 
-const handleAIGenerateSubmit = () => {
+const handleAIGenerateSubmit = async () => {
   if (aiConfigForm.count < 1 || aiConfigForm.count > 10) {
     ElMessage.warning('题目数量需在 1~10 之间')
     return
@@ -530,41 +459,39 @@ const handleAIGenerateSubmit = () => {
     ElMessage.warning('请至少选择 1 个知识点')
     return
   }
-
   aiGenerating.value = true
-  aiProgressText.value = '正在生成面试题...'
+  aiProgressText.value = '正在调用后端 AI 生成题目...'
   aiGeneratedProblems.value = []
-
-  setTimeout(() => {
-    const mockResult = []
-    const diffLabels: Record<string, string> = { easy: '简单', medium: '中等', hard: '困难' }
-    const cat = aiConfigForm.category || aiConfigForm.knowledgePoints[0] || '数组'
-
-    for (let i = 0; i < aiConfigForm.count; i++) {
-      const diff = aiConfigForm.difficulty
-      mockResult.push({
-        draftId: `draft_${Date.now()}_${i}`,
-        problemNo: '',
-        title: `${cat}相关面试题 ${i + 1}`,
-        difficulty: diff,
-        tags: aiConfigForm.knowledgePoints.join(','),
-        category: cat,
-        description: `这是一道关于${cat}的${diffLabels[diff]}难度面试题。\n\n## 题目描述\n\n请实现相关功能。`,
-        inputFormat: '输入参数说明',
-        outputFormat: '输出结果说明',
-        solution: '## 解题思路\n\n分析问题，确定算法策略。\n\n## 参考实现\n\n提供完整的代码实现。',
-        isFrequent: Math.random() > 0.5,
-        selected: true
-      })
-    }
-
-    aiGeneratedProblems.value = mockResult
-    aiProgressText.value = `成功生成 ${mockResult.length} 道面试题`
-    aiGenerating.value = false
+  try {
+    const category = aiConfigForm.category || aiConfigForm.knowledgePoints[0] || ''
+    const res = await aiGenerateProblems({
+      category: category,
+      difficulty: aiConfigForm.difficulty,
+      num: aiConfigForm.count
+    }) as any[] || []
+    aiGeneratedProblems.value = res.map((r, i) => ({
+      draftId: `draft_${Date.now()}_${i}`,
+      problemNo: r.problemNo || '',
+      title: r.title || '',
+      difficulty: r.difficulty || 'medium',
+      tags: Array.isArray(r.tags) ? (r.tags as string[]).join(',') : (r.tags || aiConfigForm.knowledgePoints.join(',')),
+      category: r.category || category,
+      description: r.description || '',
+      inputFormat: r.inputFormat || '',
+      outputFormat: r.outputFormat || '',
+      solution: r.solution || '',
+      isFrequent: r.isFrequent ? true : false,
+      selected: true
+    }))
+    aiProgressText.value = `成功生成 ${aiGeneratedProblems.value.length} 道面试题`
     aiDialogVisible.value = false
     aiPreviewVisible.value = true
     ElMessage.success('生成完成')
-  }, 1500)
+  } catch (e: any) {
+    ElMessage.error('AI 生成失败：' + (e?.message || e))
+  } finally {
+    aiGenerating.value = false
+  }
 }
 
 const handleRemoveGenerated = (index: number) => {
@@ -585,51 +512,34 @@ const handleBatchAddToLibrary = async () => {
     )
   } catch { return }
 
-  let successCount = 0
-  let failedCount = 0
+  const payloads: ProblemSavePayload[] = selected.map(p => ({
+    problemNo: p.problemNo || undefined,
+    title: p.title,
+    difficulty: p.difficulty || 'medium',
+    category: p.category || '',
+    tags: (p.tags || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+    description: p.description || '',
+    inputFormat: p.inputFormat || '',
+    outputFormat: p.outputFormat || '',
+    solution: p.solution || '',
+    status: 'INACTIVE',
+    isFrequent: p.isFrequent ? 1 : 0
+  }))
 
-  for (const p of selected) {
-    try {
-      const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
-      const newId = allProblemsCache.value.length > 0
-        ? Math.max(...allProblemsCache.value.map(x => x.id)) + 1
-        : allProblems.value.length + 1
-
-      allProblemsCache.value.unshift({
-        id: newId,
-        problemNo: p.problemNo || `MS${String(newId).padStart(3, '0')}`,
-        title: p.title,
-        difficulty: p.difficulty || 'medium',
-        tags: (p.tags || '').split(',').filter(Boolean),
-        category: p.category || '',
-        description: p.description || '',
-        inputFormat: p.inputFormat || '',
-        outputFormat: p.outputFormat || '',
-        solution: p.solution || '',
-        isFrequent: p.isFrequent || false,
-        status: 'offline',
-        viewCount: 0,
-        createTime: now
-      })
-      successCount++
-    } catch (err) {
-      failedCount++
-      console.error('入库异常:', err)
+  try {
+    const res = await aiBatchSave(payloads)
+    ElMessageBox.alert(
+      `成功入库 ${res?.successNum ?? 0} 道，失败 ${res?.failNum ?? 0} 道`,
+      '批量入库完成',
+      { type: (res?.successNum ?? 0) > 0 ? 'success' : 'error' }
+    )
+    if ((res?.successNum ?? 0) > 0) {
+      aiGeneratedProblems.value = aiGeneratedProblems.value.filter(p => !p.selected)
+      loadData()
+      if (aiGeneratedProblems.value.length === 0) aiPreviewVisible.value = false
     }
-  }
-
-  ElMessageBox.alert(
-    `成功入库 ${successCount} 道，失败 ${failedCount} 道`,
-    '批量入库完成',
-    { type: successCount > 0 ? 'success' : 'error' }
-  )
-
-  if (successCount > 0) {
-    aiGeneratedProblems.value = aiGeneratedProblems.value.filter(p => !p.selected)
-    applyFilter()
-    if (aiGeneratedProblems.value.length === 0) {
-      aiPreviewVisible.value = false
-    }
+  } catch (e: any) {
+    ElMessage.error('批量入库失败：' + (e?.message || e))
   }
 }
 
@@ -862,7 +772,7 @@ const saveAIEdit = () => {
         </el-descriptions>
 
         <el-divider content-position="left">题目描述</el-divider>
-        <div class="problem-description">{{ currentProblem.description }}</div>
+        <div class="markdown-body" v-html="renderMarkdown(currentProblem.description || '')"></div>
 
         <template v-if="currentProblem.inputFormat">
           <el-divider content-position="left">输入格式</el-divider>
@@ -875,7 +785,7 @@ const saveAIEdit = () => {
         </template>
 
         <el-divider content-position="left">参考答案</el-divider>
-        <pre class="code-block">{{ currentProblem.solution || '暂无参考答案' }}</pre>
+        <div class="markdown-body answer-markdown" v-html="renderMarkdown(currentProblem.solution || '暂无参考答案')"></div>
       </template>
     </el-dialog>
 
@@ -1155,16 +1065,97 @@ const saveAIEdit = () => {
   min-height: 60px;
 }
 
-.code-block {
-  background: #1e1e1e;
-  color: #d4d4d4;
-  padding: 16px;
+.markdown-body {
+  line-height: 1.8;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  min-height: 60px;
+  word-break: break-word;
+  color: #303133;
+}
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
+  margin: 16px 0 8px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: #303133;
+}
+.markdown-body h1 { font-size: 1.5em; }
+.markdown-body h2 { font-size: 1.3em; }
+.markdown-body h3 { font-size: 1.15em; }
+.markdown-body h4 { font-size: 1.05em; }
+.markdown-body p { margin: 8px 0; }
+.markdown-body ul, .markdown-body ol {
+  padding-left: 24px;
+  margin: 8px 0;
+}
+.markdown-body li { margin: 4px 0; }
+.markdown-body ul li { list-style: disc; }
+.markdown-body ol li { list-style: decimal; }
+.markdown-body code {
+  background: #f0f2f5;
+  color: #d63384;
+  padding: 2px 6px;
   border-radius: 4px;
   font-family: 'Fira Code', Consolas, monospace;
-  font-size: 13px;
+  font-size: 0.9em;
+}
+.markdown-body pre {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 14px 16px;
+  border-radius: 8px;
   overflow-x: auto;
-  white-space: pre-wrap;
-  margin: 0;
+  margin: 12px 0;
+}
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+  color: #d4d4d4;
+  font-size: 0.9em;
+  line-height: 1.6;
+}
+.markdown-body blockquote {
+  border-left: 4px solid #409eff;
+  padding: 8px 16px;
+  margin: 12px 0;
+  background: rgba(64, 158, 255, 0.08);
+  border-radius: 0 6px 6px 0;
+  color: #606266;
+}
+.markdown-body blockquote p { margin: 4px 0; }
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+.markdown-body th, .markdown-body td {
+  border: 1px solid #ebeef5;
+  padding: 8px 12px;
+  text-align: left;
+}
+.markdown-body th {
+  background: #f5f7fa;
+  font-weight: 600;
+  color: #303133;
+}
+.markdown-body a {
+  color: #409eff;
+  text-decoration: none;
+}
+.markdown-body a:hover { text-decoration: underline; }
+.markdown-body strong { font-weight: 700; color: #303133; }
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid #ebeef5;
+  margin: 20px 0;
+}
+.markdown-body img { max-width: 100%; border-radius: 6px; }
+
+.answer-markdown {
+  background: #fafbfc;
+  border-color: #e4e7ed;
 }
 
 .ai-preview-toolbar {
