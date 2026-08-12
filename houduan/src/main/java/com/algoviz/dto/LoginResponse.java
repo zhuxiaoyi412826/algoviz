@@ -14,6 +14,8 @@ public class LoginResponse {
     private UserInfo userInfo;
     @Schema(description = "登录令牌")
     private String token;
+    @Schema(description = "登录成功后跳转的个人界面路径")
+    private String redirectUrl;
 
     @Schema(description = "用户信息")
     @Data

@@ -217,6 +217,111 @@
         .login-btn:hover {
             background: var(--secondary);
         }
+
+        /* Tab 切换 */
+        .login-tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 2rem;
+        }
+
+        .login-tab {
+            flex: 1;
+            padding: 0.75rem 0;
+            text-align: center;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s ease;
+            background: none;
+            border-left: none;
+            border-right: none;
+            border-top: none;
+            font-size: 1rem;
+        }
+
+        .login-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .login-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        /* 账号密码登录表单 */
+        .account-section {
+            display: none;
+        }
+
+        .account-section.active {
+            display: block;
+        }
+
+        .wechat-section {
+            display: none;
+        }
+
+        .wechat-section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary);
+        }
+
+        .account-login-btn {
+            width: 100%;
+            padding: 0.85rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 0.5rem;
+        }
+
+        .account-login-btn:hover {
+            background: var(--secondary);
+        }
+
+        .login-error {
+            color: #e74c3c;
+            font-size: 0.875rem;
+            margin-top: 0.75rem;
+            min-height: 1.25rem;
+        }
         
         @media (max-width: 768px) {
             .nav-container {
@@ -274,31 +379,52 @@
     <main class="main">
         <div class="login-container">
             <h1 class="login-title">登录 AlgoViz</h1>
-            <p class="login-desc">通过微信公众号扫码登录</p>
-            
-            <div class="qrcode-section">
-                <div class="qrcode-container">
-                    <div class="qrcode">
-                        <img src="../images/erwaima.jpg" alt="微信公众号二维码" onerror="this.src='https://via.placeholder.com/240?text=二维码加载失败'">
+            <p class="login-desc">选择登录方式</p>
+
+            <!-- Tab 切换 -->
+            <div class="login-tabs">
+                <button class="login-tab active" id="tabAccount" onclick="switchTab('account')">账号登录</button>
+                <button class="login-tab" id="tabWechat" onclick="switchTab('wechat')">微信登录</button>
+            </div>
+
+            <!-- 账号密码登录 -->
+            <div class="account-section active" id="accountSection">
+                <div class="form-group">
+                    <label for="loginUsername">用户名</label>
+                    <input type="text" id="loginUsername" class="form-input" placeholder="请输入用户名" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">密码</label>
+                    <input type="password" id="loginPassword" class="form-input" placeholder="请输入密码" autocomplete="current-password">
+                </div>
+                <div class="login-error" id="loginError"></div>
+                <button class="account-login-btn" onclick="doAccountLogin()">登录</button>
+            </div>
+
+            <!-- 微信扫码登录 -->
+            <div class="wechat-section" id="wechatSection">
+                <div class="qrcode-section">
+                    <div class="qrcode-container">
+                        <div class="qrcode">
+                            <img src="../images/erwaima.jpg" alt="微信公众号二维码" onerror="this.src='https://via.placeholder.com/240?text=二维码加载失败'">
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-        
-            
-            <div class="verification-section">
-                <div class="verification-code">加载中...</div>
-                <div class="countdown">
-                    <span id="countdown">--</span> 秒后过期
+
+                <div class="verification-section">
+                    <div class="verification-code">加载中...</div>
+                    <div class="countdown">
+                        <span id="countdown">--</span> 秒后过期
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <input id="manualCodeInput" type="text" inputmode="numeric" maxlength="6" placeholder="手动输入6位验证码（可选）" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-primary); font-size: 0.95rem; outline: none;">
+                    </div>
                 </div>
-                <div style="margin-top: 1rem;">
-                    <input id="manualCodeInput" type="text" inputmode="numeric" maxlength="6" placeholder="手动输入6位验证码（可选）" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-primary); font-size: 0.95rem; outline: none;">
+
+                <div class="login-footer">
+                    <button class="refresh-btn" onclick="refreshCode()">刷新验证码</button>
+                    <button class="login-btn" onclick="doLogin()">确认登录</button>
                 </div>
-            </div>
-            
-            <div class="login-footer">
-                <button class="refresh-btn" onclick="refreshCode()">刷新验证码</button>
-                <button class="login-btn" onclick="doLogin()">确认登录</button>
             </div>
         </div>
     
@@ -312,7 +438,7 @@
         function getApiBaseUrl() {
             var protocol = window.location.protocol;
             var host = window.location.hostname || 'dsaol.asia';
-            
+
             // 通过CORS代理访问后端，代理会转发请求到后端HTTP服务
             // CORS代理运行在端口3000，处理HTTPS到HTTP的转发
             if (protocol === 'https:') {
@@ -324,6 +450,7 @@
         }
         var API_BASE_URL = getApiBaseUrl();
         var pollInterval = null;
+        var wechatInitialized = false;
         
         function setTheme(theme) {
             document.documentElement.setAttribute('data-theme', theme);
@@ -392,7 +519,8 @@
             
             try {
                 var response = await fetch(API_BASE_URL + '/api/login/verification-code', {
-                    method: 'GET'
+                    method: 'GET',
+                    credentials: 'include'
                 });
                 
                 if (response.ok) {
@@ -433,7 +561,7 @@
                     var url = API_BASE_URL + '/api/login/check-status?code=' + encodeURIComponent(code);
                     console.log('📡 轮询请求:', url);
                     
-                    var response = await fetch(url);
+                    var response = await fetch(url, { credentials: 'include' });
                     console.log('📨 轮询响应状态:', response.status);
                     
                     var result = await response.json();
@@ -484,7 +612,7 @@
             }
             
             try {
-                var response = await fetch(API_BASE_URL + '/api/login/check-status?code=' + encodeURIComponent(code));
+                var response = await fetch(API_BASE_URL + '/api/login/check-status?code=' + encodeURIComponent(code), { credentials: 'include' });
                 var result = await response.json();
                 
                 if (result.success) {
@@ -514,27 +642,101 @@
             window.location.href = 'profile.html';
         }
         
+        // Tab 切换
+        function switchTab(tab) {
+            var tabAccount = document.getElementById('tabAccount');
+            var tabWechat = document.getElementById('tabWechat');
+            var accountSection = document.getElementById('accountSection');
+            var wechatSection = document.getElementById('wechatSection');
+
+            if (tab === 'account') {
+                tabAccount.classList.add('active');
+                tabWechat.classList.remove('active');
+                accountSection.classList.add('active');
+                wechatSection.classList.remove('active');
+                // 停止微信轮询
+                if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+                if (window.countdownInterval) { clearInterval(window.countdownInterval); }
+            } else {
+                tabAccount.classList.remove('active');
+                tabWechat.classList.add('active');
+                accountSection.classList.remove('active');
+                wechatSection.classList.add('active');
+                // 首次切换到微信登录时才获取验证码
+                if (!wechatInitialized) {
+                    wechatInitialized = true;
+                    fetchVerificationCode();
+                }
+            }
+        }
+
+        // 账号密码登录
+        async function doAccountLogin() {
+            var username = document.getElementById('loginUsername').value.trim();
+            var password = document.getElementById('loginPassword').value.trim();
+            var errorEl = document.getElementById('loginError');
+            errorEl.textContent = '';
+
+            if (!username) { errorEl.textContent = '请输入用户名'; return; }
+            if (!password) { errorEl.textContent = '请输入密码'; return; }
+
+            var btn = document.querySelector('.account-login-btn');
+            var originalText = btn.textContent;
+            btn.textContent = '登录中...';
+            btn.disabled = true;
+
+            try {
+                var response = await fetch(API_BASE_URL + '/api/login/account', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ username: username, password: password })
+                });
+                var result = await response.json();
+
+                if (result.success) {
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('userAvatar', '👤');
+                    localStorage.setItem('userInfo', JSON.stringify(result.userInfo || {}));
+                    localStorage.setItem('token', result.token || '');
+                    window.location.href = 'profile.html';
+                } else {
+                    errorEl.textContent = result.message || '登录失败';
+                }
+            } catch (e) {
+                errorEl.textContent = '网络错误，请稍后重试';
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // 回车键触发登录
+        document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') { doAccountLogin(); }
+        });
+        document.getElementById('loginUsername').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') { doAccountLogin(); }
+        });
+
+        window.switchTab = switchTab;
+        window.doAccountLogin = doAccountLogin;
         window.toggleTheme = toggleTheme;
         window.refreshCode = refreshCode;
         window.doLogin = doLogin;
-        
+
         var saved = localStorage.getItem('algoviz-theme') || 'light';
         setTheme(saved);
-        
+
         var btn = document.getElementById('themeToggle');
         if (btn) {
             btn.addEventListener('click', toggleTheme);
         }
-        
-        // 初始化时获取验证码
-        fetchVerificationCode();
-        
+
+        // 默认账号登录页，不自动获取验证码（切换到微信登录时才获取）
+
         // 更新访问量显示
         updateVisitCount();
-        
-        // 模拟登录（实际项目中应该由后端处理）
-        // 注释掉自动登录的定时器，实际项目中应该由用户扫码后触发
-        // setTimeout(simulateLogin, 10000); // 10秒后模拟登录成功
     })();
     </script>
 </body>

@@ -45,8 +45,9 @@ public class CorsConfig {
         // 预检请求缓存时间（秒）
         config.setMaxAge(3600L);
         
-        // 暴露响应头
+        // 暴露响应头：允许前端读取 Set-Cookie（用于登录态持久化）
         config.addExposedHeader("Authorization");
+        config.addExposedHeader("Set-Cookie");
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

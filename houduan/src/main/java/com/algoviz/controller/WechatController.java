@@ -148,10 +148,25 @@ public class WechatController {
                 content = content.trim();
                 // 如果是6位数字验证码，尝试验证登录
                 if (content.matches("\\d{6}")) {
+                    System.out.println();
+                    System.out.println("========================================");
+                    System.out.println(" 【微信公众号】收到验证码登录请求");
+                    System.out.println("========================================");
+                    System.out.println("  用户 OpenId : " + fromUserName);
+                    System.out.println("  验证码      : " + content);
+                    System.out.println("  时间        : " + java.time.LocalDateTime.now());
+                    System.out.println("----------------------------------------");
+
                     boolean success = loginService.verifyCodeFromWechat(content, fromUserName);
                     if (success) {
+                        System.out.println("  ✅ 验证码校验成功！openId 已绑定，等待前端轮询完成登录");
+                        System.out.println("========================================");
+                        System.out.println();
                         return buildTextMessage(fromUserName, toUserName, "登录成功！欢迎来到AlgoViz数据结构与算法可视化学习平台。");
                     } else {
+                        System.out.println("  ❌ 验证码无效或已过期");
+                        System.out.println("========================================");
+                        System.out.println();
                         return buildTextMessage(fromUserName, toUserName, "验证码无效或已过期，请在网页上刷新验证码后重试。");
                     }
                 }
@@ -162,6 +177,14 @@ public class WechatController {
         if ("event".equals(msgType)) {
             String event = extractXmlNode(xml, "Event");
             if ("subscribe".equals(event)) {
+                System.out.println();
+                System.out.println("========================================");
+                System.out.println(" 【微信公众号】新用户关注事件");
+                System.out.println("========================================");
+                System.out.println("  用户 OpenId : " + fromUserName);
+                System.out.println("  时间        : " + java.time.LocalDateTime.now());
+                System.out.println("========================================");
+                System.out.println();
                 return buildTextMessage(fromUserName, toUserName, "感谢关注AlgoViz！\n请输入网页上的6位数字验证码完成登录。");
             }
         }

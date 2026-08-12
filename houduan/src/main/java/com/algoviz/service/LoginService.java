@@ -9,4 +9,5 @@ public interface LoginService {
     boolean validateVerificationCode(String code);
     boolean verifyCodeFromWechat(String code, String openId);
     LoginResponse checkLoginStatus(String code);
+    LoginResponse loginByAccount(String username, String password);
 }

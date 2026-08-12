@@ -108,4 +108,62 @@ public class LoginServiceImpl implements LoginService {
 
         return response;
     }
+
+    @Override
+    public LoginResponse loginByAccount(String username, String password) {
+        LoginResponse response = new LoginResponse();
+
+        if (username == null || username.trim().isEmpty()) {
+            response.setSuccess(false);
+            response.setMessage("用户名不能为空");
+            return response;
+        }
+        if (password == null || password.trim().isEmpty()) {
+            response.setSuccess(false);
+            response.setMessage("密码不能为空");
+            return response;
+        }
+
+        // 根据用户名查询用户
+        User user = userService.findByUsername(username.trim());
+        if (user == null) {
+            response.setSuccess(false);
+            response.setMessage("用户不存在");
+            return response;
+        }
+
+        // 校验密码
+        if (!password.equals(user.getPassword())) {
+            response.setSuccess(false);
+            response.setMessage("密码错误");
+            return response;
+        }
+
+        // 检查用户状态
+        if (user.getStatus() != null && user.getStatus() == 0) {
+            response.setSuccess(false);
+            response.setMessage("账号已被禁用，请联系管理员");
+            return response;
+        }
+
+        // 更新最后登录时间
+        userService.updateLastLogin(user.getId());
+
+        // 生成token
+        String token = "account_token_" + System.currentTimeMillis();
+
+        response.setSuccess(true);
+        response.setMessage("登录成功");
+        response.setToken(token);
+
+        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();
+        userInfo.setId(user.getId());
+        userInfo.setUsername(user.getUsername());
+        userInfo.setEmail(user.getEmail());
+        userInfo.setAge(user.getAge());
+        userInfo.setNickname(user.getNickname());
+        response.setUserInfo(userInfo);
+
+        return response;
+    }
 }

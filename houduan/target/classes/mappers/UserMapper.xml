@@ -12,7 +12,7 @@
         SELECT * FROM user WHERE email = #{email}
     </select>
 
-    <insert id="insert" parameterType="com.algoviz.entity.User">
+    <insert id="insert" parameterType="com.algoviz.entity.User" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO user (username, email, password, age, gender, nickname, avatar_url, login_status, status, created_at, updated_at, last_login_at)
         VALUES (#{username}, #{email}, #{password}, #{age}, #{gender}, #{nickname}, #{avatarUrl}, #{loginStatus}, #{status}, #{createdAt}, #{updatedAt}, #{lastLoginAt})
     </insert>

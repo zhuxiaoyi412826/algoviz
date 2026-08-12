@@ -10,4 +10,8 @@ public class LoginRequest {
     private String code;
     @Schema(description = "验证码")
     private String verificationCode;
+    @Schema(description = "用户名（账号密码登录时使用）")
+    private String username;
+    @Schema(description = "密码（账号密码登录时使用）")
+    private String password;
 }

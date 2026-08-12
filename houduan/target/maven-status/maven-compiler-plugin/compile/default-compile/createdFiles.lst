@@ -113,6 +113,7 @@ com\algoviz\mapper\SystemConfigMapper.class
 com\algoviz\config\GlobalExceptionHandler.class
 com\algoviz\service\impl\InterviewUserServiceImpl.class
 com\algoviz\controller\WechatController.class
+com\algoviz\config\AuthInterceptor.class
 com\algoviz\utils\UserContextHolder.class
 com\algoviz\dto\interview\PageResult.class
 com\algoviz\entity\TestCase.class
@@ -127,6 +128,7 @@ com\algoviz\config\SwaggerConfigController.class
 com\algoviz\service\impl\LoginServiceImpl.class
 com\algoviz\util\ExportUtil.class
 com\algoviz\mapper\DataStructureMapper.class
+com\algoviz\controller\InterviewProblemAdminController$1.class
 com\algoviz\config\WebConfig.class
 com\algoviz\entity\Statistics.class
 com\algoviz\dto\QueryOrderResponse.class
