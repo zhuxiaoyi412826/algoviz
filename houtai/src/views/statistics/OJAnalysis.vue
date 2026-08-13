@@ -51,7 +51,7 @@ const initCharts = () => {
 
 <template>
   <div class="page-container">
-    <div class="page-header"><h2>OJ运营分析</h2><el-radio-group><el-radio-button label="7d">近7天</el-radio-button><el-radio-button label="30d">近30天</el-radio-button></el-radio-group></div>
+    <div class="page-header"><h2>OJ运营分析</h2><el-radio-group><el-radio-button value="7d">近7天</el-radio-button><el-radio-button value="30d">近30天</el-radio-button></el-radio-group></div>
     <el-row :gutter="20" style="margin-bottom:20px">
       <el-col :span="12"><el-card shadow="hover"><template #header><span>提交趋势</span></template><div ref="trendRef" style="height:300px"></div></el-card></el-col>
       <el-col :span="12"><el-card shadow="hover"><template #header><span>判题分布</span></template><div ref="pieRef" style="height:300px"></div></el-card></el-col>

@@ -1,5 +1,6 @@
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\config\AuthInterceptor.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\dto\BatchAddProblemsResponse.java
+D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\entity\CoinProduct.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\entity\InterviewHistory.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\service\AIGenerateProblemPrompt.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\service\impl\InterviewProblemAdminServiceImpl.java
@@ -27,6 +28,7 @@ D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\c
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\entity\PaymentTrend.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\entity\Feedback.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\mapper\AIPromptMapper.java
+D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\entity\CoinPurchase.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\dto\interview\InterviewResponse.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\config\Knife4jConfig.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\dto\AIGenerateProblemRequest.java
@@ -36,10 +38,12 @@ D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\m
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\mapper\TestCaseMapper.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\mapper\PaymentRecordMapper.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\service\OJProblemService.java
+D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\service\impl\CoinServiceImpl.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\controller\AdminExtensionController.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\dto\AdminLoginRequest.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\service\impl\PaymentServiceImpl.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\controller\AdminPaymentController.java
+D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\controller\AdminCoinController.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\entity\FileStorage.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\mapper\LoginLogMapper.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\dto\interview\InterviewFrontStats.java
@@ -89,6 +93,8 @@ D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\s
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\dto\interview\PageResult.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\entity\Submission.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\entity\AIPrompt.java
+D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\service\CoinService.java
+D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\mapper\CoinMapper.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\mapper\SubmissionMapper.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\dto\CreateOrderResponse.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\service\UserService.java
@@ -103,6 +109,7 @@ D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\m
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\entity\ApiLog.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\entity\OJProblem.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\aspect\ApiLogAspect.java
+D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\controller\CoinController.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\dto\interview\InterviewProblemSaveDTO.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\mapper\AlgorithmMapper.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\mapper\FeedbackMapper.java
@@ -116,6 +123,7 @@ D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\e
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\service\AIProblemService.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\controller\SubmissionController.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\dto\interview\InterviewAdminStats.java
+D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\config\CoinDatabaseInitializer.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\mapper\AppUserMapper.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\service\impl\UserServiceImpl.java
 D:\daima\XiangMu\算法数据结构可视化\AlgoVize\houduan\src\main\java\com\algoviz\dto\QueryOrderResponse.java

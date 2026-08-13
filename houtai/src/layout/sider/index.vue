@@ -47,6 +47,17 @@ const menuList = [
     ]
   },
   {
+    path: '/order',
+    name: 'Order',
+    meta: { title: '订单管理', icon: 'ShoppingCart' },
+    children: [
+      { path: '/order/list', name: 'OrderList', meta: { title: '订单列表' } },
+      { path: '/order/coin-dashboard', name: 'CoinDashboard', meta: { title: '硬币收入看板' } },
+      { path: '/order/coin-products', name: 'CoinProductManage', meta: { title: '硬币商品管理' } },
+      { path: '/order/coin-purchase', name: 'CoinPurchase', meta: { title: '硬币购买记录' } }
+    ]
+  },
+  {
     path: '/user',
     name: 'User',
     meta: { title: '用户管理', icon: 'User' },

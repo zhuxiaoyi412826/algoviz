@@ -160,6 +160,24 @@ const routes: RouteRecordRaw[] = [
             name: 'OrderList',
             component: () => import('@/views/order/OrderList.vue'),
             meta: { title: '订单列表' }
+          },
+          {
+            path: 'coin-dashboard',
+            name: 'CoinDashboard',
+            component: () => import('@/views/coin/CoinDashboard.vue'),
+            meta: { title: '硬币收入看板' }
+          },
+          {
+            path: 'coin-products',
+            name: 'CoinProductManage',
+            component: () => import('@/views/coin/CoinProductManage.vue'),
+            meta: { title: '硬币商品管理' }
+          },
+          {
+            path: 'coin-purchase',
+            name: 'CoinPurchase',
+            component: () => import('@/views/coin/CoinPurchase.vue'),
+            meta: { title: '硬币购买记录' }
           }
         ]
       },

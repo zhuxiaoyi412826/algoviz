@@ -10,6 +10,24 @@ spring:
     # driver-class-name: org.sqlite.JDBC
     # username:
     # password:
+    # HikariCP 连接池调优
+    hikari:
+      # 连接池最大大小，默认10。公式: (核心数 * 2 + 磁盘数) 较优，单机MySQL建议20-50
+      maximum-pool-size: 50
+      # 最小空闲连接数，默认与maximum-pool-size相同。建议设低值减少空闲连接
+      minimum-idle: 10
+      # 获取连接超时（毫秒），默认30000
+      connection-timeout: 30000
+      # 空闲连接存活时间（毫秒），默认600000（10分钟）
+      idle-timeout: 600000
+      # 连接最大存活时间（毫秒），默认1800000（30分钟）。建议 < MySQL wait_timeout
+      max-lifetime: 1800000
+      # 连接泄漏检测阈值（毫秒），0=禁用。建议30000用于排查泄漏
+      leak-detection-threshold: 30000
+      # 连接测试查询
+      connection-test-query: SELECT 1
+      # 连接池名称
+      pool-name: AlgoVizHikariPool
   servlet:
     multipart:
       max-file-size: 10MB
@@ -40,6 +58,23 @@ server:
       charset: UTF-8
       enabled: true
       force: true
+  # Tomcat 线程池调优
+  tomcat:
+    # 最大工作线程数，默认200。每个线程处理一个请求
+    threads:
+      max: 300
+      # 最小空闲线程数，默认10。预启动避免突发请求排队
+      min-spare: 25
+    # 最大连接数（TCP层），默认8192。超过则排队
+    max-connections: 10000
+    # 等待队列长度，默认100。连接满时排队，超满则拒绝
+    accept-count: 200
+    # 连接超时（毫秒），默认20000
+    connection-timeout: 20000
+    # 请求体最大大小，默认2MB。文件上传需调大
+    max-http-form-post-size: 20MB
+    # Keep-Alive 保活超时（毫秒），默认与connection-timeout相同
+    keep-alive-timeout: 20000
 
 wechat:
   token: zhuxiaoyizxy123456789

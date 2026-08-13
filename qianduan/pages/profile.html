@@ -500,6 +500,18 @@
                                 </a>
                             </li>
                             <li class="profile-menu-item">
+                                <a href="#coins" class="profile-menu-link" data-section="coins">
+                                    <span class="profile-menu-icon">🪙</span>
+                                    <span>硬币余额</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
+                                <a href="#coin-logs" class="profile-menu-link" data-section="coin-logs">
+                                    <span class="profile-menu-icon">📊</span>
+                                    <span>硬币消耗记录</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
                                 <a href="#points" class="profile-menu-link" data-section="points">
                                     <span class="profile-menu-icon">💎</span>
                                     <span>积分</span>
@@ -607,6 +619,40 @@
                             </div>
                         </div>
                         
+                        <!-- 硬币余额 -->
+                        <div id="coins-section" class="profile-section-content" style="display: none;">
+                            <h2>🪙 硬币余额</h2>
+                            <div class="profile-card" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:white;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                    <div>
+                                        <div style="font-size:0.9rem;opacity:0.9;">当前硬币余额</div>
+                                        <div style="font-size:2.5rem;font-weight:700;" id="userCoinBalance">--</div>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div style="font-size:0.9rem;opacity:0.9;">累计消耗</div>
+                                        <div style="font-size:1.5rem;font-weight:600;" id="userCoinSpent">--</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="profile-card">
+                                <p style="color:var(--text-secondary);font-size:0.9rem;">
+                                    💡 每位用户初始拥有 1000 硬币，可在
+                                    <a href="products.html" style="color:#f59e0b;">商品中心</a>
+                                    使用硬币购买学习资料。
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- 硬币消耗记录 -->
+                        <div id="coin-logs-section" class="profile-section-content" style="display: none;">
+                            <h2>📊 硬币消耗记录</h2>
+                            <div class="profile-card">
+                                <div id="coinPurchaseList" style="display:flex;flex-direction:column;gap:0.75rem;">
+                                    <p style="color:var(--text-secondary);">加载中...</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- 积分 -->
                         <div id="points-section" class="profile-section-content" style="display: none;">
                             <h2>积分</h2>
@@ -745,27 +791,34 @@
     </div>
     
     <script>
+        // 获取API基础URL
+        function getApiBaseUrl() {
+            var protocol = window.location.protocol;
+            var host = window.location.hostname || 'dsaol.asia';
+            if (protocol === 'https:') {
+                return 'https://' + host + ':3000';
+            } else {
+                return 'http://' + host + ':80';
+            }
+        }
+
         // 切换菜单
         document.addEventListener('DOMContentLoaded', function() {
             const menuLinks = document.querySelectorAll('.profile-menu-link');
             const contentSections = document.querySelectorAll('.profile-section-content');
-            
+
             menuLinks.forEach(link => {
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
-                    
-                    // 更新菜单状态
                     menuLinks.forEach(l => l.classList.remove('active'));
                     this.classList.add('active');
-                    
-                    // 显示对应内容
                     const section = this.dataset.section;
-                    contentSections.forEach(s => {
-                        s.style.display = 'none';
-                    });
+                    contentSections.forEach(s => { s.style.display = 'none'; });
                     document.getElementById(`${section}-section`).style.display = 'block';
                 });
             });
+
+            loadCoinData();
             
             // 头像选择
             const avatarOptions = document.querySelectorAll('.avatar-option');
@@ -797,6 +850,34 @@
             document.getElementById('avatarModal').style.display = 'none';
         }
         
+        // ===== 硬币系统 =====
+        async function loadCoinData() {
+            try {
+                var resp = await fetch(getApiBaseUrl() + '/api/coin/balance', { credentials: 'include' });
+                var data = await resp.json();
+                if (data.success) {
+                    document.getElementById('userCoinBalance').textContent = data.coins;
+                    document.getElementById('userCoinSpent').textContent = data.totalSpent + ' 🪙';
+                }
+            } catch (e) { /* 未登录忽略 */ }
+            try {
+                var resp2 = await fetch(getApiBaseUrl() + '/api/coin/purchases', { credentials: 'include' });
+                var data2 = await resp2.json();
+                var listEl = document.getElementById('coinPurchaseList');
+                if (data2.success && data2.purchases && data2.purchases.length > 0) {
+                    listEl.innerHTML = data2.purchases.map(function(p) {
+                        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;border:1px solid var(--border-color);border-radius:10px;">' +
+                            '<div><div style="font-weight:600;color:var(--text-primary);">' + (p.productName || '') + '</div>' +
+                            '<div style="font-size:0.8rem;color:var(--text-secondary);">' + (p.createdAt || '') + '</div></div>' +
+                            '<div style="text-align:right;"><div style="color:#f59e0b;font-weight:700;">-' + p.coinPrice + ' 🪙</div>' +
+                            '<div style="font-size:0.8rem;color:var(--text-secondary);">余额 ' + p.coinAfter + '</div></div></div>';
+                    }).join('');
+                } else {
+                    listEl.innerHTML = '<p style="color:var(--text-secondary);text-align:center;">暂无购买记录</p>';
+                }
+            } catch (e) { /* 忽略 */ }
+        }
+
         // 选择默认头像
         function selectDefaultAvatar(avatar) {
             const profileAvatar = document.querySelector('.profile-avatar');

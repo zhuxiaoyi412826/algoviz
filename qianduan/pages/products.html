@@ -112,9 +112,21 @@
         }
         
         .product-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            text-align: center;
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 1rem;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            /* 彩色长方形渐变背景 */
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        /* 不同分类的彩色背景 */
+        .product-card[data-category="coin"] .product-icon {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
         }
         
         .product-title {
@@ -369,9 +381,17 @@
                 <!-- Category Tabs -->
                 <div class="category-tabs">
                     <div class="category-tab active" data-category="all">全部</div>
+                    <div class="category-tab" data-category="coin">🪙 硬币商品</div>
                     <div class="category-tab" data-category="notes">笔记</div>
                     <div class="category-tab" data-category="tutorial">教程</div>
                     <div class="category-tab" data-category="project">项目</div>
+                </div>
+
+                <!-- 硬币余额展示 -->
+                <div id="coinBalanceBar" style="display:none; text-align:center; margin-bottom:2rem; padding:1rem 2rem; background:linear-gradient(135deg,#f59e0b,#f97316); border-radius:12px; color:white;">
+                    <span style="font-size:1.5rem; font-weight:700;">🪙 我的硬币：<span id="coinBalanceNum">--</span></span>
+                    <span style="margin-left:1rem; opacity:0.9;">累计消耗：<span id="coinSpentNum">--</span> 🪙</span>
+                    <a href="profile.html#coin-logs" style="margin-left:1rem; color:white; text-decoration:underline;">查看记录</a>
                 </div>
                 
                 <!-- Products Grid -->
@@ -434,6 +454,9 @@
                         <div class="product-price">¥299.9</div>
                         <button class="product-button" onclick="openPaymentModal('project-advanced')">购买</button>
                     </div>
+
+                    <!-- 硬币商品（动态加载） -->
+                    <div id="coinProductsContainer" style="display:contents;"></div>
                 </div>
             </div>
         </section>
@@ -734,17 +757,18 @@
         
         // 分类切换功能
         document.addEventListener('DOMContentLoaded', function() {
+            loadCoinProducts();
+            loadCoinBalance();
+
             const categoryTabs = document.querySelectorAll('.category-tab');
-            const productCards = document.querySelectorAll('.product-card');
             
             categoryTabs.forEach(tab => {
                 tab.addEventListener('click', function() {
-                    // 更新标签状态
                     categoryTabs.forEach(t => t.classList.remove('active'));
                     this.classList.add('active');
                     
-                    // 筛选商品
                     const category = this.dataset.category;
+                    const productCards = document.querySelectorAll('.product-card');
                     productCards.forEach(card => {
                         if (category === 'all' || card.dataset.category === category) {
                             card.style.display = 'block';
@@ -755,6 +779,81 @@
                 });
             });
         });
+
+        // ===== 硬币系统 =====
+
+        async function loadCoinProducts() {
+            try {
+                var resp = await fetch(getApiBaseUrl() + '/api/coin/products', { credentials: 'include' });
+                var data = await resp.json();
+                if (data.success && data.products) {
+                    var container = document.getElementById('coinProductsContainer');
+                    container.innerHTML = data.products.map(function(p) {
+                        return '<div class="product-card" data-category="coin" data-product="' + p.productId + '">' +
+                            '<div class="product-icon">' + (p.icon || '🪙') + '</div>' +
+                            '<h3 class="product-title">' + p.productName + '</h3>' +
+                            '<p class="product-description">' + (p.description || '') + '</p>' +
+                            '<div class="product-price" style="color:#f59e0b;">🪙 ' + p.coinPrice + ' 硬币</div>' +
+                            '<button class="product-button" style="background:linear-gradient(135deg,#f59e0b,#f97316);" onclick="purchaseCoinProduct(\'' + p.productId + '\',\'' + p.productName + '\',' + p.coinPrice + ')">硬币购买</button>' +
+                            '</div>';
+                    }).join('');
+                }
+            } catch (e) { console.error('加载硬币商品失败:', e); }
+        }
+
+        async function loadCoinBalance() {
+            try {
+                var resp = await fetch(getApiBaseUrl() + '/api/coin/balance', { credentials: 'include' });
+                var data = await resp.json();
+                if (data.success) {
+                    document.getElementById('coinBalanceBar').style.display = 'block';
+                    document.getElementById('coinBalanceNum').textContent = data.coins;
+                    document.getElementById('coinSpentNum').textContent = data.totalSpent;
+                }
+            } catch (e) { /* 未登录时不显示余额 */ }
+        }
+
+        async function purchaseCoinProduct(productId, productName, price) {
+            if (!confirm('确认用 ' + price + ' 🪙 购买「' + productName + '」？')) return;
+            try {
+                var resp = await fetch(getApiBaseUrl() + '/api/coin/purchase', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ productId: productId })
+                });
+                var data = await resp.json();
+                if (data.success) {
+                    showCoinPurchaseSuccess(productName, price, data.coinAfter);
+                    loadCoinBalance();
+                } else {
+                    alert(data.message || '购买失败');
+                    if (data.message && data.message.indexOf('登录') >= 0) {
+                        window.location.href = 'login.html';
+                    }
+                }
+            } catch (e) {
+                alert('网络错误，请稍后重试');
+            }
+        }
+
+        function showCoinPurchaseSuccess(productName, price, balance) {
+            var modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;justify-content:center;align-items:center;z-index:10000;';
+            var content = document.createElement('div');
+            content.style.cssText = 'background:#fff;border-radius:16px;padding:40px 50px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);min-width:320px;';
+            content.innerHTML =
+                '<div style="font-size:64px;margin-bottom:20px;">🎉</div>' +
+                '<div style="font-size:24px;font-weight:bold;color:#333;margin-bottom:10px;">购买成功！</div>' +
+                '<div style="font-size:16px;color:#f59e0b;margin-bottom:8px;">🪙 消耗 ' + price + ' 硬币</div>' +
+                '<div style="font-size:14px;color:#666;margin-bottom:8px;">商品：' + productName + '</div>' +
+                '<div style="font-size:14px;color:#666;margin-bottom:20px;">剩余硬币：' + balance + ' 🪙</div>' +
+                '<button onclick="this.parentElement.parentElement.remove();" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:white;border:none;padding:12px 40px;border-radius:30px;font-size:16px;cursor:pointer;">确定</button>';
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+        }
+
+        window.purchaseCoinProduct = purchaseCoinProduct;
     </script>
 </body>
 </html>

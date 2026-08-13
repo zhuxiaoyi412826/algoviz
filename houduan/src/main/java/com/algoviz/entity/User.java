@@ -28,6 +28,8 @@ public class User {
     private String loginStatus;
     @Schema(description = "状态")
     private Integer status;
+    @Schema(description = "硬币余额")
+    private Integer coins;
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
     @Schema(description = "更新时间")

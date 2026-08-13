@@ -36,6 +36,12 @@ public interface UserMapper {
 
     @Update("UPDATE user SET status = #{status}, updated_at = NOW() WHERE id = #{id}")
     void updateStatus(@Param("id") Integer id, @Param("status") Integer status);
+
+    @Update("UPDATE user SET coins = coins + #{delta}, updated_at = NOW() WHERE id = #{id}")
+    int updateCoins(@Param("id") Integer id, @Param("delta") int delta);
+
+    @Update("UPDATE user SET coins = #{coins}, updated_at = NOW() WHERE id = #{id}")
+    int setCoins(@Param("id") Integer id, @Param("coins") int coins);
     
     @Select("SELECT COUNT(*) FROM user")
     int countUsers();

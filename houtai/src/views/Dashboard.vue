@@ -194,8 +194,8 @@ const quickActions = [
             <div class="card-header">
               <span>数据趋势</span>
               <el-radio-group size="small">
-                <el-radio-button label="近7天" />
-                <el-radio-button label="近30天" />
+                <el-radio-button value="7d">近7天</el-radio-button>
+                <el-radio-button value="30d">近30天</el-radio-button>
               </el-radio-group>
             </div>
           </template>

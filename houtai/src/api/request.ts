@@ -22,11 +22,13 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response) => {
     const res = response.data
-    if (res.code !== 200) {
+    // 兼容两种响应格式：{code:200, data:...} 和 {success:true, ...}
+    if (res.code !== undefined && res.code !== 200) {
       ElMessage.error(res.message || '请求失败')
       return Promise.reject(new Error(res.message || '请求失败'))
     }
-    return res.data
+    // 如果有 data 字段返回 data，否则返回整个响应体
+    return res.data !== undefined ? res.data : res
   },
   (error) => {
     if (error.response?.status === 401) {

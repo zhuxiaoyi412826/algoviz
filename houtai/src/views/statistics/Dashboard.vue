@@ -28,7 +28,7 @@ const initChart = () => {
 
 <template>
   <div class="page-container">
-    <div class="page-header"><h2>核心指标看板</h2><el-radio-group v-model="activeTab"><el-radio-button label="7d">近7天</el-radio-button><el-radio-button label="30d">近30天</el-radio-button></el-radio-group></div>
+    <div class="page-header"><h2>核心指标看板</h2><el-radio-group v-model="activeTab"><el-radio-button value="7d">近7天</el-radio-button><el-radio-button value="30d">近30天</el-radio-button></el-radio-group></div>
     <el-row :gutter="20" style="margin-bottom:20px">
       <el-col :xs="24" :sm="12" :lg="6"><el-card shadow="hover"><el-statistic title="日活(DAU)" :value="1256"><template #prefix><span class="stat-up">+12.5%</span></template></el-statistic></el-card></el-col>
       <el-col :xs="24" :sm="12" :lg="6"><el-card shadow="hover"><el-statistic title="周活(WAU)" :value="8942"><template #prefix><span class="stat-up">+8.3%</span></template></el-statistic></el-card></el-col>

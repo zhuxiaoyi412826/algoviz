@@ -39,6 +39,27 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/login/verification-code",
                         "/api/login/check-status",
                         "/api/login/logout",
+                        // 硬币商品浏览（公开，购买需登录）
+                        "/api/coin/products",
+                        "/api/coin/products/**",
+                        // 后台管理接口（使用独立 Bearer Token 鉴权，不走前台 Cookie/Session）
+                        // 注意：Spring Boot 3.x PathPattern 中 /xxx/** 不匹配 /xxx 本身，需同时排除
+                        "/api/admin",
+                        "/api/admin/**",
+                        "/api/system",
+                        "/api/system/**",
+                        "/api/content",
+                        "/api/content/**",
+                        "/api/payment",
+                        "/api/payment/**",
+                        "/api/orders",
+                        "/api/orders/**",
+                        "/api/coin/admin",
+                        "/api/coin/admin/**",
+                        "/api/interview",
+                        "/api/interview/**",
+                        "/api/users",
+                        "/api/users/**",
                         // Knife4j / Swagger 文档资源
                         "/doc.html",
                         "/webjars/**",

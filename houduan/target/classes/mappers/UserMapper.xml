@@ -13,8 +13,10 @@
     </select>
 
     <insert id="insert" parameterType="com.algoviz.entity.User" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO user (username, email, password, age, gender, nickname, avatar_url, login_status, status, created_at, updated_at, last_login_at)
-        VALUES (#{username}, #{email}, #{password}, #{age}, #{gender}, #{nickname}, #{avatarUrl}, #{loginStatus}, #{status}, #{createdAt}, #{updatedAt}, #{lastLoginAt})
+        INSERT INTO user (username, email, password, age, gender, nickname, avatar_url, login_status, status, coins, created_at, updated_at, last_login_at)
+        VALUES (#{username}, #{email}, #{password}, #{age}, #{gender}, #{nickname}, #{avatarUrl}, #{loginStatus}, #{status},
+                <choose><when test="coins != null">#{coins}</when><otherwise>1000</otherwise></choose>,
+                #{createdAt}, #{updatedAt}, #{lastLoginAt})
     </insert>
 
     <update id="update" parameterType="com.algoviz.entity.User">

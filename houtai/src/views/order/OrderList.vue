@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { 
-  ElTable, ElTableColumn, ElButton, ElTag, ElDialog, ElMessage, 
+import {
+  ElTable, ElTableColumn, ElButton, ElTag, ElDialog, ElMessage,
   ElPagination, ElInput, ElSelect, ElOption, ElMessageBox, ElForm,
   ElFormItem
 } from 'element-plus'
 import { Search, Refresh, Edit, Check, Delete } from '@element-plus/icons-vue'
+import request from '@/api/request'
 
 interface Order {
   id: number
@@ -53,14 +54,13 @@ onMounted(() => {
 const loadData = async () => {
   loading.value = true
   try {
-    const params = new URLSearchParams()
-    if (searchForm.keyword) params.append('keyword', searchForm.keyword)
-    if (searchForm.status) params.append('status', searchForm.status)
-    if (searchForm.refundStatus) params.append('refundStatus', searchForm.refundStatus)
-    
-    const response = await fetch(`http://localhost/api/orders?${params.toString()}`)
-    const data = await response.json()
-    
+    const params: any = {}
+    if (searchForm.keyword) params.keyword = searchForm.keyword
+    if (searchForm.status) params.status = searchForm.status
+    if (searchForm.refundStatus) params.refundStatus = searchForm.refundStatus
+
+    const data: any = await request.get('/orders', { params })
+
     if (data.success) {
       tableData.value = data.orders.map((item: any) => ({
         id: item.id,
@@ -83,14 +83,12 @@ const loadData = async () => {
     }
   } catch (error) {
     console.error('加载订单失败:', error)
-    ElMessage.error('加载订单失败')
   } finally { loading.value = false }
 }
 
 const loadStats = async () => {
   try {
-    const response = await fetch('http://localhost/api/orders/stats')
-    const data = await response.json()
+    const data: any = await request.get('/orders/stats')
     if (data.success) {
       stats.value = data
     }
@@ -122,10 +120,7 @@ const handleApproveRefund = (row: Order) => {
     type: 'warning'
   }).then(async () => {
     try {
-      const response = await fetch(`http://localhost/api/orders/${row.orderId}/refund/approve`, {
-        method: 'PUT'
-      })
-      const data = await response.json()
+      const data: any = await request.put(`/orders/${row.orderId}/refund/approve`)
       if (data.success) {
         ElMessage.success('退款成功')
         loadData()
@@ -147,14 +142,11 @@ const handleRejectRefund = (row: Order) => {
 
 const confirmReject = async () => {
   if (!currentOrder.value) return
-  
+
   try {
-    const response = await fetch(`http://localhost/api/orders/${currentOrder.value.orderId}/refund/reject`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: rejectReason.value })
+    const data: any = await request.put(`/orders/${currentOrder.value.orderId}/refund/reject`, {
+      reason: rejectReason.value
     })
-    const data = await response.json()
     if (data.success) {
       ElMessage.success('已拒绝退款申请')
       refundDialogVisible.value = false

@@ -100,9 +100,9 @@ const handleReset = () => {
             </el-form-item>
             <el-form-item label="默认主题">
               <el-radio-group v-model="themeForm.defaultTheme">
-                <el-radio label="light">浅色模式</el-radio>
-                <el-radio label="dark">深色模式</el-radio>
-                <el-radio label="auto">跟随系统</el-radio>
+                <el-radio value="light">浅色模式</el-radio>
+                <el-radio value="dark">深色模式</el-radio>
+                <el-radio value="auto">跟随系统</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-form-item label="开启暗色模式">
@@ -110,8 +110,8 @@ const handleReset = () => {
             </el-form-item>
             <el-form-item label="侧边栏主题">
               <el-radio-group v-model="themeForm.sidebarTheme">
-                <el-radio label="dark">深色</el-radio>
-                <el-radio label="light">浅色</el-radio>
+                <el-radio value="dark">深色</el-radio>
+                <el-radio value="light">浅色</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-form-item label="紧凑模式">

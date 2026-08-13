@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElTable, ElTableColumn, ElButton, ElTag, ElDialog, ElAvatar, ElMessage, ElPagination, ElInput, ElSelect, ElOption, ElMessageBox, ElRadio, ElRadioGroup } from 'element-plus'
 import { Search, Refresh, Edit, Delete, Download } from '@element-plus/icons-vue'
-import type { AppUser } from '@/types'
+import request from '@/api/request'
 
 interface User {
   id: number
@@ -54,18 +54,17 @@ onUnmounted(() => {
 const loadData = async () => {
   loading.value = true
   try {
-    const params = new URLSearchParams()
-    if (searchForm.keyword) params.append('keyword', searchForm.keyword)
-    if (searchForm.gender) params.append('gender', searchForm.gender)
-    if (searchForm.status != null && searchForm.status !== '') params.append('status', String(searchForm.status))
-    if (searchForm.loginStatus) params.append('loginStatus', searchForm.loginStatus)
-    if (searchForm.order) params.append('order', searchForm.order)
-    params.append('page', String(page.value))
-    params.append('pageSize', String(pageSize.value))
-    
-    const response = await fetch(`http://localhost/api/users?${params.toString()}`)
-    const data = await response.json()
-    
+    const params: any = {}
+    if (searchForm.keyword) params.keyword = searchForm.keyword
+    if (searchForm.gender) params.gender = searchForm.gender
+    if (searchForm.status != null && searchForm.status !== '') params.status = String(searchForm.status)
+    if (searchForm.loginStatus) params.loginStatus = searchForm.loginStatus
+    if (searchForm.order) params.order = searchForm.order
+    params.page = String(page.value)
+    params.pageSize = String(pageSize.value)
+
+    const data: any = await request.get('/users', { params })
+
     if (data.success) {
       tableData.value = data.users.map((item: any) => ({
         id: item.id,
@@ -130,12 +129,7 @@ const handleEdit = (row: User) => {
 const handleSaveEdit = async () => {
   if (!editUser.value) return
   try {
-    const response = await fetch(`http://localhost/api/users/${editUser.value.id}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: editStatus.value })
-    })
-    const data = await response.json()
+    const data: any = await request.put(`/users/${editUser.value.id}/status`, { status: editStatus.value })
     if (data.success) {
       ElMessage.success('用户状态更新成功')
       editVisible.value = false
@@ -152,12 +146,9 @@ const handleSaveEdit = async () => {
 const handleDelete = async (row: User) => {
   try {
     await ElMessageBox.confirm('确定要删除该用户吗？', '提示', { type: 'warning' })
-    
-    const response = await fetch(`http://localhost/api/users/${row.id}`, {
-      method: 'DELETE'
-    })
-    const data = await response.json()
-    
+
+    const data: any = await request.delete(`/users/${row.id}`)
+
     if (data.success) {
       ElMessage.success('删除成功')
       loadData()
@@ -169,7 +160,9 @@ const handleDelete = async (row: User) => {
 
 const handleExport = async () => {
   try {
-    const response = await fetch('http://localhost/api/users/export/json')
+    const response = await fetch('/api/users/export/json', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}` }
+    })
     if (!response.ok) {
       throw new Error('导出失败')
     }
