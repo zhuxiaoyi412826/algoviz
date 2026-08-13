@@ -60,6 +60,9 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/interview/**",
                         "/api/users",
                         "/api/users/**",
+                        // OJ 题目管理（后台管理接口，使用独立 Bearer Token 鉴权）
+                        "/api/problems",
+                        "/api/problems/**",
                         // Knife4j / Swagger 文档资源
                         "/doc.html",
                         "/webjars/**",

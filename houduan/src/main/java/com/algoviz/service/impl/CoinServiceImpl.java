@@ -160,6 +160,17 @@ public class CoinServiceImpl implements CoinService {
     }
 
     @Override
+    public List<CoinPurchase> getPurchasesByPage(String keyword, int page, int pageSize) {
+        int offset = (page - 1) * pageSize;
+        return coinMapper.getPurchasesByPage(keyword, offset, pageSize);
+    }
+
+    @Override
+    public int countPurchasesForPage(String keyword) {
+        return coinMapper.countPurchasesForPage(keyword);
+    }
+
+    @Override
     public Map<String, Object> getStats() {
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalSpent", coinMapper.sumAllSpent());

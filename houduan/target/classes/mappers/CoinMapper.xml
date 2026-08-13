@@ -79,6 +79,28 @@
         SELECT * FROM coin_purchase ORDER BY created_at DESC
     </select>
 
+    <select id="getPurchasesByPage" resultMap="CoinPurchaseMap">
+        SELECT * FROM coin_purchase
+        <where>
+            <if test="keyword != null and keyword != ''">
+                username LIKE CONCAT('%', #{keyword}, '%')
+                OR product_name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countPurchasesForPage" resultType="int">
+        SELECT COUNT(*) FROM coin_purchase
+        <where>
+            <if test="keyword != null and keyword != ''">
+                username LIKE CONCAT('%', #{keyword}, '%')
+                OR product_name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+    </select>
+
     <select id="sumUserSpent" resultType="int">
         SELECT COALESCE(SUM(coin_price), 0) FROM coin_purchase WHERE user_id = #{userId} AND status = 'SUCCESS'
     </select>

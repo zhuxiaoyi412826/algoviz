@@ -67,13 +67,19 @@ public class AdminCoinController {
     // ===== 购买记录查询 =====
 
     @GetMapping("/purchases")
-    @Operation(summary = "获取所有购买记录", description = "查询所有用户的硬币购买记录")
-    public Map<String, Object> getAllPurchases() {
+    @Operation(summary = "分页查询购买记录", description = "分页查询所有用户的硬币购买记录，支持关键词搜索，默认每页100条")
+    public Map<String, Object> getAllPurchases(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "100") int pageSize) {
         Map<String, Object> result = new HashMap<>();
-        List<CoinPurchase> purchases = coinService.getAllPurchases();
+        List<CoinPurchase> purchases = coinService.getPurchasesByPage(keyword, page, pageSize);
+        int total = coinService.countPurchasesForPage(keyword);
         result.put("success", true);
         result.put("purchases", purchases);
-        result.put("count", purchases.size());
+        result.put("total", total);
+        result.put("page", page);
+        result.put("pageSize", pageSize);
         return result;
     }
 

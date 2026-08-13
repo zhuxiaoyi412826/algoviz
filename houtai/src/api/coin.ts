@@ -1,8 +1,8 @@
 import request from './request'
 
-/** 获取所有硬币购买记录 */
-export function getCoinPurchases() {
-  return request.get('/coin/admin/purchases')
+/** 分页查询硬币购买记录（支持关键词搜索） */
+export function getCoinPurchases(params?: { keyword?: string; page?: number; pageSize?: number }) {
+  return request.get('/coin/admin/purchases', { params })
 }
 
 /** 获取硬币系统统计 */

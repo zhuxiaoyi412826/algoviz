@@ -41,6 +41,14 @@ public interface CoinMapper {
     /** 获取所有购买记录（管理端用，含用户名） */
     List<CoinPurchase> getAllPurchases();
 
+    /** 分页查询购买记录（支持关键词搜索用户名/商品名） */
+    List<CoinPurchase> getPurchasesByPage(@Param("keyword") String keyword,
+                                          @Param("offset") int offset,
+                                          @Param("limit") int limit);
+
+    /** 分页查询购买记录总数（支持关键词） */
+    int countPurchasesForPage(@Param("keyword") String keyword);
+
     /** 统计用户总消耗硬币 */
     int sumUserSpent(@Param("userId") Long userId);
 

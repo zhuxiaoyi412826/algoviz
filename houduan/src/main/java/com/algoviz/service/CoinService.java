@@ -39,6 +39,12 @@ public interface CoinService {
     /** 管理端：获取所有购买记录 */
     List<CoinPurchase> getAllPurchases();
 
+    /** 管理端：分页查询购买记录（支持关键词） */
+    List<CoinPurchase> getPurchasesByPage(String keyword, int page, int pageSize);
+
+    /** 管理端：分页查询购买记录总数（支持关键词） */
+    int countPurchasesForPage(String keyword);
+
     /** 管理端：统计 */
     Map<String, Object> getStats();
 }
