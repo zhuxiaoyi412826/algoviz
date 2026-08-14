@@ -294,13 +294,15 @@ const handleFileChange = async (uploadFile: any) => {
     const payloads: ProblemSavePayload[] = problemsRaw.map(p => {
       if (isExternalFormat) {
         // 格式B -> 格式A 字段映射
-        const rawDifficulty = (p.difficulty || 'Medium').toLowerCase()
+        const rawDifficulty = String(p.difficulty ?? 'Medium').toLowerCase()
         const difficulty = ['easy', 'medium', 'hard'].includes(rawDifficulty) ? rawDifficulty : 'medium'
-        const tagStr: string = p.tag || ''
-        const tags = tagStr.split(/[,，;；|]/).map(s => s.trim()).filter(Boolean)
+        const tagRaw = p.tag ?? ''
+        const tags: string[] = Array.isArray(tagRaw)
+          ? tagRaw.map((s: any) => String(s || '').trim()).filter(Boolean)
+          : String(tagRaw).split(/[,，;；|]/).map(s => s.trim()).filter(Boolean)
         const category = tags.length > 0 ? tags[0] : '未分类'
         // question 太长时截取前30字作为标题
-        const questionStr: string = p.question || ''
+        const questionStr: string = String(p.question ?? '')
         const title = questionStr.length > 30 ? questionStr.substring(0, 30) + '...' : questionStr
         const idNum = p.id || 0
         const problemNo = p.problemNo || ('MS' + String(idNum).padStart(3, '0'))
@@ -313,7 +315,7 @@ const handleFileChange = async (uploadFile: any) => {
           description: questionStr,
           inputFormat: '',
           outputFormat: '',
-          solution: p.answer || '',
+          solution: String(p.answer ?? ''),
           status: 'ACTIVE',
           isFrequent: 0
         }
