@@ -24,6 +24,7 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
 
     private final InterviewProblemMapper problemMapper;
     private final InterviewUserMapper userMapper;
+    private final com.algoviz.service.VectorSearchService vectorSearchService;
 
     // =================== 工具 ===================
     /** 允许 Markdown 常用标签（允许 img 但仅使用 http/https/data 协议） */
@@ -203,6 +204,8 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
         p.setUpdatedBy(adminId);
         problemMapper.insert(p);
         syncTags("", p.getTags(), p.getCategory());
+        // 自动同步到向量库
+        vectorSearchService.syncSingle(p);
         return p;
     }
 
@@ -228,6 +231,8 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
         int affected = problemMapper.updateById(p);
         if (affected > 0) {
             syncTags(exist.getTags(), p.getTags(), p.getCategory());
+            // 自动同步到向量库
+            vectorSearchService.syncSingle(p);
             return true;
         }
         return false;
@@ -243,25 +248,45 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
     // =================== B6/B7 逻辑删除 ===================
     @Override
     public boolean logicDelete(Long id, String adminId) {
-        return problemMapper.logicDelete(id, adminId) > 0;
+        boolean ok = problemMapper.logicDelete(id, adminId) > 0;
+        if (ok) {
+            // 自动从向量库删除
+            vectorSearchService.delete(id);
+        }
+        return ok;
     }
 
     @Override
     public int batchLogicDelete(List<Long> ids, String adminId) {
         if (ids == null || ids.isEmpty()) return 0;
-        return problemMapper.batchLogicDelete(ids, adminId);
+        int n = problemMapper.batchLogicDelete(ids, adminId);
+        if (n > 0) {
+            // 自动从向量库删除
+            vectorSearchService.deleteBatch(ids);
+        }
+        return n;
     }
 
     // =================== B8/B9 物理删除 ===================
     @Override
     public boolean physicalDelete(Long id) {
-        return problemMapper.physicalDelete(id) > 0;
+        boolean ok = problemMapper.physicalDelete(id) > 0;
+        if (ok) {
+            // 自动从向量库删除
+            vectorSearchService.delete(id);
+        }
+        return ok;
     }
 
     @Override
     public int batchPhysicalDelete(List<Long> ids) {
         if (ids == null || ids.isEmpty()) return 0;
-        return problemMapper.batchPhysicalDelete(ids);
+        int n = problemMapper.batchPhysicalDelete(ids);
+        if (n > 0) {
+            // 自动从向量库删除
+            vectorSearchService.deleteBatch(ids);
+        }
+        return n;
     }
 
     // =================== B10 JSON 批量导入 ===================
@@ -273,6 +298,8 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
         int total = problemList.size();
         int succ = 0;
         List<String> fails = new ArrayList<>();
+        // 收集成功处理的题目用于批量同步到向量库
+        List<InterviewProblem> syncedProblems = new ArrayList<>();
         for (int i = 0; i < problemList.size(); i++) {
             InterviewProblemSaveDTO dto = problemList.get(i);
             try {
@@ -287,12 +314,14 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
                 if (dup == null) {
                     problemMapper.insert(p);
                     syncTags("", p.getTags(), p.getCategory());
+                    syncedProblems.add(p);
                     succ++;
                 } else if (overwriteOnConflict) {
                     String oldTags = dup.getTags();
                     p.setId(dup.getId());
                     problemMapper.updateById(p);
                     syncTags(oldTags, p.getTags(), p.getCategory());
+                    syncedProblems.add(p);
                     succ++;
                 } else {
                     fails.add("第" + (i + 1) + "条: problemNo=" + p.getProblemNo() + " 已存在(未覆盖)");
@@ -300,6 +329,10 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
             } catch (Exception e) {
                 fails.add("第" + (i + 1) + "条: " + e.getMessage());
             }
+        }
+        // 自动批量同步到向量库（异步）
+        if (!syncedProblems.isEmpty()) {
+            vectorSearchService.syncBatch(syncedProblems);
         }
         return BatchImportResult.of(total, succ, fails.size(), fails);
     }

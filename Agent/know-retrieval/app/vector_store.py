@@ -121,8 +121,9 @@ def format_results(raw: dict) -> list[dict]:
 
     for i, rid in enumerate(ids):
         dist = distances[i] if i < len(distances) else 1.0
-        # cosine 距离 [0, 2] → 相似度 [0, 1]
-        similarity = max(0.0, 1.0 - dist / 2.0)
+        # ChromaDB cosine 距离 = 1 - cos_similarity，范围 [0, 2]
+        # 相似度 = 1 - 距离，范围 [0, 1]（clamp 负值到 0）
+        similarity = max(0.0, 1.0 - dist)
         items.append({
             "id": rid,
             "distance": dist,

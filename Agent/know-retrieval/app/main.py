@@ -51,19 +51,47 @@ async def root():
 
 
 def build_text(p: EmbedRequest) -> str:
-    """构造向量化文本"""
+    """构造向量化文本 — 尽可能丰富语义信息"""
     parts = []
     if p.title:
         parts.append(f"题目：{p.title}")
-    if p.tags:
-        parts.append(f"标签：{p.tags}")
     if p.category:
         parts.append(f"分类：{p.category}")
+    if p.tags:
+        parts.append(f"标签：{p.tags}")
     if p.difficulty:
         parts.append(f"难度：{p.difficulty}")
     if p.description:
-        parts.append(f"描述：{p.description[:500]}")
-    return "\n".join(parts) if parts else p.title or ""
+        # 去除 Markdown 标记，保留纯文本，截取前 800 字
+        desc = _strip_markdown(p.description)[:800]
+        parts.append(f"描述：{desc}")
+    if p.solution:
+        # 题解包含关键思路和代码，截取前 500 字
+        sol = _strip_markdown(p.solution)[:500]
+        parts.append(f"题解：{sol}")
+    return "\n".join(parts) if parts else (p.title or "")
+
+
+def _strip_markdown(text: str) -> str:
+    """简单去除 Markdown 标记，保留纯文本"""
+    import re
+    # 去除代码块
+    text = re.sub(r'```[\s\S]*?```', '', text)
+    # 去除行内代码
+    text = re.sub(r'`([^`]+)`', r'\1', text)
+    # 去除标题标记
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    # 去除粗体/斜体
+    text = re.sub(r'\*{1,3}([^*]+)\*{1,3}', r'\1', text)
+    # 去除链接，保留文本
+    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+    # 去除图片
+    text = re.sub(r'!\[([^\]]*)\]\([^)]+\)', '', text)
+    # 去除 HTML 标签
+    text = re.sub(r'<[^>]+>', '', text)
+    # 压缩空白
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
+    return text
 
 
 def build_metadata(p: EmbedRequest) -> dict:
@@ -232,29 +260,71 @@ async def sync_status():
     return _sync_task_status
 
 
-# ===== 语义检索 =====
+# ===== 语义检索（混合检索：向量 + 关键词加权）=====
 @app.post("/api/v1/search")
 async def search(req: SearchRequest):
-    """语义检索题目"""
+    """混合检索：向量语义召回 + 关键词匹配加权排序"""
     try:
-        raw_results = vector_store.search_by_text(req.query, req.top_k)
+        # 1. 向量召回 — 取更多候选（top_k * 3）以便后续重排
+        candidate_k = max(req.top_k * 3, 30)
+        raw_results = vector_store.search_by_text(req.query, candidate_k)
 
-        results = []
+        if not raw_results:
+            return {"results": [], "total": 0, "query": req.query}
+
+        # 2. 关键词匹配加分
+        query_lower = req.query.lower().strip()
+        query_terms = [t for t in query_lower.replace(',', ' ').replace('，', ' ').split() if len(t) >= 1]
+
+        scored_results = []
         for r in raw_results:
-            if r["similarity"] < req.threshold:
-                continue
+            vec_sim = r["similarity"]
             meta = r.get("metadata", {})
-            results.append({
+
+            # 关键词匹配加权
+            kw_boost = 0.0
+            if query_terms:
+                title = (meta.get("title") or "").lower()
+                tags = (meta.get("tags") or "").lower()
+                category = (meta.get("category") or "").lower()
+                doc = (r.get("document") or "").lower()
+
+                for term in query_terms:
+                    if term in title:
+                        kw_boost += 0.15  # 标题命中权重最高
+                    if term in tags:
+                        kw_boost += 0.10  # 标签命中
+                    if term in category:
+                        kw_boost += 0.08  # 分类命中
+                    if term in doc:
+                        kw_boost += 0.05  # 正文命中
+
+            # 混合得分 = 向量相似度(70%) + 关键词加权(30%)，上限 1.0
+            hybrid_score = min(1.0, vec_sim * 0.7 + min(kw_boost, 0.3) * 1.0)
+
+            # 阈值过滤（使用混合得分）
+            if hybrid_score < req.threshold:
+                continue
+
+            scored_results.append({
                 "problemId": int(meta.get("problem_id", 0)),
                 "problemNo": meta.get("problem_no", ""),
                 "title": meta.get("title", ""),
-                "similarity": round(r["similarity"], 4),
+                "similarity": round(hybrid_score, 4),
+                "vecSimilarity": round(vec_sim, 4),
+                "kwBoost": round(kw_boost, 4),
                 "category": meta.get("category", ""),
                 "difficulty": meta.get("difficulty", ""),
                 "tags": meta.get("tags", ""),
             })
 
-        return {"results": results, "total": len(results), "query": req.query}
+        # 3. 按混合得分降序排列
+        scored_results.sort(key=lambda x: x["similarity"], reverse=True)
+
+        # 4. 截取 top_k
+        scored_results = scored_results[:req.top_k]
+
+        return {"results": scored_results, "total": len(scored_results), "query": req.query}
     except Exception as e:
         logger.error("检索失败: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

@@ -13,5 +13,6 @@ public class VectorEmbedRequest {
     private String category;
     private String difficulty;
     private String description;
+    private String solution;
     private String problemNo;
 }

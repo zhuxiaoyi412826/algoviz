@@ -57,6 +57,39 @@ public class VectorSearchService {
     }
 
     /**
+     * 批量同步题目到向量库（批量导入时触发，异步提交）
+     */
+    public void syncBatch(List<InterviewProblem> problems) {
+        if (problems == null || problems.isEmpty()) return;
+        try {
+            List<VectorEmbedRequest> reqList = problems.stream()
+                    .filter(Objects::nonNull)
+                    .filter(p -> p.getId() != null)
+                    .map(this::toEmbedRequest)
+                    .toList();
+            if (reqList.isEmpty()) return;
+            VectorBatchEmbedRequest batchReq = new VectorBatchEmbedRequest();
+            batchReq.setProblems(reqList);
+            vectorClient.embedBatch(batchReq);
+            log.info("[向量同步] 批量同步已提交: {} 条", reqList.size());
+        } catch (Exception e) {
+            log.warn("[向量同步] 批量同步失败: {} 条, err={}", problems.size(), e.getMessage());
+        }
+    }
+
+    /**
+     * 批量删除向量
+     */
+    public void deleteBatch(List<Long> problemIds) {
+        if (problemIds == null || problemIds.isEmpty()) return;
+        for (Long id : problemIds) {
+            if (id != null) {
+                delete(id);
+            }
+        }
+    }
+
+    /**
      * 删除向量
      */
     public void delete(Long problemId) {
@@ -180,6 +213,7 @@ public class VectorSearchService {
         req.setCategory(p.getCategory());
         req.setDifficulty(p.getDifficulty());
         req.setDescription(p.getDescription());
+        req.setSolution(p.getSolution());
         return req;
     }
 }

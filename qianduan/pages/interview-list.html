@@ -579,7 +579,7 @@
 
             try {
                 var apiBase = resolveApiBase();
-                var resp = await fetch(apiBase + '/api/vector/search?query=' + encodeURIComponent(query) + '&topK=20', {
+                var resp = await fetch(apiBase + '/api/vector/search?query=' + encodeURIComponent(query) + '&topK=30', {
                     credentials: 'include',
                     headers: { 'Accept': 'application/json' }
                 });

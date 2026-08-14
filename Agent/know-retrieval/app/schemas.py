@@ -10,6 +10,7 @@ class EmbedRequest(BaseModel):
     category: str = Field("", description="分类")
     difficulty: str = Field("", description="难度")
     description: str = Field("", description="题目描述")
+    solution: str = Field("", description="题解")
     problem_no: str = Field("", alias="problemNo", description="题目编号")
 
     model_config = {"populate_by_name": True}
@@ -23,8 +24,8 @@ class BatchEmbedRequest(BaseModel):
 class SearchRequest(BaseModel):
     """语义检索请求"""
     query: str = Field(..., description="搜索文本")
-    top_k: int = Field(10, alias="topK", description="返回数量")
-    threshold: float = Field(0.35, description="相似度阈值")
+    top_k: int = Field(20, alias="topK", description="返回数量")
+    threshold: float = Field(0.3, description="混合得分阈值")
 
     model_config = {"populate_by_name": True}
 
