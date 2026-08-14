@@ -34,7 +34,7 @@ public class InterviewUserServiceImpl implements InterviewUserService {
                                                      String tag, Integer onlyFrequent,
                                                      String sortBy, String order, int page, int pageSize) {
         page = Math.max(page, 1);
-        pageSize = pageSize <= 0 ? 10 : Math.min(pageSize, 200);
+        pageSize = pageSize <= 0 ? 10 : Math.min(pageSize, 500);
         int offset = (page - 1) * pageSize;
         List<InterviewProblem> list = problemMapper.selectFrontList(
                 keyword, difficulty, category, tag, onlyFrequent, sortBy, order, offset, pageSize);
@@ -94,7 +94,7 @@ public class InterviewUserServiceImpl implements InterviewUserService {
     @Override
     public PageResult<InterviewUserListVO> listFavorites(Long userId, int page, int pageSize) {
         page = Math.max(page, 1);
-        pageSize = pageSize <= 0 ? 10 : Math.min(pageSize, 200);
+        pageSize = pageSize <= 0 ? 10 : Math.min(pageSize, 500);
         int offset = (page - 1) * pageSize;
         List<InterviewFavorite> favs = userMapper.selectFavoritesByUser(userId, offset, pageSize);
         int total = userMapper.countFavoritesByUser(userId);
@@ -121,7 +121,7 @@ public class InterviewUserServiceImpl implements InterviewUserService {
     @Override
     public PageResult<InterviewUserListVO> listHistory(Long userId, int page, int pageSize) {
         page = Math.max(page, 1);
-        pageSize = pageSize <= 0 ? 10 : Math.min(pageSize, 200);
+        pageSize = pageSize <= 0 ? 10 : Math.min(pageSize, 500);
         int offset = (page - 1) * pageSize;
         List<InterviewHistory> his = userMapper.selectHistoryByUser(userId, offset, pageSize);
         int total = userMapper.countHistoryByUser(userId);
@@ -231,7 +231,7 @@ public class InterviewUserServiceImpl implements InterviewUserService {
     @Override
     public PageResult<InterviewProblem> search(String keyword, int page, int pageSize) {
         page = Math.max(page, 1);
-        pageSize = pageSize <= 0 ? 10 : Math.min(pageSize, 200);
+        pageSize = pageSize <= 0 ? 10 : Math.min(pageSize, 500);
         int offset = (page - 1) * pageSize;
         List<InterviewProblem> list = problemMapper.selectFrontSearch(keyword, offset, pageSize);
         int total = problemMapper.countFrontSearch(keyword);

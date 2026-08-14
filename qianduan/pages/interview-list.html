@@ -135,6 +135,69 @@
             transform: translateY(-50%);
             font-size: 14px;
         }
+
+        /* ========== 语义搜索区 ========== */
+        .semantic-search-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+        .semantic-search-box {
+            position: relative;
+            flex: 1;
+        }
+        .semantic-search-box input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            background: var(--bg-card);
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 15px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .semantic-search-box input:focus {
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+        }
+        .semantic-search-box::before {
+            content: '🧠';
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+        }
+        .semantic-search-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+        .semantic-search-btn:hover { opacity: 0.9; }
+        .semantic-search-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .semantic-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border: 1px solid var(--primary);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--primary);
+            font-weight: 500;
+        }
         .filter-select {
             padding: 10px 14px;
             background: var(--bg-card);
@@ -376,6 +439,16 @@
             </div>
         </div>
 
+        <!-- 语义搜索 -->
+        <div class="semantic-search-bar">
+            <div class="semantic-search-box">
+                <input type="text" id="semanticSearchInput" placeholder="AI 语义搜索：输入你想学的知识点，如「动态规划入门」「链表反转」「二叉树遍历」...">
+            </div>
+            <button class="semantic-search-btn" id="semanticSearchBtn">
+                <span class="semantic-badge">AI 搜索</span>
+            </button>
+        </div>
+
         <!-- 筛选 -->
         <div class="list-filters">
             <div class="search-box">
@@ -448,6 +521,8 @@
         var filteredProblems = [];
         var currentPage = 1;
         var pageSize = 20;
+        var totalCount = 0;          // 后端返回的总数
+        var isSemanticMode = false;  // 是否语义搜索模式
 
         var DIFF_MAP = {
             'easy':   { label: '简单', cls: 'diff-easy' },
@@ -472,6 +547,76 @@
             if (icon) icon.textContent = next === 'dark' ? '🌙' : '☀️';
         }
 
+        // ========== 语义搜索 ==========
+        function resolveApiBase() {
+            try {
+                var u = new URL(location.href);
+                if (u.protocol === 'file:') return 'http://localhost:80';
+                var port = u.port || (u.protocol === 'https:' ? '443' : '80');
+                if (port === '80' || port === '443') return '';
+                var host = u.hostname || 'localhost';
+                var proto = u.protocol === 'https:' ? 'https' : 'http';
+                return proto + '://' + host + ':80';
+            } catch (e) {
+                return 'http://localhost:80';
+            }
+        }
+
+        async function semanticSearch() {
+            var query = document.getElementById('semanticSearchInput').value.trim();
+            if (!query) {
+                // 清空语义搜索 → 恢复全部列表
+                isSemanticMode = false;
+                loadPage(1);
+                return;
+            }
+
+            var btn = document.getElementById('semanticSearchBtn');
+            var input = document.getElementById('semanticSearchInput');
+            btn.disabled = true;
+            input.disabled = true;
+            btn.innerHTML = '<span class="semantic-badge">搜索中...</span>';
+
+            try {
+                var apiBase = resolveApiBase();
+                var resp = await fetch(apiBase + '/api/vector/search?query=' + encodeURIComponent(query) + '&topK=20', {
+                    credentials: 'include',
+                    headers: { 'Accept': 'application/json' }
+                });
+                var data = await resp.json();
+                var results = (data && data.data) || [];
+                // 复用 normalizeProblem 处理
+                semanticResults = results.map(normalizeProblem);
+                isSemanticMode = true;
+                currentPage = 1;
+
+                // 更新统计显示
+                document.getElementById('totalCount').textContent = semanticResults.length;
+
+                // 清空其他筛选器
+                document.getElementById('searchInput').value = '';
+                document.getElementById('difficultyFilter').value = '';
+                document.getElementById('tagFilter').value = '';
+                document.getElementById('statusFilter').value = '';
+
+                renderSemanticPage();
+
+                if (semanticResults.length === 0) {
+                    var content = document.getElementById('listContent');
+                    content.innerHTML = '<div class="list-empty"><div class="list-empty-icon">🤔</div><div>未找到语义匹配的题目，试试换个关键词</div></div>';
+                }
+            } catch (e) {
+                console.error('[语义搜索] 失败:', e);
+                alert('语义搜索服务暂不可用，已切换到关键词搜索');
+                isSemanticMode = false;
+                loadPage(1);
+            } finally {
+                btn.disabled = false;
+                input.disabled = false;
+                btn.innerHTML = '<span class="semantic-badge">AI 搜索</span>';
+            }
+        }
+
         // ========== 做题状态 ==========
         function getStatus(no) {
             return localStorage.getItem('iw_status_' + no) || 'todo';
@@ -480,7 +625,7 @@
         // ========== 初始化 ==========
         function normalizeProblem(p) {
             // 兼容后端（tags 字符串 / tagList 数组 / isFrequent 0|1）
-            var tags = Array.isArray(p.tagList) && p.tagList.length > 0 ? p.tagList : window.InterviewApi.splitTags(p.tags);
+            var tags = Array.isArray(p.tagList) && p.tagList.length > 0 ? p.tagList : (window.InterviewApi ? window.InterviewApi.splitTags(p.tags) : []);
             return {
                 id: p.id,
                 problemNo: p.problemNo || ('ID' + p.id),
@@ -493,18 +638,51 @@
             };
         }
 
-        async function fetchAllProblems() {
+        // 后端分页查询：每次翻页/筛选都请求后端
+        async function fetchPage(page, size) {
+            var kw = document.getElementById('searchInput').value.trim();
+            var dv = document.getElementById('difficultyFilter').value;
+            var tv = document.getElementById('tagFilter').value;
+            // statusFilter 是前端 localStorage 做题状态，不传后端
+            var params = { page: page, pageSize: size, sortBy: 'id', order: 'asc' };
+            if (kw) params.keyword = kw;
+            if (dv) params.difficulty = dv;
+            if (tv) params.tag = tv;
+
+            if (window.InterviewApi && window.InterviewApi.listProblems) {
+                var result = await window.InterviewApi.listProblems(params);
+                if (result && Array.isArray(result.list)) {
+                    return { list: result.list.map(normalizeProblem), total: result.total || 0 };
+                }
+            }
+            return { list: STATIC_PROBLEMS.map(normalizeProblem), total: STATIC_PROBLEMS.length };
+        }
+
+        // 从后端获取标签列表（用于筛选器）
+        async function fetchTags() {
             try {
-                if (window.InterviewApi && window.InterviewApi.listProblems) {
-                    var page = await window.InterviewApi.listProblems({ page: 1, pageSize: 2000 });
-                    if (page && Array.isArray(page.list) && page.list.length > 0) {
-                        return page.list.map(normalizeProblem);
+                if (window.InterviewApi && window.InterviewApi.listTags) {
+                    var tags = await window.InterviewApi.listTags();
+                    if (Array.isArray(tags) && tags.length > 0) {
+                        // InterviewTagVO: {tagName, useCount}
+                        return tags.map(function(t) {
+                            return typeof t === 'string' ? t : (t.tagName || t.name || '');
+                        }).filter(Boolean);
                     }
                 }
-            } catch (e) {
-                console.warn('[interview] 使用后端列表失败，降级到静态兜底：', e);
-            }
-            return STATIC_PROBLEMS.map(normalizeProblem);
+            } catch (e) {}
+            return [];
+        }
+
+        // 从后端获取统计数据
+        async function fetchStats() {
+            try {
+                if (window.InterviewApi && window.InterviewApi.stats) {
+                    var s = await window.InterviewApi.stats();
+                    if (s) return s;
+                }
+            } catch (e) {}
+            return null;
         }
 
         async function initList() {
@@ -512,37 +690,118 @@
             var themeBtn = document.getElementById('themeToggle');
             if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
-            // 从后端加载全部题目
-            allProblems = await fetchAllProblems();
+            // 并行加载：标签列表 + 统计数据 + 第一页题目
+            var tagsPromise = fetchTags();
+            var statsPromise = fetchStats();
+            var pagePromise = loadPage(1);
 
-            buildTagFilter();
-            updateStats();
-            applyFilters();
+            // 构建标签筛选器
+            var tags = await tagsPromise;
+            buildTagFilterFromList(tags);
 
-            // 绑定筛选事件
-            document.getElementById('searchInput').addEventListener('input', applyFilters);
-            document.getElementById('difficultyFilter').addEventListener('change', applyFilters);
-            document.getElementById('tagFilter').addEventListener('change', applyFilters);
-            document.getElementById('statusFilter').addEventListener('change', applyFilters);
+            // 更新统计（优先用后端 stats 接口）
+            var stats = await statsPromise;
+            if (stats) {
+                updateStatsFromBackend(stats);
+            }
+
+            // 等待第一页数据加载完成
+            await pagePromise;
+
+            // 绑定筛选事件（搜索框用 debounce 避免频繁请求）
+            var searchTimer = null;
+            document.getElementById('searchInput').addEventListener('input', function() {
+                if (searchTimer) clearTimeout(searchTimer);
+                searchTimer = setTimeout(function() {
+                    isSemanticMode = false;
+                    document.getElementById('semanticSearchInput').value = '';
+                    loadPage(1);
+                }, 400);
+            });
+            document.getElementById('difficultyFilter').addEventListener('change', function() {
+                isSemanticMode = false;
+                loadPage(1);
+            });
+            document.getElementById('tagFilter').addEventListener('change', function() {
+                isSemanticMode = false;
+                loadPage(1);
+            });
+            document.getElementById('statusFilter').addEventListener('change', function() {
+                // 做题状态筛选在前端做（只过滤当前页）
+                renderCurrentPage();
+            });
             document.getElementById('pageSizeSelect').addEventListener('change', function(e) {
                 pageSize = parseInt(e.target.value);
                 currentPage = 1;
-                render();
+                loadPage(1);
             });
             document.getElementById('prevPageBtn').addEventListener('click', function() {
-                if (currentPage > 1) { currentPage--; render(); }
+                if (currentPage > 1) { currentPage--; loadPage(currentPage); }
             });
             document.getElementById('nextPageBtn').addEventListener('click', function() {
-                var tp = Math.ceil(filteredProblems.length / pageSize);
-                if (currentPage < tp) { currentPage++; render(); }
+                var tp = Math.ceil(totalCount / pageSize);
+                if (currentPage < tp) { currentPage++; loadPage(currentPage); }
+            });
+
+            // 绑定语义搜索
+            document.getElementById('semanticSearchBtn').addEventListener('click', semanticSearch);
+            document.getElementById('semanticSearchInput').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') semanticSearch();
             });
         }
 
+        // ========== 后端分页加载 ==========
+        var currentPageData = []; // 当前页数据
+
+        async function loadPage(page) {
+            currentPage = page;
+            var content = document.getElementById('listContent');
+            content.innerHTML = '<div class="list-loading"><div class="list-spinner"></div><div>加载中...</div></div>';
+
+            try {
+                var result;
+                if (isSemanticMode) {
+                    // 语义搜索模式：前端分页（语义搜索结果在前端切片）
+                    renderSemanticPage();
+                    return;
+                }
+                result = await fetchPage(page, pageSize);
+                currentPageData = result.list;
+                totalCount = result.total;
+                filteredProblems = result.list;
+                render();
+            } catch (e) {
+                console.error('[分页] 加载失败:', e);
+                content.innerHTML = '<div class="list-empty"><div class="list-empty-icon">⚠️</div><div>加载失败，请刷新重试</div></div>';
+            }
+        }
+
+        function renderCurrentPage() {
+            // 做题状态筛选（仅前端过滤当前页数据）
+            var sv = document.getElementById('statusFilter').value;
+            if (!sv) {
+                filteredProblems = currentPageData;
+            } else {
+                filteredProblems = currentPageData.filter(function(p) { return p.status === sv; });
+            }
+            render();
+        }
+
+        // 语义搜索结果的前端分页渲染
+        var semanticResults = [];
+        function renderSemanticPage() {
+            var totalPages = Math.max(1, Math.ceil(semanticResults.length / pageSize));
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+            var start = (currentPage - 1) * pageSize;
+            var end = Math.min(start + pageSize, semanticResults.length);
+            filteredProblems = semanticResults.slice(start, end);
+            totalCount = semanticResults.length;
+            render();
+        }
+
         // ========== 标签筛选器 ==========
-        function buildTagFilter() {
-            var set = {};
-            allProblems.forEach(function(p) { p.tags.forEach(function(t) { set[t] = true; }); });
-            var tags = Object.keys(set).sort();
+        function buildTagFilterFromList(tags) {
             var sel = document.getElementById('tagFilter');
             sel.innerHTML = '<option value="">全部标签</option>';
             tags.forEach(function(t) {
@@ -553,40 +812,30 @@
         }
 
         // ========== 统计 ==========
-        function updateStats() {
-            var e = 0, m = 0, h = 0;
-            allProblems.forEach(function(p) {
-                if (p.difficulty === 'easy') e++;
-                else if (p.difficulty === 'medium') m++;
-                else if (p.difficulty === 'hard') h++;
-            });
-            document.getElementById('totalCount').textContent = allProblems.length;
-            document.getElementById('easyCount').textContent = e;
-            document.getElementById('mediumCount').textContent = m;
-            document.getElementById('hardCount').textContent = h;
+        function updateStatsFromBackend(stats) {
+            // InterviewFrontStats: {totalView, totalCollect, totalLike, totalDislike}
+            // 没有题目总数和难度分布，用 totalCount（来自分页接口）补充
+            document.getElementById('totalCount').textContent = totalCount;
+            // 难度分布需要单独查询，这里先置空
+            if (stats) {
+                document.getElementById('easyCount').textContent = '-';
+                document.getElementById('mediumCount').textContent = '-';
+                document.getElementById('hardCount').textContent = '-';
+            }
+            // 异步查询各难度数量
+            fetchDifficultyCounts();
         }
 
-        // ========== 筛选 ==========
-        function applyFilters() {
-            var kw = document.getElementById('searchInput').value.toLowerCase().trim();
-            var dv = document.getElementById('difficultyFilter').value;
-            var tv = document.getElementById('tagFilter').value;
-            var sv = document.getElementById('statusFilter').value;
-
-            filteredProblems = allProblems.slice();
-
-            if (kw) {
-                filteredProblems = filteredProblems.filter(function(p) {
-                    return p.title.toLowerCase().indexOf(kw) !== -1 ||
-                           p.tags.some(function(t) { return t.toLowerCase().indexOf(kw) !== -1; });
-                });
+        // 异步获取各难度的题目数量
+        async function fetchDifficultyCounts() {
+            var diffs = ['easy', 'medium', 'hard'];
+            for (var i = 0; i < diffs.length; i++) {
+                try {
+                    var r = await window.InterviewApi.listProblems({ page: 1, pageSize: 1, difficulty: diffs[i] });
+                    var el = document.getElementById(diffs[i] + 'Count');
+                    if (el && r && r.total !== undefined) el.textContent = r.total;
+                } catch (e) {}
             }
-            if (dv) filteredProblems = filteredProblems.filter(function(p) { return p.difficulty === dv; });
-            if (tv) filteredProblems = filteredProblems.filter(function(p) { return p.tags.indexOf(tv) !== -1; });
-            if (sv) filteredProblems = filteredProblems.filter(function(p) { return p.status === sv; });
-
-            currentPage = 1;
-            render();
         }
 
         // ========== 渲染 ==========
@@ -594,19 +843,20 @@
             var content = document.getElementById('listContent');
             var bar = document.getElementById('paginationBar');
 
-            if (filteredProblems.length === 0) {
+            if (!filteredProblems || filteredProblems.length === 0) {
                 bar.style.display = 'none';
                 content.innerHTML = '<div class="list-empty"><div class="list-empty-icon">📭</div><div>未找到匹配的题目</div></div>';
                 return;
             }
 
-            var totalPages = Math.max(1, Math.ceil(filteredProblems.length / pageSize));
+            // 后端分页：filteredProblems 已经是当前页数据
+            var totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
             if (currentPage > totalPages) currentPage = totalPages;
             if (currentPage < 1) currentPage = 1;
 
+            var pageData = filteredProblems;
             var start = (currentPage - 1) * pageSize;
-            var end = Math.min(start + pageSize, filteredProblems.length);
-            var pageData = filteredProblems.slice(start, end);
+            var end = Math.min(start + pageData.length, totalCount);
 
             // 构建表格
             var html = '<table class="problem-table"><thead><tr>' +
@@ -639,9 +889,9 @@
             content.innerHTML = html;
 
             // 分页
-            document.getElementById('pageStart').textContent = filteredProblems.length === 0 ? 0 : start + 1;
-            document.getElementById('pageEnd').textContent = end;
-            document.getElementById('pageTotal').textContent = filteredProblems.length;
+            document.getElementById('pageStart').textContent = totalCount === 0 ? 0 : start + 1;
+            document.getElementById('pageEnd').textContent = start + pageData.length;
+            document.getElementById('pageTotal').textContent = totalCount;
             document.getElementById('currentPage').textContent = currentPage;
             document.getElementById('totalPages').textContent = totalPages;
             document.getElementById('prevPageBtn').disabled = currentPage <= 1;

@@ -43,7 +43,9 @@ const menuList = [
       { path: '/content/testcase', name: 'TestCase', meta: { title: '测试用例管理' } },
       { path: '/content/judge-config', name: 'JudgeConfig', meta: { title: '判题规则配置' } },
       { path: '/content/ai-prompt', name: 'AIPrompt', meta: { title: 'AI快捷提示词' } },
-      { path: '/content/ai-config', name: 'AIConfig', meta: { title: 'AI接口配置' } }
+      { path: '/content/ai-config', name: 'AIConfig', meta: { title: 'AI接口配置' } },
+      { path: '/content/vector-manage', name: 'VectorManage', meta: { title: '向量数据库' } },
+      { path: '/content/chromadb-monitor', name: 'ChromaDBMonitor', meta: { title: 'ChromaDB实时检测' } }
     ]
   },
   {

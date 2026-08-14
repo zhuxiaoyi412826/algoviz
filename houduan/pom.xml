@@ -91,6 +91,19 @@
             <version>1.17.2</version>
         </dependency>
         
+        <!-- OpenFeign：调用 Python 向量检索服务 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+            <version>4.1.0</version>
+        </dependency>
+        <!-- Feign 依赖的 HttpClient5（替代默认 HttpURLConnection，支持连接池） -->
+        <dependency>
+            <groupId>io.github.openfeign</groupId>
+            <artifactId>feign-hc5</artifactId>
+            <version>13.2.1</version>
+        </dependency>
+
         <!-- 测试依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

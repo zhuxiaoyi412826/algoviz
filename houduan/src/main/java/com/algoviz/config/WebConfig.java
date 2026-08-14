@@ -63,6 +63,9 @@ public class WebConfig implements WebMvcConfigurer {
                         // OJ 题目管理（后台管理接口，使用独立 Bearer Token 鉴权）
                         "/api/problems",
                         "/api/problems/**",
+                        // 向量检索服务（管理端 Bearer Token 鉴权，用户端公开搜索）
+                        "/api/vector",
+                        "/api/vector/**",
                         // Knife4j / Swagger 文档资源
                         "/doc.html",
                         "/webjars/**",

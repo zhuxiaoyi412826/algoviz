@@ -263,4 +263,11 @@
         </where>
         ORDER BY id ASC
     </select>
+
+    <!-- ============ 按 ID 列表批量查询 ============ -->
+    <select id="selectByIds" resultMap="ProblemResultMap">
+        SELECT <include refid="baseColumns"/> FROM interview_problem
+        WHERE is_deleted = 0 AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </select>
 </mapper>

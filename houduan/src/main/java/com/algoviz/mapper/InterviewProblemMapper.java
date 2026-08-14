@@ -79,4 +79,7 @@ public interface InterviewProblemMapper {
     // === 批量导入导出 ===
     List<InterviewProblem> listAllForExport(@Param("difficulty") String difficulty,
                                             @Param("category") String category);
+
+    // === 按 ID 列表批量查询（向量检索后查 MySQL） ===
+    List<InterviewProblem> selectByIds(@Param("ids") List<Long> ids);
 }

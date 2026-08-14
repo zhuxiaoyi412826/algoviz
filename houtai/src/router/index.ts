@@ -118,6 +118,18 @@ const routes: RouteRecordRaw[] = [
             name: 'AIConfig',
             component: () => import('@/views/content/AIConfig.vue'),
             meta: { title: 'AI接口配置', roles: ['super_admin'] }
+          },
+          {
+            path: 'vector-manage',
+            name: 'VectorManage',
+            component: () => import('@/views/content/VectorManage.vue'),
+            meta: { title: '向量数据库' }
+          },
+          {
+            path: 'chromadb-monitor',
+            name: 'ChromaDBMonitor',
+            component: () => import('@/views/content/ChromaDBMonitor.vue'),
+            meta: { title: 'ChromaDB实时检测' }
           }
         ]
       },
