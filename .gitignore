@@ -1,18 +1,14 @@
-node_modules/
-test/
-application.yml/
-avi/
-dist/
-
-
+# 忽略所有目录下这些文件
+**/node_modules/
 **/target/
 **/build/
 **/dist/
 **/data/
 **/__pycache__/
 
-
-.DS_Store
+# 忽略所有文件夹下这些文件
+*.log
+*.DS_Store
 *.log
 *.class
 *.swp
@@ -35,7 +31,7 @@ __pycache__/
 /vendor
 *.egg-info/
 /.env
-.env
+*.env
 
 # JS/TS bundlers & build outputs
 .next
