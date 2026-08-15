@@ -1,12 +1,9 @@
-node_modules
 node_modules/
 data/
-application.yml
+test/
 application.yml/
-avi
-application.yml
 avi/
-dist
+dist/
 .DS_Store
 *.log
 *.class

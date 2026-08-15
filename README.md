@@ -5,106 +5,112 @@
 AlgoViz 是一个交互式的数据结构和算法可视化学习网站，帮助用户通过动画深入理解常见数据结构和经典算法的执行过程。
 **访问地址**:
 
-后台管理访问地址:
+后台管理访问地址:5000
+
+前台访问管理地址: localhsot:5500
+
+后端地址:localhost:80
 
 ## 技术栈
 
-- **前台**: 原生 HTML5 + CSS3 + JavaScript (ES6+)
-- **后台管理:** VUE+Vite
-- **样式**: 自定义 CSS (无框架依赖)
-- **字体**: Inter (正文) + Fira Code (代码)
-- **后端**: Spring Boot 3.2.0  jdk 17
-- **数据库**: MySQL 8.0
-- **部署环境**: Apache Tomcat (前端) + Java JAR (后端) + Node.js CORS代理
+| 层级     | 技术栈                                                       |
+| -------- | ------------------------------------------------------------ |
+| 前台门户 | 原生 HTML5 + CSS3 + JavaScript                               |
+| 后台管理 | Vue3 + Vite + Element Plus + ECharts                         |
+| 后端服务 | Spring Boot 3.2.0 + JDK 17 + MyBatis‑Plus SpringAI           |
+| 向量服务 | Python FastAPI + Uvicorn + SentenceTransformers              |
+| 数据库   | MySQL 8.0（业务库） + ChromaDB 1.5.9（向量库）+Redis（缓存） |
+| AI 模型  | DeepSeek（对话大模型） + BAAI/bge‑small‑zh‑v1.5（文本向量化） |
+| 通信方式 | OpenFeign（Java ↔ Python） + RESTful API                     |
 
-| 技术            | 版本        | 用途                                 |
-| --------------- | ----------- | ------------------------------------ |
-| Spring Boot     | 3.2.0       | 后端主框架                           |
-| JDK             | 17          | 运行环境                             |
-| MyBatis         | 3.0.3       | ORM 数据库操作                       |
-| MySQL Connector | 父 pom 托管 | MySQL8.0 连接驱动                    |
-| Knife4j         | 4.5.0       | API 文档                             |
-| Lombok          | 1.18.30     | 代码简化                             |
-| commons-lang3   | 3.14.0      | 通用工具                             |
-| POI             | 5.2.5       | Excel 处理                           |
-| Maven Compiler  | 3.11.0      | 编译                                 |
-| Spring AI       | 1.0.0-M6    | 大模型接入、向量检索、RAG、Embedding |
-| Nginx           |             |                                      |
+| 技术                 | 版本        | 用途                                 |
+| -------------------- | ----------- | ------------------------------------ |
+| Spring Boot          | 3.2.0       | 后端主框架                           |
+| JDK                  | 17          | 运行环境                             |
+| MyBatis              | 3.0.3       | ORM 数据库操作                       |
+| MySQL Connector      | 父 pom 托管 | MySQL8.0 连接驱动                    |
+| SentenceTransformers |             | 语句转换向量                         |
+| ChromaDB             | 1.59        | 存储向量                             |
+| FastAPI + Uvicorn    |             | 向量检索                             |
+| Knife4j              | 4.5.0       | API 文档                             |
+| Lombok               | 1.18.30     | 代码简化                             |
+| commons-lang3        | 3.14.0      | 通用工具                             |
+| POI                  | 5.2.5       | Excel 处理                           |
+| Maven Compiler       | 3.11.0      | 编译                                 |
+| Spring AI            | 1.0.0-M6    | 大模型接入、向量检索、RAG、Embedding |
+| Nginx                |             |                                      |
+| OpenFeign            |             | 不同的组件之间通信使用               |
 
 ## 项目结构
 
-```
-
-```
-
-
-
-### 整体目录结构
-
-```
-AlgoVize/
-├── index.html                    # 首页
-├── pages/
-│   ├── datastructures.html       # 数据结构页面
-│   ├── algorithms.html           # 算法演示页面
-│   ├── oj.html                   # 在线OJ独立页面
-│   ├── ai.html                   # AI 智能助手页面
-│   ├── login.html                # 用户登录页面
-│   └── profile.html              # 个人中心页面
-├── styles/
-│   ├── main.css                  # 全局样式
-│   ├── datastructures.css        # 数据结构页样式
-│   ├── algorithms.css            # 算法页样式
-│   └── oj.css                    # 在线OJ样式
-├── js/
-│   ├── main.js                   # 首页脚本
-│   ├── ai-chat.js                # AI 助手对话逻辑
-│   ├── datastructures.js         # 数据结构页控制器
-│   ├── algorithms.js             # 算法页控制器
-│   ├── oj.js                     # 在线OJ前端逻辑
-│   ├── visualizations/
-│   │   ├── base.js               # 基类和配置
-│   │   ├── array.js              # 数组可视化
-│   │   ├── linkedlist.js         # 链表可视化
-│   │   ├── stack.js              # 栈可视化
-│   │   ├── queue.js              # 队列可视化
-│   │   ├── tree.js               # 二叉树可视化
-│   │   ├── hash.js               # 哈希表可视化
-│   │   ├── graph.js              # 图可视化
-│   │   └── heap.js               # 堆可视化
-│   └── algorithms/
-│       ├── sorting.js            # 排序算法
-│       ├── searching.js          # 查找算法
-│       ├── traversal.js          # 树遍历
-│       ├── graph.js              # 图遍历
-│       └── dijkstra.js            # Dijkstra算法
-├── houduan/                      # 后端 Spring Boot 项目
-│   ├── src/main/java/com/algoviz/
-│   │   ├── controller/           # 控制器
-│   │   ├── service/              # 服务层
-│   │   ├── repository/           # 数据访问层
-│   │   ├── entity/               # 实体类
-│   │   ├── dto/                  # 数据传输对象
-│   │   └── config/               # 配置类
-│   ├── src/main/resources/
-│   │   └── application.yml        # 应用配置
-│   └── pom.xml                   # Maven 配置
-└── cors-proxy/                   # CORS代理服务器
-    ├── server.js                 # 代理服务器代码
-    └── package.json              # Node.js 依赖配置
-```
+| 目录     | 项目说明              |
+| -------- | --------------------- |
+| Agent    | 智能体 Agent 开发项目 |
+| houduan  | 后端核心业务服务      |
+| houtai   | 后台管理系统          |
+| qianduan | 前端门户网站          |
+| bin      | 一些脚本文件          |
 
 ## 部署
 
 ### 开发环境
 
-前台  使用Go live 访问idnex.html 
+#### 前置环境
 
-后台管理系统  npm install npm run dev 
+**启动顺序** 
 
-后台管理系统  mvn spring-boot:run
+**MySQL → Redis → ChromaDB → Java 后端 → Agent 服务 → 前端页面**。
 
-mysql jdk maven
+**后端业务、后台管理系统**
+
+- JDK
+- MySQL
+- Maven
+- Redis
+
+**Agent 智能体服务**
+
+依赖 Python 包：
+
+- fastapi
+- uvicorn
+- chromadb
+- sentence‑transformers（使用模型：BAAI/bge‑small‑zh‑v1.5）
+- numpy
+- pydantic
+
+#### 核心启动
+
+**1.后端Java服务**
+
+```
+mvn spring-boot:run
+```
+
+**2. 前端门户网站（qianduan）**
+
+使用 VSCode `Go Live` 插件，直接打开访问 `index.html`
+
+**3. 后台管理系统（houtai）**
+
+```
+npm install
+npm run dev
+```
+
+#### agent智能体启动
+
+agent/know-retrieval目录下
+
+```
+python run.py
+```
+
+向量数据库启动
+
+```
+chroma run --path ./chroma_data --host 0.0.0.0 --port 8000
+```
 
 ### 服务端部署
 
@@ -225,25 +231,30 @@ server {
 
 ### Docker
 
+
+
 ## 功能特性
 
 ### 前台
 
+#### 支付
+
+1. **权限分级**：基础可视化功能免费开放；高清 GIF 导出、大文件解析、高阶算法模块（线段树、图复杂演示）需要解锁付费权限
+2. **支付流程**：前端生成微信支付二维码，轮询查询支付状态；后端对接微信支付 API，生成预支付订单，校验回调通知
+3. **订单管理**：生成用户订单记录，保存订单号、支付时间、过期时长；支付成功自动解锁对应功能权限，权限和用户账号绑定
+4. **回调与异常处理**：处理支付超时、用户取消支付、重复回调；支付失败支持重新唤起支付；支付成功实时刷新页面解锁功能，无需刷新页面
+
 #### 数据结构可视化
 
-**自定义数据输入**
-
-- **文件上传**: 支持 .txt、.json、.csv 格式文件上传
-- **快速预设**: 提供随机10个、随机20个、近乎有序、倒序等快捷预设
-- 支持逗号分隔的手动输入
-
-**动画导出**
-
-- 支持将算法执行过程导出为 GIF 动画
-- 导出时显示进度条（录制中→生成GIF→完成）
-- 自动下载生成的 GIF 文件
+- 10 种数据结构 ：数组、链表、栈、队列、哈希表、堆、树、图、线段树、并查集、Trie、KMP、UnionFind 等
+- 自定义数据输入 ：支持 .txt / .json / .csv 文件上传、随机生成、近乎有序、倒序预设、手动输入
+- 动画演示 ：逐步执行过程可视化
+- 动画导出 ：算法执行过程导出为 GIF 动画（带进度条）
 
 #### 算法可视化演示
+
+- 排序算法 ：冒泡、选择、插入、希尔、归并、快速、堆、桶、计数、基数（10 种）
+- 经典算法 ：动态规划、图搜索（BFS/DFS）、贪心、递归、字符串匹配、Dijkstra、KMP 等
 
 #### 在线OJ功能
 
@@ -252,25 +263,6 @@ server {
 - **判题系统**: 模拟判题逻辑，支持 AC/WA/CE/RE/TLE/MLE 等状态反馈
 - **编辑器功能**: 格式化、清空、复制、重置代码
 - **结果展示**: 执行时间、内存占用、运行结果对比
-
-**使用说明**
-
-1. **数据结构页面**: 选择数据结构类型 → 输入或随机生成数据 → 选择操作 → 观看动画
-2. **算法页面**: 选择算法演示模块 → 调整数据 → 点击播放 → 观看执行过程
-3. **在线OJ**: 进入独立"在线OJ"页面 → 选择题目 → 编写代码 → 运行/提交 → 查看结果
-4. **AI 助手**: 点击导航栏✨进入 AI 对话界面，随时提问算法原理和代码实现
-
-**自定义数据输入**
-
-- **文件上传**: 支持 .txt、.json、.csv 格式文件上传
-- **快速预设**: 提供随机10个、随机20个、近乎有序、倒序等快捷预设
-- 支持逗号分隔的手动输入
-
-**动画导出**
-
-- 支持将算法执行过程导出为 GIF 动画
-- 导出时显示进度条（录制中→生成GIF→完成）
-- 自动下载生成的 GIF 文件
 
 #### 🤖 智能 AI 助手 (DeepSeek)
 
@@ -285,6 +277,17 @@ server {
 - 支持亮色/暗色模式切换，自动保存到 LocalStorage
 - 所有页面保持一致的主题偏好
 
+#### 面试题库（语义搜索）
+- 关键词搜索 + AI 语义搜索 （双搜索框）
+- 题目分页浏览、难度/标签/分类筛选
+- 做题状态标记（待做/已做/收藏/点赞）
+- 题目详情 + Markdown 题解渲染
+####  用户系统
+
+- 微信公众号验证码登录（6 位数字验证码 + 2 秒轮询）
+- 暗色/亮色主题切换（LocalStorage 持久化）
+- 用户个人中心、金币系统、产品购买
+
 #### 登录
 
 **🔐 微信公众号登录**
@@ -293,6 +296,44 @@ server {
 - **实时状态轮询**: 前端每2秒轮询一次登录状态
 - **安全验证**: 支持微信消息签名验证和加密消息解密
 
+**账号密码登录**
+
 ### 后台
 
-## 未来更新
+#### 1. 内容管理
+- 算法/数据结构配置、动画配置、题目管理、测试用例、判题配置
+- 面试题目管理 ：新增/编辑/删除、JSON 批量导入、Excel 导入、AI 批量生成
+- 向量数据库管理 （ChromaDBMonitor）：向量数量/维度实时监控、向量数值查看、全量同步、向量列表分页
+#### 2. AI 配置
+- AI 模型配置（AIConfig）、Prompt 模板管理（AIPrompt）
+#### 3. 金币/订单系统
+- 金币商品管理、购买记录、订单列表、支付管理（微信支付）
+- 后台管理系统可查看全部支付订单、订单状态统计、用户付费记录，支持订单导出
+#### 4. 用户管理
+- 用户列表、用户行为分析、登录记录、管理员管理
+#### 5. 统计与监控
+- 数据看板（Dashboard）、数据导出、OJ 分析、可视化分析
+- 系统监控、资源监控、告警、操作日志、登录日志
+#### 6. 系统扩展
+- 公告管理、反馈管理、数据备份、第三方配置、系统配置
+
+## 核心业务模块
+
+### 1. 核心业务模块（27 个 Controller）
+- 认证 ：登录、管理员认证、微信登录
+- 面试题 ：管理端 CRUD + 用户端查询/点赞/收藏/浏览记录
+- OJ ：题目管理、提交判题、代码运行
+- AI ：AI 对话、AI 生成题目
+- 支付 ：微信支付、订单管理、金币系统
+- 内容 ：算法/数据结构/公告/反馈/文件上传导出
+- 向量 ：语义搜索、向量管理（全量同步、监控）
+### 2. 特色技术点
+- XSS 过滤 ：Jsoup 1.17.2 清洗 Markdown 富文本
+- Excel 导入导出 ：Apache POI 5.2.5
+- API 文档 ：Knife4j 4.5.0（自动生成中文接口文档）
+- AOP 日志 ：接口调用日志切面
+- 文件上传 ：10MB 限制，本地存储
+
+## 功能实现
+
+### 向量检索服务
