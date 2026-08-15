@@ -4,6 +4,11 @@ test/
 application.yml/
 avi/
 dist/
+target/
+**/target/
+**/build/
+**/dist/
+**/__pycache__/
 .DS_Store
 *.log
 *.class
