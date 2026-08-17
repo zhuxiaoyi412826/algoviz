@@ -57,7 +57,7 @@ yarn.lock
 .tox/
 
 # Go tooling
-bin/
+
 *.test
 
 # Editor / IDE
