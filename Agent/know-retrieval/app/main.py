@@ -1,6 +1,4 @@
 """FastAPI 应用入口"""
-import logging
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -16,8 +14,10 @@ from .schemas import (
 )
 from . import vector_store
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-logger = logging.getLogger(__name__)
+# ===== 全链路追踪：初始化日志 + 中间件 =====
+from .trace_middleware import TraceIdMiddleware, setup_logging, get_trace_id
+
+logger = setup_logging()  # 配置日志（控制台 + 文件，自动携带 TraceId）
 
 app = FastAPI(title="AlgoViz 向量检索服务", version="1.0.0", docs_url="/docs", redoc_url="/redoc")
 
@@ -29,6 +29,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# TraceId 全链路追踪中间件（必须在 CORS 之后，最早执行）
+app.add_middleware(TraceIdMiddleware)
 
 
 @app.get("/")
@@ -193,11 +196,12 @@ async def embed_single(req: EmbedRequest):
             raise HTTPException(status_code=400, detail="文本内容为空")
         meta = build_metadata(req)
         vector_store.upsert_problem(req.problem_id, text, meta)
+        logger.info("单条入库成功: problem_id=%s title=%s", req.problem_id, req.title)
         return {"success": True, "problem_id": req.problem_id}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("单条入库失败: %s", e, exc_info=True)
+        logger.error("单条入库失败: problem_id=%s error=%s", req.problem_id, e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -265,11 +269,16 @@ async def sync_status():
 async def search(req: SearchRequest):
     """混合检索：向量语义召回 + 关键词匹配加权排序"""
     try:
+        trace_id = get_trace_id()
+        logger.info("语义搜索开始: query='%s' top_k=%s threshold=%s", req.query, req.top_k, req.threshold)
+
         # 1. 向量召回 — 取更多候选（top_k * 3）以便后续重排
         candidate_k = max(req.top_k * 3, 30)
         raw_results = vector_store.search_by_text(req.query, candidate_k)
+        logger.info("向量召回完成: 候选数=%s", len(raw_results) if raw_results else 0)
 
         if not raw_results:
+            logger.info("语义搜索无结果: query='%s'", req.query)
             return {"results": [], "total": 0, "query": req.query}
 
         # 2. 关键词匹配加分
@@ -291,18 +300,17 @@ async def search(req: SearchRequest):
 
                 for term in query_terms:
                     if term in title:
-                        kw_boost += 0.15  # 标题命中权重最高
+                        kw_boost += 0.15
                     if term in tags:
-                        kw_boost += 0.10  # 标签命中
+                        kw_boost += 0.10
                     if term in category:
-                        kw_boost += 0.08  # 分类命中
+                        kw_boost += 0.08
                     if term in doc:
-                        kw_boost += 0.05  # 正文命中
+                        kw_boost += 0.05
 
-            # 混合得分 = 向量相似度(70%) + 关键词加权(30%)，上限 1.0
+            # 混合得分 = 向量相似度(70%) + 关键词加权(30%)
             hybrid_score = min(1.0, vec_sim * 0.7 + min(kw_boost, 0.3) * 1.0)
 
-            # 阈值过滤（使用混合得分）
             if hybrid_score < req.threshold:
                 continue
 
@@ -324,9 +332,13 @@ async def search(req: SearchRequest):
         # 4. 截取 top_k
         scored_results = scored_results[:req.top_k]
 
+        logger.info("语义搜索完成: query='%s' 返回=%s 条 最高相似度=%.4f",
+                     req.query, len(scored_results),
+                     scored_results[0]["similarity"] if scored_results else 0)
+
         return {"results": scored_results, "total": len(scored_results), "query": req.query}
     except Exception as e:
-        logger.error("检索失败: %s", e, exc_info=True)
+        logger.error("检索失败: query='%s' error=%s", req.query, e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

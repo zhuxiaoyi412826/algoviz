@@ -2,7 +2,9 @@
 <configuration>
 
     <property name="LOG_PATH" value="D:/rizi"/>
-    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+    <!-- 日志格式：时间 [TraceId] [线程] 级别 Logger - 消息 -->
+    <!-- %X{trace_id} 引用 MDC 中的 TraceId，由 TraceIdFilter 设置 -->
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{trace_id:-no-trace}] [%thread] %-5level %logger{36} - %msg%n"/>
 
     <!-- 控制台输出 Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
