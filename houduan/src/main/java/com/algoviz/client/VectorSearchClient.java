@@ -49,4 +49,43 @@ public interface VectorSearchClient {
     VectorPageResult vectorsList(@RequestParam("page") int page,
                                   @RequestParam("pageSize") int pageSize,
                                   @RequestParam(value = "keyword", defaultValue = "") String keyword);
+
+    // ===== Elasticsearch 分词搜索 + 索引管理 =====
+
+    /** ES 健康检查 */
+    @GetMapping("/api/v1/es/health")
+    Map<String, Object> esHealth();
+
+    /** ES 分词搜索（IK 分词器） */
+    @PostMapping("/api/v1/es-search")
+    Map<String, Object> esSearch(@RequestBody ESSearchRequest request);
+
+    /** ES 索引统计 */
+    @GetMapping("/api/v1/es/stats")
+    Map<String, Object> esStats();
+
+    /** 单条题目写入 ES 索引 */
+    @PostMapping("/api/v1/es/index/single")
+    Map<String, Object> esIndexSingle(@RequestBody ESIndexSingleRequest request);
+
+    /** 批量题目写入 ES 索引 */
+    @PostMapping("/api/v1/es/index/batch")
+    Map<String, Object> esIndexBatch(@RequestBody Map<String, Object> request);
+
+    /** 从 ES 索引删除单条题目 */
+    @DeleteMapping("/api/v1/es/index/{problemId}")
+    Map<String, Object> esDeleteIndex(@PathVariable("problemId") Long problemId);
+
+    /** 重建 ES 索引 */
+    @PostMapping("/api/v1/es/index/recreate")
+    Map<String, Object> esRecreateIndex();
+
+    /** 删除整个 ES 索引 */
+    @DeleteMapping("/api/v1/es/index")
+    Map<String, Object> esDeleteIndexAll();
+
+    /** 测试 IK 分词器 */
+    @GetMapping("/api/v1/es/test-analyzer")
+    Map<String, Object> esTestAnalyzer(@RequestParam(value = "text", defaultValue = "动态规划入门二叉树遍历") String text);
 }
+

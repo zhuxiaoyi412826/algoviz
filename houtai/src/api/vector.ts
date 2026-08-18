@@ -14,6 +14,10 @@ export const vectorApi = {
   syncAll: () =>
     request.post<any>('/vector/admin/sync-all'),
 
+  // 同步任务进度（轮询用）
+  syncProgress: () =>
+    request.get<any>('/vector/admin/sync/progress'),
+
   // 清空向量库
   clear: () =>
     request.post<any>('/vector/admin/clear'),
@@ -30,4 +34,29 @@ export const vectorApi = {
   // 向量分页列表（含对应题目信息）
   vectors: (params: { page?: number; pageSize?: number; keyword?: string }) =>
     request.get<any>('/vector/admin/vectors', { params }),
+
+  // ===== Elasticsearch 分词索引管理 =====
+  // ES 健康检查
+  esHealth: () =>
+    request.get<any>('/vector/admin/es/health'),
+
+  // ES 索引统计
+  esStats: () =>
+    request.get<any>('/vector/admin/es/stats'),
+
+  // 全量同步面试题到 ES 索引
+  esSyncAll: () =>
+    request.post<any>('/vector/admin/es/sync-all'),
+
+  // 重建 ES 索引（删除并重建）
+  esRecreate: () =>
+    request.post<any>('/vector/admin/es/recreate'),
+
+  // 删除整个 ES 索引
+  esDeleteIndex: () =>
+    request.delete<any>('/vector/admin/es/index'),
+
+  // 测试 IK 分词器
+  esTestAnalyzer: (text: string) =>
+    request.get<any>('/vector/admin/es/test-analyzer', { params: { text } }),
 }

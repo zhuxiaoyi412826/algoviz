@@ -7,6 +7,12 @@ CHROMA_PATH = os.getenv("CHROMA_PATH", "data/chroma_db")
 # Collection 名称
 COLLECTION_NAME = "interview_problems"
 
+# ==================== Elasticsearch 配置 ====================
+# ES 服务地址（IK 分词器已安装）
+ES_URL = os.getenv("ES_URL", "http://localhost:9200")
+# ES 面试题索引名（与 es_search.py 中 ES_INDEX 保持一致）
+ES_INDEX = "interview_problems"
+
 # 嵌入模型 - 使用本地已下载的模型，不再在线下载
 # HuggingFace 缓存根目录
 HF_CACHE_DIR = r"C:\Users\Administrator\.cache\huggingface\hub"

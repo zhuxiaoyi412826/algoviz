@@ -1,8 +1,9 @@
 """FastAPI 应用入口"""
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
-from .config import COLLECTION_NAME, EMBEDDING_MODEL, PORT
+from .config import COLLECTION_NAME, EMBEDDING_MODEL, PORT, ES_URL
 from .schemas import (
     BatchEmbedRequest,
     DeleteRequest,
@@ -13,6 +14,7 @@ from .schemas import (
     StatsResponse,
 )
 from . import vector_store
+from . import es_search
 
 # ===== 全链路追踪：初始化日志 + 中间件 =====
 from .trace_middleware import TraceIdMiddleware, setup_logging, get_trace_id
@@ -363,6 +365,205 @@ async def clear():
         return {"success": True, "message": "向量库已清空"}
     except Exception as e:
         logger.error("清空失败: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# ===== Elasticsearch 分词搜索 + 索引管理接口 =====
+# ============================================================
+
+class ESSearchRequest(BaseModel):
+    """ES 分词搜索请求"""
+    query: str = Field(..., description="搜索关键词")
+    top_k: int = Field(20, alias="topK", description="返回数量")
+    difficulty: str = Field("", description="难度过滤: easy/medium/hard")
+
+    model_config = {"populate_by_name": True}
+
+
+class ESIndexSingleRequest(BaseModel):
+    """单条题目写入 ES 索引（接受 Java 驼峰字段）"""
+    id: int
+    problem_no: str = Field("", alias="problemNo")
+    title: str = ""
+    tags: str = ""
+    category: str = ""
+    difficulty: str = ""
+    description: str = ""
+    content: str = ""
+    view_count: int = Field(0, alias="viewCount")
+    created_at: str = Field("", alias="createdAt")
+
+    model_config = {"populate_by_name": True}
+
+
+class ESIndexBatchRequest(BaseModel):
+    """批量题目写入 ES 索引"""
+    problems: list[dict] = Field(..., description="题目列表（每项字段同 ESIndexSingleRequest）")
+
+
+@app.get("/api/v1/es/health")
+async def es_health():
+    """ES 服务健康检查"""
+    try:
+        es = es_search.get_es_client(ES_URL)
+        if es is None:
+            return {"status": "offline", "message": "ES 客户端未初始化"}
+        return {"status": "ok", "es_url": ES_URL, "index": es_search.ES_INDEX}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/v1/es-search")
+async def es_search_problems(req: ESSearchRequest):
+    """ES 关键词分词搜索（IK 分词器）"""
+    try:
+        trace_id = get_trace_id()
+        logger.info("ES 分词搜索: query='%s' top_k=%s difficulty=%s",
+                     req.query, req.top_k, req.difficulty)
+
+        es = es_search.get_es_client(ES_URL)
+        if es is None:
+            raise HTTPException(status_code=503, detail="ES 服务不可用，请检查 Elasticsearch 是否启动")
+
+        # 确保索引存在
+        es_search.ensure_index(es)
+
+        # 执行搜索
+        result = es_search.search_problems(es, req.query, req.top_k, req.difficulty)
+        logger.info("ES 搜索完成: query='%s' 返回=%s 条 耗时=%sms",
+                     req.query, result.get("total", 0), result.get("took_ms", 0))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("ES 搜索失败: query='%s' error=%s", req.query, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/es/stats")
+async def es_stats():
+    """ES 索引统计信息"""
+    try:
+        es = es_search.get_es_client(ES_URL)
+        if es is None:
+            return {"exists": False, "count": 0, "message": "ES 服务不可用"}
+        return es_search.get_index_stats(es)
+    except Exception as e:
+        logger.error("ES 统计失败: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/es/index/single")
+async def es_index_single(req: ESIndexSingleRequest):
+    """单条题目写入 ES 索引（题目新增/修改时自动调用）"""
+    try:
+        es = es_search.get_es_client(ES_URL)
+        if es is None:
+            raise HTTPException(status_code=503, detail="ES 服务不可用")
+
+        es_search.ensure_index(es)
+        problem = {
+            "id": req.id,
+            "problemNo": req.problem_no,
+            "title": req.title,
+            "tags": req.tags,
+            "category": req.category,
+            "difficulty": req.difficulty,
+            "description": req.description,
+            "content": req.content,
+            "viewCount": req.view_count,
+            "createdAt": req.created_at,
+        }
+        ok = es_search.index_problem(es, problem)
+        if ok:
+            logger.info("ES 单条索引成功: id=%s title=%s", req.id, req.title)
+            return {"success": True, "id": req.id}
+        else:
+            raise HTTPException(status_code=500, detail="索引写入失败")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("ES 单条索引失败: id=%s error=%s", req.id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/es/index/batch")
+async def es_index_batch(req: ESIndexBatchRequest):
+    """批量题目写入 ES 索引"""
+    try:
+        es = es_search.get_es_client(ES_URL)
+        if es is None:
+            raise HTTPException(status_code=503, detail="ES 服务不可用")
+
+        es_search.ensure_index(es)
+        result = es_search.bulk_index_problems(es, req.problems)
+        logger.info("ES 批量索引完成: success=%s failed=%s",
+                     result.get("success", 0), result.get("failed", 0))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("ES 批量索引失败: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/v1/es/index/{problem_id}")
+async def es_delete_index(problem_id: int):
+    """从 ES 索引中删除单条题目（题目删除时自动调用）"""
+    try:
+        es = es_search.get_es_client(ES_URL)
+        if es is None:
+            return {"success": False, "message": "ES 服务不可用"}
+        ok = es_search.delete_problem_from_index(es, problem_id)
+        return {"success": ok, "id": problem_id}
+    except Exception as e:
+        logger.error("ES 索引删除失败: id=%s error=%s", problem_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/es/index/recreate")
+async def es_recreate_index():
+    """删除并重建 ES 索引（切换分词器或 mapping 变更时使用）"""
+    try:
+        es = es_search.get_es_client(ES_URL)
+        if es is None:
+            raise HTTPException(status_code=503, detail="ES 服务不可用")
+        ok = es_search.recreate_index(es)
+        return {"success": ok, "message": "索引已重建（使用 IK 分词器）" if ok else "索引重建失败"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("ES 索引重建失败: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/v1/es/index")
+async def es_delete_index_all():
+    """删除整个面试题索引"""
+    try:
+        es = es_search.get_es_client(ES_URL)
+        if es is None:
+            return {"success": False, "message": "ES 服务不可用"}
+        ok = es_search.delete_index(es)
+        return {"success": ok, "message": "索引已删除" if ok else "索引不存在或删除失败"}
+    except Exception as e:
+        logger.error("ES 索引删除失败: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/es/test-analyzer")
+async def es_test_analyzer(text: str = "动态规划入门二叉树遍历"):
+    """测试 IK 分词器分词效果"""
+    try:
+        es = es_search.get_es_client(ES_URL)
+        if es is None:
+            raise HTTPException(status_code=503, detail="ES 服务不可用")
+        return es_search.test_ik_analyzer(es, text)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("IK 分词测试失败: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

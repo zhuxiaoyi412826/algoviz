@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue'
 import {
   ElCard, ElButton, ElTag, ElDescriptions, ElDescriptionsItem,
-  ElMessage, ElMessageBox, ElIcon, ElStatistic, ElRow, ElCol
+  ElMessage, ElMessageBox, ElIcon, ElStatistic, ElRow, ElCol,
+  ElProgress, ElAlert, ElLink
 } from 'element-plus'
-import { Refresh, Delete, Connection, DataAnalysis, Cpu } from '@element-plus/icons-vue'
+import {
+  Refresh, Delete, Connection, DataAnalysis, Cpu,
+  Loading, Warning
+} from '@element-plus/icons-vue'
 import { vectorApi } from '@/api/vector'
 
 const loading = ref(false)
@@ -23,6 +27,112 @@ const healthStatus = ref({
   vectorCount: 0,
   model: ''
 })
+
+// ==================== 同步进度（新增） ====================
+const progress = reactive<{
+  inProgress: boolean
+  phase: 'idle' | 'preparing' | 'running' | 'completed' | 'failed'
+  taskType: 'vector_sync' | 'es_sync' | string
+  processed: number
+  failed: number
+  total: number
+  remaining: number
+  percent: number
+  message: string
+  lastError: string | null
+  elapsedSeconds: number | null
+  estimatedRemainingSeconds: number | null
+}>({
+  inProgress: false,
+  phase: 'idle',
+  taskType: 'none',
+  processed: 0,
+  failed: 0,
+  total: 0,
+  remaining: 0,
+  percent: 0,
+  message: '空闲中',
+  lastError: null,
+  elapsedSeconds: null,
+  estimatedRemainingSeconds: null
+})
+
+let progressTimer: number | null = null
+
+const fetchProgress = async () => {
+  try {
+    const snap: any = await vectorApi.syncProgress()
+    if (!snap) return
+    Object.assign(progress, {
+      inProgress: !!snap.inProgress,
+      phase: snap.phase || 'idle',
+      taskType: snap.taskType || 'none',
+      processed: snap.processed || 0,
+      failed: snap.failed || 0,
+      total: snap.total || 0,
+      remaining: snap.remaining || 0,
+      percent: Math.min(100, snap.percent || 0),
+      message: snap.message || '',
+      lastError: snap.lastError || null,
+      elapsedSeconds: snap.elapsedSeconds ?? null,
+      estimatedRemainingSeconds: snap.estimatedRemainingSeconds ?? null
+    })
+
+    // 非 inProgress 且 phase=completed/failed 时：最多再保留 30 秒显示，然后停止轮询
+    if (!progress.inProgress && progressTimer != null) {
+      // 用户能看到完成/失败的信息后再停（给 10 秒停留）
+      setTimeout(() => {
+        if (!progress.inProgress && progressTimer != null) {
+          stopProgressPolling()
+        }
+      }, 10_000)
+    }
+  } catch (e) {
+    // 静默，下一轮继续重试
+  }
+}
+
+const startProgressPolling = () => {
+  stopProgressPolling()
+  fetchProgress()
+  progressTimer = window.setInterval(fetchProgress, 1000)
+}
+
+const stopProgressPolling = () => {
+  if (progressTimer != null) {
+    clearInterval(progressTimer)
+    progressTimer = null
+  }
+}
+
+const formatSeconds = (sec: number | null): string => {
+  if (sec == null || sec < 0) return '计算中...'
+  if (sec === 0) return '0秒'
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  const s = sec % 60
+  if (h > 0) return `${h}小时${m}分${s}秒`
+  if (m > 0) return `${m}分${s}秒`
+  return `${s}秒`
+}
+
+const progressStatusType = computed(() => {
+  if (progress.phase === 'failed') return 'exception' as const
+  if (progress.phase === 'completed') return 'success' as const
+  if (progress.phase === 'preparing') return 'warning' as const
+  if (progress.inProgress) return undefined
+  return 'info' as const
+})
+
+const taskTypeLabel = computed(() => {
+  switch (progress.taskType) {
+    case 'vector_sync': return '向量同步'
+    case 'es_sync': return 'ES 索引同步'
+    default: return progress.taskType || '同步任务'
+  }
+})
+
+// ==================== 原功能 ====================
 
 const fetchStats = async () => {
   loading.value = true
@@ -48,7 +158,7 @@ const fetchHealth = async () => {
 const handleSyncAll = async () => {
   try {
     await ElMessageBox.confirm(
-      '确认将数据库中所有面试题重新向量化并同步到 Chroma？此操作可能需要几分钟。',
+      '确认将数据库中所有面试题重新向量化并同步到 Chroma？此操作会分批处理并显示实时进度。',
       '全量同步确认',
       { type: 'warning' }
     )
@@ -59,10 +169,14 @@ const handleSyncAll = async () => {
   syncing.value = true
   try {
     const res = await vectorApi.syncAll()
-    ElMessage.success(`同步完成！成功 ${res.success || 0} 条`)
-    await fetchStats()
+    if (res && res.submitted === false) {
+      ElMessage.warning(res.message || '有任务正在执行，不能重复提交')
+    } else {
+      ElMessage.success(res?.message || '已提交全量同步，下方将显示实时进度')
+    }
+    startProgressPolling()
   } catch (e: any) {
-    ElMessage.error('同步失败：' + (e.message || '未知错误'))
+    ElMessage.error('提交同步失败：' + (e.message || '未知错误'))
   } finally {
     syncing.value = false
   }
@@ -96,6 +210,16 @@ const isOnline = () => stats.value.status === 'running' || healthStatus.value.st
 onMounted(() => {
   fetchStats()
   fetchHealth()
+  // 首次进入页面检查是否已有进行中的任务（例如刚导入题目后）
+  fetchProgress().then(() => {
+    if (progress.inProgress) {
+      startProgressPolling()
+    }
+  })
+})
+
+onBeforeUnmount(() => {
+  stopProgressPolling()
 })
 </script>
 
@@ -177,15 +301,17 @@ onMounted(() => {
           :icon="Refresh"
           size="large"
           :loading="syncing"
+          :disabled="progress.inProgress"
           @click="handleSyncAll"
         >
-          全量同步面试题到向量库
+          {{ progress.inProgress && progress.taskType === 'vector_sync' ? '向量同步进行中...' : '全量同步面试题到向量库' }}
         </ElButton>
         <ElButton
           type="danger"
           :icon="Delete"
           size="large"
           :loading="clearing"
+          :disabled="progress.inProgress"
           @click="handleClear"
         >
           清空向量库
@@ -196,6 +322,94 @@ onMounted(() => {
         <p><strong>清空向量库</strong>：删除 Chroma 中所有向量数据，清空后需要重新同步。</p>
         <p><strong>模型说明</strong>：使用 BAAI/bge-small-zh-v1.5 中文嵌入模型，向量维度 512，cosine 相似度检索。</p>
       </div>
+    </ElCard>
+
+    <!-- ============= 同步进度条（核心新增，放在空白位置：操作卡片下方、向量内容表格上方） ============= -->
+    <ElCard
+      shadow="never"
+      class="progress-card"
+      v-show="progress.inProgress || progress.phase === 'completed' || progress.phase === 'failed' || progress.message !== '空闲中'"
+    >
+      <template #header>
+        <div class="progress-header">
+          <div class="progress-header-left">
+            <ElIcon v-if="progress.inProgress" class="spin-icon" :size="18" color="#409eff"><Loading /></ElIcon>
+            <ElIcon v-else-if="progress.phase === 'failed'" :size="18" color="#f56c6c"><Warning /></ElIcon>
+            <ElIcon v-else-if="progress.phase === 'completed'" :size="18" color="#67c23a"><Refresh /></ElIcon>
+            <span class="progress-title">
+              {{ taskTypeLabel }}进度
+              <ElTag :type="progress.phase === 'failed' ? 'danger' : (progress.phase === 'completed' ? 'success' : 'primary')" size="small" effect="plain" class="phase-tag">
+                {{
+                  progress.phase === 'preparing' ? '准备中'
+                  : progress.phase === 'running' ? '运行中'
+                  : progress.phase === 'completed' ? '完成'
+                  : progress.phase === 'failed' ? '失败' : '空闲'
+                }}
+              </ElTag>
+            </span>
+          </div>
+          <div class="progress-header-right">
+            <ElLink type="primary" :underline="false" @click="fetchStats" v-if="progress.phase === 'completed'">已完成，点击刷新向量数量</ElLink>
+          </div>
+        </div>
+      </template>
+
+      <!-- 进度条 -->
+      <ElProgress
+        :percentage="Number(progress.percent.toFixed(1))"
+        :status="progressStatusType"
+        :stroke-width="22"
+        :format="(p: number) => `${p}%`"
+        striped
+        striped-flow
+      />
+
+      <!-- 状态文案 -->
+      <div class="progress-message">
+        <span class="msg-label">当前状态</span>
+        <span class="msg-text">{{ progress.message || '-' }}</span>
+      </div>
+
+      <!-- 进度数字面板 -->
+      <div class="progress-stats">
+        <div class="stat-item">
+          <div class="stat-label">已导入</div>
+          <div class="stat-value stat-ok">{{ progress.processed }}</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <div class="stat-label">失败</div>
+          <div class="stat-value stat-err">{{ progress.failed }}</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <div class="stat-label">总数</div>
+          <div class="stat-value">{{ progress.total }}</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <div class="stat-label">剩余</div>
+          <div class="stat-value stat-warn">{{ progress.remaining }}</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <div class="stat-label">已用时间</div>
+          <div class="stat-value">{{ formatSeconds(progress.elapsedSeconds) }}</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <div class="stat-label">预计剩余</div>
+          <div class="stat-value" :class="progress.phase === 'running' ? 'stat-warn' : ''">{{ formatSeconds(progress.estimatedRemainingSeconds) }}</div>
+        </div>
+      </div>
+
+      <!-- 失败时显示具体错误 -->
+      <ElAlert v-if="progress.phase === 'failed' && progress.lastError"
+        type="error"
+        :title="'同步失败: ' + progress.lastError"
+        show-icon
+        class="fail-alert"
+      />
     </ElCard>
   </div>
 </template>
@@ -275,5 +489,115 @@ onMounted(() => {
 
 .action-tips p:last-child {
   margin-bottom: 0;
+}
+
+/* ============ 进度条新增样式 ============ */
+.progress-card {
+  margin-bottom: 20px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.progress-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.progress-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.phase-tag {
+  margin-left: 2px;
+}
+
+.progress-message {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  background: #ecf5ff;
+  border: 1px solid #d9ecff;
+  border-radius: 6px;
+}
+.progress-message .msg-label {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #409eff;
+}
+.progress-message .msg-text {
+  font-size: 13px;
+  color: #303133;
+  word-break: break-all;
+}
+
+.progress-stats {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 4px;
+}
+.stat-label {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 6px;
+}
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #303133;
+  font-variant-numeric: tabular-nums;
+}
+.stat-ok { color: #67c23a; }
+.stat-err { color: #f56c6c; }
+.stat-warn { color: #e6a23c; }
+.stat-divider {
+  width: 1px;
+  height: 36px;
+  align-self: center;
+  background: #ebeef5;
+}
+
+.fail-alert {
+  margin-top: 14px;
+}
+
+@media (max-width: 1024px) {
+  .progress-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .stat-divider:nth-child(7n) { display: none; }
 }
 </style>

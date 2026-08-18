@@ -206,6 +206,8 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
         syncTags("", p.getTags(), p.getCategory());
         // 自动同步到向量库
         vectorSearchService.syncSingle(p);
+        // 自动同步到 ES 索引
+        vectorSearchService.esSyncSingle(p);
         return p;
     }
 
@@ -233,6 +235,8 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
             syncTags(exist.getTags(), p.getTags(), p.getCategory());
             // 自动同步到向量库
             vectorSearchService.syncSingle(p);
+            // 自动同步到 ES 索引
+            vectorSearchService.esSyncSingle(p);
             return true;
         }
         return false;
@@ -252,6 +256,8 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
         if (ok) {
             // 自动从向量库删除
             vectorSearchService.delete(id);
+            // 自动从 ES 索引删除
+            vectorSearchService.esDelete(id);
         }
         return ok;
     }
@@ -263,6 +269,8 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
         if (n > 0) {
             // 自动从向量库删除
             vectorSearchService.deleteBatch(ids);
+            // 自动从 ES 索引删除
+            vectorSearchService.esDeleteBatch(ids);
         }
         return n;
     }
@@ -274,6 +282,8 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
         if (ok) {
             // 自动从向量库删除
             vectorSearchService.delete(id);
+            // 自动从 ES 索引删除
+            vectorSearchService.esDelete(id);
         }
         return ok;
     }
@@ -285,6 +295,8 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
         if (n > 0) {
             // 自动从向量库删除
             vectorSearchService.deleteBatch(ids);
+            // 自动从 ES 索引删除
+            vectorSearchService.esDeleteBatch(ids);
         }
         return n;
     }
@@ -333,6 +345,8 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
         // 自动批量同步到向量库（异步）
         if (!syncedProblems.isEmpty()) {
             vectorSearchService.syncBatch(syncedProblems);
+            // 自动批量同步到 ES 索引
+            vectorSearchService.esSyncBatch(syncedProblems);
         }
         return BatchImportResult.of(total, succ, fails.size(), fails);
     }

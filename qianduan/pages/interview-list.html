@@ -186,6 +186,36 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        /* ========== ES 分词搜索按钮 ========== */
+        .es-search-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+        .es-search-btn:hover { opacity: 0.9; }
+        .es-search-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .es-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(239, 68, 68, 0.1));
+            border: 1px solid #f59e0b;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #f59e0b;
+            font-weight: 500;
+        }
         .semantic-badge {
             display: inline-flex;
             align-items: center;
@@ -439,13 +469,16 @@
             </div>
         </div>
 
-        <!-- 语义搜索 -->
+        <!-- 语义搜索 + ES 分词搜索 -->
         <div class="semantic-search-bar">
             <div class="semantic-search-box">
                 <input type="text" id="semanticSearchInput" placeholder="AI 语义搜索：输入你想学的知识点，如「动态规划入门」「链表反转」「二叉树遍历」...">
             </div>
             <button class="semantic-search-btn" id="semanticSearchBtn">
                 <span class="semantic-badge">AI 搜索</span>
+            </button>
+            <button class="es-search-btn" id="esSearchBtn" title="使用 Elasticsearch + IK 分词器进行精确关键词搜索">
+                <span class="es-badge">ES 分词搜索</span>
             </button>
         </div>
 
@@ -523,6 +556,8 @@
         var pageSize = 20;
         var totalCount = 0;          // 后端返回的总数
         var isSemanticMode = false;  // 是否语义搜索模式
+        var isEsSearchMode = false;  // 是否 ES 分词搜索模式
+        var esSearchResults = [];   // ES 搜索结果缓存
 
         var DIFF_MAP = {
             'easy':   { label: '简单', cls: 'diff-easy' },
@@ -615,6 +650,82 @@
                 input.disabled = false;
                 btn.innerHTML = '<span class="semantic-badge">AI 搜索</span>';
             }
+        }
+
+        // ========== ES 分词搜索 ==========
+        async function esSearch() {
+            var query = document.getElementById('semanticSearchInput').value.trim();
+            if (!query) {
+                // 清空搜索 → 恢复全部列表
+                isEsSearchMode = false;
+                isSemanticMode = false;
+                esSearchResults = [];
+                loadPage(1);
+                return;
+            }
+
+            var btn = document.getElementById('esSearchBtn');
+            var input = document.getElementById('semanticSearchInput');
+            btn.disabled = true;
+            input.disabled = true;
+            btn.innerHTML = '<span class="es-badge">ES 搜索中...</span>';
+
+            try {
+                var apiBase = resolveApiBase();
+                var resp = await fetch(apiBase + '/api/interview/user/es-search?query=' + encodeURIComponent(query) + '&topK=30', {
+                    credentials: 'include',
+                    headers: { 'Accept': 'application/json' }
+                });
+                var data = await resp.json();
+                var results = (data && data.data) || [];
+                esSearchResults = results.map(normalizeProblem);
+                isEsSearchMode = true;
+                isSemanticMode = false;
+                currentPage = 1;
+
+                // 更新统计显示
+                document.getElementById('totalCount').textContent = esSearchResults.length;
+
+                // 清空其他筛选器
+                document.getElementById('searchInput').value = '';
+                document.getElementById('difficultyFilter').value = '';
+                document.getElementById('tagFilter').value = '';
+                document.getElementById('statusFilter').value = '';
+
+                renderEsSearchPage();
+
+                if (esSearchResults.length === 0) {
+                    var content = document.getElementById('listContent');
+                    content.innerHTML = '<div class="list-empty"><div class="list-empty-icon">🔍</div><div>ES 分词搜索未匹配到题目，试试换个关键词</div></div>';
+                }
+            } catch (e) {
+                console.error('[ES 分词搜索] 失败:', e);
+                alert('ES 分词搜索服务暂不可用：' + e.message);
+                isEsSearchMode = false;
+                loadPage(1);
+            } finally {
+                btn.disabled = false;
+                input.disabled = false;
+                btn.innerHTML = '<span class="es-badge">ES 分词搜索</span>';
+            }
+        }
+
+        // ES 搜索结果分页渲染（前端分页）
+        function renderEsSearchPage() {
+            var totalPages = Math.ceil(esSearchResults.length / pageSize) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+            var start = (currentPage - 1) * pageSize;
+            var end = Math.min(start + pageSize, esSearchResults.length);
+            filteredProblems = esSearchResults.slice(start, end);
+            totalCount = esSearchResults.length;
+            render();
+            document.getElementById('pageStart').textContent = esSearchResults.length === 0 ? 0 : start + 1;
+            document.getElementById('pageEnd').textContent = end;
+            document.getElementById('pageTotal').textContent = esSearchResults.length;
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('totalPages').textContent = totalPages;
+            document.getElementById('paginationBar').style.display = '';
         }
 
         // ========== 做题状态 ==========
@@ -745,6 +856,8 @@
 
             // 绑定语义搜索
             document.getElementById('semanticSearchBtn').addEventListener('click', semanticSearch);
+            // 绑定 ES 分词搜索
+            document.getElementById('esSearchBtn').addEventListener('click', esSearch);
             document.getElementById('semanticSearchInput').addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') semanticSearch();
             });
@@ -763,6 +876,11 @@
                 if (isSemanticMode) {
                     // 语义搜索模式：前端分页（语义搜索结果在前端切片）
                     renderSemanticPage();
+                    return;
+                }
+                if (isEsSearchMode) {
+                    // ES 搜索模式：前端分页
+                    renderEsSearchPage();
                     return;
                 }
                 result = await fetchPage(page, pageSize);

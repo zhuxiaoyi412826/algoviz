@@ -130,6 +130,12 @@ const routes: RouteRecordRaw[] = [
             name: 'ChromaDBMonitor',
             component: () => import('@/views/content/ChromaDBMonitor.vue'),
             meta: { title: 'ChromaDB实时检测' }
+          },
+          {
+            path: 'es-manage',
+            name: 'EsManage',
+            component: () => import('@/views/content/EsManage.vue'),
+            meta: { title: 'ES分词索引' }
           }
         ]
       },

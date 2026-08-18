@@ -7,6 +7,7 @@ import com.algoviz.dto.interview.InterviewUserListVO;
 import com.algoviz.dto.interview.PageResult;
 import com.algoviz.entity.InterviewProblem;
 import com.algoviz.service.InterviewUserService;
+import com.algoviz.service.VectorSearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ import java.util.Map;
 public class InterviewUserController {
 
     private final InterviewUserService userService;
+    private final VectorSearchService vectorSearchService;
 
     private static Long resolveUserId() {
         try {
@@ -207,5 +209,15 @@ public class InterviewUserController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
         return InterviewResponse.ok(userService.search(keyword, page, pageSize));
+    }
+
+    // ===== F18 ES 分词搜索 =====
+    @Operation(summary = "F18 ES 分词搜索（IK 分词器，支持高亮）")
+    @GetMapping("/es-search")
+    public InterviewResponse<List<InterviewProblem>> esSearch(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "30") int topK,
+            @RequestParam(required = false) String difficulty) {
+        return vectorSearchService.esSearch(query, topK, difficulty);
     }
 }
