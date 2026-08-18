@@ -139,6 +139,27 @@ const routes: RouteRecordRaw[] = [
           }
         ]
       },
+      // 内容审核模块（关键词屏蔽 + 人工审核）
+      {
+        path: 'audit',
+        name: 'Audit',
+        redirect: '/audit/sensitive-words',
+        meta: { title: '内容审核', icon: 'Lock' },
+        children: [
+          {
+            path: 'sensitive-words',
+            name: 'SensitiveWords',
+            component: () => import('@/views/audit/SensitiveWordManage.vue'),
+            meta: { title: '关键词屏蔽' }
+          },
+          {
+            path: 'review',
+            name: 'AuditReview',
+            component: () => import('@/views/audit/AuditReview.vue'),
+            meta: { title: '人工审核' }
+          }
+        ]
+      },
       // 用户管理模块
       {
         path: 'user',

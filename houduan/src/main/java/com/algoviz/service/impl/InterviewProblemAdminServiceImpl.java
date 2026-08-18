@@ -9,6 +9,11 @@ import com.algoviz.entity.InterviewTag;
 import com.algoviz.mapper.InterviewProblemMapper;
 import com.algoviz.mapper.InterviewUserMapper;
 import com.algoviz.service.InterviewProblemAdminService;
+import com.algoviz.audit.AuditDetectService;
+import com.algoviz.audit.AuditLogEntry;
+import com.algoviz.audit.AuditLogService;
+import com.algoviz.audit.AuditReviewService;
+import com.algoviz.audit.DetectResult;
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
@@ -25,6 +30,9 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
     private final InterviewProblemMapper problemMapper;
     private final InterviewUserMapper userMapper;
     private final com.algoviz.service.VectorSearchService vectorSearchService;
+    private final AuditDetectService auditDetectService;
+    private final AuditLogService auditLogService;
+    private final AuditReviewService auditReviewService;
 
     // =================== 工具 ===================
     /** 允许 Markdown 常用标签（允许 img 但仅使用 http/https/data 协议） */
@@ -186,12 +194,66 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
         return problemMapper.selectById(id);
     }
 
+    // =================== 关键词屏蔽检测 ===================
+
+    /** 题目全文（供检测） */
+    private static String auditText(InterviewProblem p) {
+        StringBuilder sb = new StringBuilder();
+        if (p.getTags() != null) sb.append(p.getTags()).append('\n');
+        if (p.getCategory() != null) sb.append(p.getCategory()).append('\n');
+        if (p.getDescription() != null) sb.append(p.getDescription()).append('\n');
+        if (p.getSolution() != null) sb.append(p.getSolution());
+        return sb.toString();
+    }
+
+    /** 截断内容快照 */
+    private static String truncate(String s, int max) {
+        if (s == null) return "";
+        return s.length() <= max ? s : s.substring(0, max) + "...";
+    }
+
+    /** 检测 + BLOCK 时抛异常拦截（拦截前输出审计日志并落库） */
+    private DetectResult auditCheck(InterviewProblem p) {
+        DetectResult d;
+        try {
+            d = auditDetectService.detect("QUESTION", "ALL", p.getTitle(), auditText(p));
+        } catch (Exception e) {
+            // 审核系统故障不阻断业务
+            return null;
+        }
+        if (d.isHit()) {
+            AuditLogEntry e = new AuditLogEntry();
+            e.setSubmitId(AuditLogService.nextSubmitId("q"));
+            e.setContentType("QUESTION");
+            e.setTitle(truncate(p.getTitle(), 100));
+            e.setContent(truncate(p.getTitle() + "\n" + auditText(p), 500));
+            e.setRiskLevel(d.getRiskLevel());
+            e.setTotalScore(d.getTotalScore());
+            e.setHitDetails(d.getHits());
+            e.setPreCheck(d.getPreCheck());
+            e.setAuditStatus(d.getAuditStatus());
+            if ("BLOCK".equals(d.getPreCheck())) {
+                auditLogService.log(e);
+                auditReviewService.recordBlocked(e, d);
+                String words = d.getHits().stream()
+                        .map(DetectResult.HitDetail::getRuleName)
+                        .limit(5).collect(Collectors.joining(", "));
+                throw new IllegalArgumentException("内容命中高危关键词/危险代码，已拦截: " + words);
+            }
+            // pending / logonly：放行，插入成功后补日志（带题目ID）
+            auditLogService.log(e);
+        }
+        return d;
+    }
+
     // =================== B3 新增 ===================
     @Override
     @Transactional
     public InterviewProblem create(InterviewProblemSaveDTO dto, String adminId) {
         InterviewProblem p = toEntity(dto);
         validateRequired(p, false);
+        // 关键词屏蔽检测（BLOCK 直接拦截）
+        auditCheck(p);
         if (p.getProblemNo() == null || p.getProblemNo().isBlank()) {
             p.setProblemNo(generateNextProblemNo());
         } else {
@@ -317,6 +379,13 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
             try {
                 InterviewProblem p = toEntity(dto);
                 validateRequired(p, false);
+                // 关键词屏蔽检测：BLOCK 拦截该条（不阻断整批）
+                try {
+                    auditCheck(p);
+                } catch (IllegalArgumentException be) {
+                    fails.add("第" + (i + 1) + "条: " + be.getMessage());
+                    continue;
+                }
                 if (p.getProblemNo() == null || p.getProblemNo().isBlank()) {
                     p.setProblemNo(generateNextProblemNo());
                 }

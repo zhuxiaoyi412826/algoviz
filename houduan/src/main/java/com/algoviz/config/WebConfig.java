@@ -66,6 +66,9 @@ public class WebConfig implements WebMvcConfigurer {
                         // 向量检索服务（管理端 Bearer Token 鉴权，用户端公开搜索）
                         "/api/vector",
                         "/api/vector/**",
+                        // 内容审核系统（后台 Bearer Token 鉴权）
+                        "/api/audit",
+                        "/api/audit/**",
                         // Knife4j / Swagger 文档资源
                         "/doc.html",
                         "/webjars/**",

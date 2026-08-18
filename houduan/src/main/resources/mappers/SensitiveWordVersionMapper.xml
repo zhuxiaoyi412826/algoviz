@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.algoviz.mapper.SensitiveWordVersionMapper">
+
+    <resultMap id="VersionMap" type="com.algoviz.entity.SensitiveWordVersion">
+        <id column="id" property="id"/>
+        <result column="version_no" property="versionNo"/>
+        <result column="word_count" property="wordCount"/>
+        <result column="snapshot_json" property="snapshotJson"/>
+        <result column="remark" property="remark"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="VersionMap">
+        SELECT id, version_no, word_count, remark, created_by, create_time
+        FROM sensitive_word_version ORDER BY version_no DESC
+    </select>
+
+    <select id="selectByVersionNo" resultMap="VersionMap">
+        SELECT * FROM sensitive_word_version WHERE version_no = #{versionNo}
+    </select>
+
+    <select id="selectLatest" resultMap="VersionMap">
+        SELECT * FROM sensitive_word_version ORDER BY version_no DESC LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sensitive_word_version (version_no, word_count, snapshot_json, remark, created_by)
+        VALUES (#{versionNo}, #{wordCount}, #{snapshotJson}, #{remark}, #{createdBy})
+    </insert>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM sensitive_word_version
+    </select>
+</mapper>

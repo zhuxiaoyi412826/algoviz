@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.algoviz.mapper.ContentAuditRecordMapper">
+
+    <resultMap id="RecordMap" type="com.algoviz.entity.ContentAuditRecord">
+        <id column="id" property="id"/>
+        <result column="submit_id" property="submitId"/>
+        <result column="user_id" property="userId"/>
+        <result column="problem_id" property="problemId"/>
+        <result column="problem_no" property="problemNo"/>
+        <result column="content_type" property="contentType"/>
+        <result column="language" property="language"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="hit_details" property="hitDetails"/>
+        <result column="total_score" property="totalScore"/>
+        <result column="content_snapshot" property="contentSnapshot"/>
+        <result column="pre_check_status" property="preCheckStatus"/>
+        <result column="audit_status" property="auditStatus"/>
+        <result column="audit_remark" property="auditRemark"/>
+        <result column="auditor_id" property="auditorId"/>
+        <result column="audit_time" property="auditTime"/>
+        <result column="es_doc_id" property="esDocId"/>
+        <result column="submit_time" property="submitTime"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <sql id="whereClause">
+        <where>
+            <if test="auditStatus != null and auditStatus != ''">
+                AND audit_status = #{auditStatus}
+            </if>
+            <if test="riskLevel != null and riskLevel != ''">
+                AND risk_level = #{riskLevel}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (submit_id LIKE CONCAT('%', #{keyword}, '%')
+                     OR content_snapshot LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectByPage" resultMap="RecordMap">
+        SELECT * FROM content_audit_record
+        <include refid="whereClause"/>
+        ORDER BY id DESC LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByPage" resultType="int">
+        SELECT COUNT(*) FROM content_audit_record
+        <include refid="whereClause"/>
+    </select>
+
+    <select id="selectBySubmitId" resultMap="RecordMap">
+        SELECT * FROM content_audit_record WHERE submit_id = #{submitId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO content_audit_record
+            (submit_id, user_id, problem_id, problem_no, content_type, language, risk_level,
+             hit_details, total_score, content_snapshot, pre_check_status, audit_status,
+             audit_remark, auditor_id, audit_time, es_doc_id, submit_time)
+        VALUES
+            (#{submitId}, #{userId}, #{problemId}, #{problemNo}, #{contentType}, #{language}, #{riskLevel},
+             #{hitDetails}, #{totalScore}, #{contentSnapshot}, #{preCheckStatus}, #{auditStatus},
+             #{auditRemark}, #{auditorId}, #{auditTime}, #{esDocId}, #{submitTime})
+        ON DUPLICATE KEY UPDATE audit_status = VALUES(audit_status),
+            audit_remark = VALUES(audit_remark), auditor_id = VALUES(auditor_id),
+            audit_time = VALUES(audit_time)
+    </insert>
+
+    <select id="countByStatus" resultType="map">
+        SELECT audit_status AS status, COUNT(*) AS cnt
+        FROM content_audit_record GROUP BY audit_status
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM content_audit_record
+    </select>
+</mapper>

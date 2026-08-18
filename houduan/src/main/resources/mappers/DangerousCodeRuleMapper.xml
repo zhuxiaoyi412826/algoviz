@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.algoviz.mapper.DangerousCodeRuleMapper">
+
+    <resultMap id="RuleMap" type="com.algoviz.entity.DangerousCodeRule">
+        <id column="id" property="id"/>
+        <result column="rule_code" property="ruleCode"/>
+        <result column="rule_name" property="ruleName"/>
+        <result column="language" property="language"/>
+        <result column="rule_type" property="ruleType"/>
+        <result column="rule_content" property="ruleContent"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="score" property="score"/>
+        <result column="enabled" property="enabled"/>
+        <result column="description" property="description"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="whereClause">
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (rule_name LIKE CONCAT('%', #{keyword}, '%') OR rule_code LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="language != null and language != ''">
+                AND language = #{language}
+            </if>
+            <if test="riskLevel != null and riskLevel != ''">
+                AND risk_level = #{riskLevel}
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectByPage" resultMap="RuleMap">
+        SELECT * FROM dangerous_code_rule
+        <include refid="whereClause"/>
+        ORDER BY id LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByPage" resultType="int">
+        SELECT COUNT(*) FROM dangerous_code_rule
+        <include refid="whereClause"/>
+    </select>
+
+    <select id="selectAllEnabled" resultMap="RuleMap">
+        SELECT * FROM dangerous_code_rule WHERE enabled = 1 ORDER BY id
+    </select>
+
+    <select id="selectById" resultMap="RuleMap">
+        SELECT * FROM dangerous_code_rule WHERE id = #{id}
+    </select>
+
+    <select id="selectByRuleCode" resultMap="RuleMap">
+        SELECT * FROM dangerous_code_rule WHERE rule_code = #{ruleCode}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dangerous_code_rule (rule_code, rule_name, language, rule_type, rule_content, risk_level, score, enabled, description)
+        VALUES (#{ruleCode}, #{ruleName}, #{language}, #{ruleType}, #{ruleContent}, #{riskLevel}, #{score}, #{enabled}, #{description})
+        ON DUPLICATE KEY UPDATE rule_name = VALUES(rule_name), language = VALUES(language),
+            rule_content = VALUES(rule_content), risk_level = VALUES(risk_level), score = VALUES(score),
+            enabled = VALUES(enabled), description = VALUES(description)
+    </insert>
+
+    <update id="updateById">
+        UPDATE dangerous_code_rule
+        SET rule_code = #{ruleCode}, rule_name = #{ruleName}, language = #{language},
+            rule_type = #{ruleType}, rule_content = #{ruleContent}, risk_level = #{riskLevel},
+            score = #{score}, enabled = #{enabled}, description = #{description}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM dangerous_code_rule WHERE id = #{id}
+    </delete>
+</mapper>

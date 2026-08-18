@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.algoviz.mapper.SensitiveWordMapper">
+
+    <resultMap id="WordMap" type="com.algoviz.entity.SensitiveWord">
+        <id column="id" property="id"/>
+        <result column="word" property="word"/>
+        <result column="category" property="category"/>
+        <result column="level" property="level"/>
+        <result column="match_mode" property="matchMode"/>
+        <result column="enabled" property="enabled"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="whereClause">
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND word LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+            <if test="level != null and level != ''">
+                AND level = #{level}
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectByPage" resultMap="WordMap">
+        SELECT * FROM sensitive_word
+        <include refid="whereClause"/>
+        ORDER BY id DESC LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByPage" resultType="int">
+        SELECT COUNT(*) FROM sensitive_word
+        <include refid="whereClause"/>
+    </select>
+
+    <select id="selectAllEnabled" resultMap="WordMap">
+        SELECT * FROM sensitive_word WHERE enabled = 1 ORDER BY id
+    </select>
+
+    <select id="selectById" resultMap="WordMap">
+        SELECT * FROM sensitive_word WHERE id = #{id}
+    </select>
+
+    <select id="selectByWord" resultMap="WordMap">
+        SELECT * FROM sensitive_word WHERE word = #{word}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sensitive_word (word, category, level, match_mode, enabled)
+        VALUES (#{word}, #{category}, #{level}, #{matchMode}, #{enabled})
+        ON DUPLICATE KEY UPDATE category = VALUES(category), level = VALUES(level),
+            match_mode = VALUES(match_mode), enabled = VALUES(enabled)
+    </insert>
+
+    <insert id="insertBatch">
+        INSERT INTO sensitive_word (word, category, level, match_mode, enabled) VALUES
+        <foreach collection="list" item="w" separator=",">
+            (#{w.word}, #{w.category}, #{w.level}, #{w.matchMode}, #{w.enabled})
+        </foreach>
+        ON DUPLICATE KEY UPDATE category = VALUES(category), level = VALUES(level),
+            match_mode = VALUES(match_mode), enabled = VALUES(enabled)
+    </insert>
+
+    <update id="updateById">
+        UPDATE sensitive_word
+        SET word = #{word}, category = #{category}, level = #{level},
+            match_mode = #{matchMode}, enabled = #{enabled}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM sensitive_word WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteBatch">
+        DELETE FROM sensitive_word WHERE id IN
+        <foreach collection="ids" item="i" open="(" separator="," close=")">#{i}</foreach>
+    </delete>
+
+    <delete id="deleteAll">
+        DELETE FROM sensitive_word
+    </delete>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM sensitive_word
+    </select>
+</mapper>

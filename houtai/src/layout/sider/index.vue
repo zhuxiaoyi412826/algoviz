@@ -50,6 +50,15 @@ const menuList = [
     ]
   },
   {
+    path: '/audit',
+    name: 'Audit',
+    meta: { title: '内容审核', icon: 'Lock' },
+    children: [
+      { path: '/audit/sensitive-words', name: 'SensitiveWords', meta: { title: '关键词屏蔽' } },
+      { path: '/audit/review', name: 'AuditReview', meta: { title: '人工审核' } }
+    ]
+  },
+  {
     path: '/order',
     name: 'Order',
     meta: { title: '订单管理', icon: 'ShoppingCart' },
