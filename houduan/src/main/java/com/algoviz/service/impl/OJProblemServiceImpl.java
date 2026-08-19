@@ -1,6 +1,7 @@
 package com.algoviz.service.impl;
 
 import com.algoviz.entity.OJProblem;
+import com.algoviz.entity.PageResult;
 import com.algoviz.mapper.OJProblemMapper;
 import com.algoviz.service.OJProblemService;
 import org.slf4j.Logger;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,10 +25,59 @@ public class OJProblemServiceImpl implements OJProblemService {
     @Autowired
     private OJProblemMapper problemMapper;
 
+    /**
+     * 分页查询（数据库层面排序+分页）
+     * 这是核心方法：先在数据库排序，再分页，保证数据正确性
+     */
     @Override
-    public List<OJProblem> getAllProblems() {
-        logger.info("获取所有题目列表");
-        return problemMapper.getAllProblems();
+    public PageResult<OJProblem> getProblemsByPage(
+        String keyword, 
+        String difficulty, 
+        String status,
+        String sort, 
+        String sortBy, 
+        int page, 
+        int size
+    ) {
+        logger.info("分页查询 - keyword={}, difficulty={}, status={}, sort={}, sortBy={}, page={}, size={}", 
+            keyword, difficulty, status, sort, sortBy, page, size);
+        
+        // 参数校验与默认值
+        if (page <= 0) page = 1;
+        if (size <= 0 || size > 100) size = 20;
+        
+        // 白名单校验：防止 SQL 注入
+        String safeSort = "desc".equalsIgnoreCase(sort) ? "DESC" : "ASC";
+        String safeSortBy;
+        if ("createdAt".equalsIgnoreCase(sortBy)) {
+            safeSortBy = "createdAt";
+        } else if ("problemNo".equalsIgnoreCase(sortBy)) {
+            safeSortBy = "problemNo";
+        } else {
+            safeSortBy = "id";
+        }
+        
+        // 计算偏移量
+        int offset = (page - 1) * size;
+        
+        // 查询数据（数据库层面排序+分页）
+        List<OJProblem> list = problemMapper.selectByCondition(
+            keyword, difficulty, status, safeSort, safeSortBy, offset, size
+        );
+        
+        // 查询总数
+        int total = problemMapper.countByCondition(keyword, difficulty, status);
+        
+        logger.info("分页查询结果 - total={}, page={}, size={}, list.size={}", total, page, size, list.size());
+        
+        return new PageResult<>(list, total, page, size);
+    }
+
+    @Override
+    public List<OJProblem> getAllProblems(String sort, String sortBy) {
+        logger.info("获取所有题目列表, sort={}, sortBy={}", sort, sortBy);
+        List<OJProblem> list = problemMapper.getAllProblems();
+        return sortByParam(list, sort, sortBy);
     }
 
     @Override
@@ -42,21 +93,48 @@ public class OJProblemServiceImpl implements OJProblemService {
     }
 
     @Override
-    public List<OJProblem> searchProblems(String keyword) {
-        logger.info("搜索题目：{}", keyword);
-        return problemMapper.searchProblems(keyword);
+    public List<OJProblem> searchProblems(String keyword, String sort, String sortBy) {
+        logger.info("搜索题目：{}, sort={}, sortBy={}", keyword, sort, sortBy);
+        List<OJProblem> list = problemMapper.searchProblems(keyword);
+        return sortByParam(list, sort, sortBy);
     }
 
     @Override
-    public List<OJProblem> getProblemsByDifficulty(String difficulty) {
-        logger.info("获取难度为 {} 的题目", difficulty);
-        return problemMapper.getProblemsByDifficulty(difficulty);
+    public List<OJProblem> getProblemsByDifficulty(String difficulty, String sort, String sortBy) {
+        logger.info("获取难度为 {} 的题目, sort={}, sortBy={}", difficulty, sort, sortBy);
+        List<OJProblem> list = problemMapper.getProblemsByDifficulty(difficulty);
+        return sortByParam(list, sort, sortBy);
     }
 
     @Override
-    public List<OJProblem> getActiveProblems() {
-        logger.info("获取可用题目列表");
-        return problemMapper.getProblemsByStatus("ACTIVE");
+    public List<OJProblem> getActiveProblems(String sort, String sortBy) {
+        logger.info("获取可用题目列表, sort={}, sortBy={}", sort, sortBy);
+        List<OJProblem> list = problemMapper.getProblemsByStatus("ACTIVE");
+        return sortByParam(list, sort, sortBy);
+    }
+
+    /**
+     * 根据排序参数对列表进行排序（内存排序，用于不分页的场景）
+     */
+    private List<OJProblem> sortByParam(List<OJProblem> list, String sort, String sortBy) {
+        if (list == null || list.isEmpty()) {
+            return list;
+        }
+        boolean desc = "desc".equalsIgnoreCase(sort);
+        boolean byTime = "createdAt".equalsIgnoreCase(sortBy);
+        
+        if (byTime) {
+            list.sort(Comparator.comparing(OJProblem::getCreatedAt,
+                Comparator.nullsLast(Comparator.naturalOrder())));
+        } else {
+            list.sort(Comparator.comparing(OJProblem::getId, 
+                Comparator.nullsLast(Comparator.naturalOrder())));
+        }
+        
+        if (desc) {
+            Collections.reverse(list);
+        }
+        return list;
     }
 
     @Override

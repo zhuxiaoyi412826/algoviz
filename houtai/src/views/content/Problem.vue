@@ -6,7 +6,7 @@ import {
   ElInputNumber, ElRadioGroup, ElRadio, ElDivider, ElCheckboxGroup, ElCheckbox,
   ElEmpty
 } from 'element-plus'
-import { Plus, Edit, Delete, Search, Refresh, Upload, Download, View, MagicStick, Promotion, FullScreen, Aim } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search, Refresh, Upload, Download, View, MagicStick, Promotion, FullScreen, Aim, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import type { OJProblem } from '@/types'
 
 const allProblems = ref<OJProblem[]>([])
@@ -17,6 +17,8 @@ const dialogVisible = ref(false)
 const dialogFullscreen = ref(false)
 const detailVisible = ref(false)
 const dialogTitle = ref('新增题目')
+const sortOrder = ref<'asc' | 'desc'>('asc')  // 排序方式: asc升序, desc降序
+const sortBy = ref<'id' | 'createdAt'>('id')  // 排序字段: id或createdAt
 
 /** 批量导入（支持 Excel / MD / JSON） */
 const importVisible = ref(false)
@@ -78,9 +80,9 @@ const languageOptions = [
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+// 直接使用后端返回的数据，不再在前端分页
 const pagedProblems = computed(() => {
-  const start = (page.value - 1) * pageSize.value
-  return allProblems.value.slice(start, start + pageSize.value)
+  return allProblems.value
 })
 
 onMounted(() => {
@@ -90,10 +92,25 @@ onMounted(() => {
 const loadData = async () => {
   loading.value = true
   try {
-    const response = await fetch('http://localhost/api/problems/all')
+    // 构建请求参数，使用后端分页
+    let url = 'http://localhost/api/problems/all?sort=' + sortOrder.value + '&sortBy=' + sortBy.value + '&page=' + page.value + '&size=' + pageSize.value
+    
+    // 添加搜索和筛选参数
+    if (searchForm.keyword) {
+      url += '&keyword=' + encodeURIComponent(searchForm.keyword)
+    }
+    if (searchForm.difficulty) {
+      url += '&difficulty=' + encodeURIComponent(searchForm.difficulty)
+    }
+    if (searchForm.status) {
+      url += '&status=' + encodeURIComponent(searchForm.status === 'online' ? 'ACTIVE' : 'INACTIVE')
+    }
+    
+    const response = await fetch(url)
     const data = await response.json()
     
     if (data.success) {
+      // 使用后端返回的数据
       allProblemsCache.value = data.problems.map((item: any) => ({
         id: item.id,
         problemNo: item.problemNo,
@@ -116,7 +133,12 @@ const loadData = async () => {
         createTime: item.createdAt,
         updateTime: item.updatedAt
       }))
-      applyFilter()
+      
+      // 更新总数（使用后端返回的 total）
+      total.value = data.total || 0
+      
+      // 直接使用后端返回的当前页数据
+      allProblems.value = allProblemsCache.value
     } else {
       ElMessage.error('加载题目失败')
     }
@@ -156,7 +178,7 @@ const applyFilter = () => {
 
 const handleSearch = () => {
   page.value = 1
-  applyFilter()
+  loadData()
 }
 
 const handleReset = () => {
@@ -165,7 +187,18 @@ const handleReset = () => {
   searchForm.status = ''
   searchForm.tag = ''
   page.value = 1
-  applyFilter()
+  loadData()
+}
+
+const toggleSort = () => {
+  sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  loadData()
+}
+
+const toggleSortBy = () => {
+  // 切换排序字段：id <-> createdAt
+  sortBy.value = sortBy.value === 'id' ? 'createdAt' : 'id'
+  loadData()
 }
 
 const handleAdd = () => {
@@ -942,6 +975,12 @@ const saveAIEdit = () => {
         </el-select>
         <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
         <el-button :icon="Refresh" @click="handleReset">重置</el-button>
+        <el-button :icon="sortOrder === 'asc' ? ArrowUp : ArrowDown" @click="toggleSort" :type="sortBy === 'id' ? 'primary' : 'default'">
+          ID {{ sortOrder === 'asc' ? '升序' : '降序' }}
+        </el-button>
+        <el-button :icon="sortOrder === 'asc' ? ArrowUp : ArrowDown" @click="toggleSortBy()" :type="sortBy === 'createdAt' ? 'primary' : 'default'">
+          时间 {{ sortBy === 'createdAt' && sortOrder === 'asc' ? '升序' : sortBy === 'createdAt' && sortOrder === 'desc' ? '降序' : '排序' }}
+        </el-button>
       </div>
 
       <el-table :data="pagedProblems" v-loading="loading" stripe style="width: 100%; margin-top: 16px">
@@ -995,8 +1034,8 @@ const saveAIEdit = () => {
           :total="total"
           :page-sizes="[10, 20, 50]"
           layout="total, sizes, prev, pager, next, jumper"
-          @current-change="(p) => { page = p }"
-          @size-change="(s) => { pageSize = s; page = 1 }"
+          @current-change="(p) => { page = p; loadData() }"
+          @size-change="(s) => { pageSize = s; page = 1; loadData() }"
         />
       </div>
     </div>

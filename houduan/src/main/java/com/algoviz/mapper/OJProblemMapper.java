@@ -7,7 +7,7 @@ import java.util.List;
 @Mapper
 public interface OJProblemMapper {
     
-    @Select("SELECT * FROM oj_problem ORDER BY problem_no ASC")
+    @Select("SELECT * FROM oj_problem ORDER BY id ASC")
     List<OJProblem> getAllProblems();
     
     @Select("SELECT * FROM oj_problem WHERE id = #{id}")
@@ -16,14 +16,43 @@ public interface OJProblemMapper {
     @Select("SELECT * FROM oj_problem WHERE problem_no = #{problemNo}")
     OJProblem getProblemByNo(String problemNo);
     
-    @Select("SELECT * FROM oj_problem WHERE title LIKE CONCAT('%', #{keyword}, '%') OR tags LIKE CONCAT('%', #{keyword}, '%') OR problem_no LIKE CONCAT('%', #{keyword}, '%') ORDER BY problem_no ASC")
+    @Select("SELECT * FROM oj_problem WHERE title LIKE CONCAT('%', #{keyword}, '%') OR tags LIKE CONCAT('%', #{keyword}, '%') OR problem_no LIKE CONCAT('%', #{keyword}, '%') ORDER BY id ASC")
     List<OJProblem> searchProblems(@Param("keyword") String keyword);
     
-    @Select("SELECT * FROM oj_problem WHERE difficulty = #{difficulty} ORDER BY problem_no ASC")
+    @Select("SELECT * FROM oj_problem WHERE difficulty = #{difficulty} ORDER BY id ASC")
     List<OJProblem> getProblemsByDifficulty(String difficulty);
     
-    @Select("SELECT * FROM oj_problem WHERE status = #{status} ORDER BY problem_no ASC")
+    @Select("SELECT * FROM oj_problem WHERE status = #{status} ORDER BY id ASC")
     List<OJProblem> getProblemsByStatus(String status);
+    
+    /**
+     * 动态条件查询（支持排序+分页）
+     * @param keyword 搜索关键词
+     * @param difficulty 难度筛选
+     * @param status 状态筛选
+     * @param sort 排序方式：ASC/DESC
+     * @param sortBy 排序字段：id/createdAt/problemNo
+     * @param offset 偏移量
+     * @param limit 每页大小
+     */
+    List<OJProblem> selectByCondition(
+        @Param("keyword") String keyword,
+        @Param("difficulty") String difficulty,
+        @Param("status") String status,
+        @Param("sort") String sort,
+        @Param("sortBy") String sortBy,
+        @Param("offset") int offset,
+        @Param("limit") int limit
+    );
+
+    /**
+     * 统计符合条件的记录数
+     */
+    int countByCondition(
+        @Param("keyword") String keyword,
+        @Param("difficulty") String difficulty,
+        @Param("status") String status
+    );
     
     @Insert("INSERT INTO oj_problem (problem_no, title, difficulty, tags, description, template, status, submission_count, ac_rate, created_at, updated_at) " +
             "VALUES (#{problemNo}, #{title}, #{difficulty}, #{tags}, #{description}, #{template}, #{status}, #{submissionCount}, #{acRate}, #{createdAt}, #{updatedAt})")

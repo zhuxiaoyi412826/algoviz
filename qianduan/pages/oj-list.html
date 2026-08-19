@@ -338,6 +338,34 @@
             color: #667eea;
             font-weight: 600;
         }
+        .oj-sort-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 14px;
+            background: #1a1a2e;
+            border: 1px solid #2d2d4e;
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .oj-sort-btn:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+        .oj-sort-btn .sort-icon {
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+        .oj-sort-btn.desc .sort-icon {
+            transform: rotate(180deg);
+        }
+        .oj-sort-btn.active {
+            opacity: 0.6;
+            border-color: #2d2d4e;
+        }
     </style>
 </head>
 <body>
@@ -354,7 +382,7 @@
 
         <div class="oj-list-filters">
             <div class="oj-search-box">
-                <input type="text" id="ojSearchInput" placeholder="搜索题目名称或标签...">
+                <input type="text" id="ojSearchInput" placeholder="搜索题号、题目名称或标签...">
             </div>
             <select class="oj-filter-select" id="ojDifficultyFilter">
                 <option value="">全部难度</option>
@@ -379,6 +407,14 @@
                 <option value="排序">排序</option>
                 <option value="搜索">搜索</option>
             </select>
+            <button class="oj-sort-btn" id="ojSortBtn" onclick="toggleSort()">
+                <span id="ojSortIcon">⬆️</span>
+                <span id="ojSortText">ID 升序</span>
+            </button>
+            <button class="oj-sort-btn" id="ojTimeSortBtn" onclick="toggleTimeSort()">
+                <span id="ojTimeSortIcon">⬆️</span>
+                <span id="ojTimeSortText">时间 升序</span>
+            </button>
         </div>
 
         <div class="oj-list-stats" id="ojListStats">
@@ -415,6 +451,9 @@
         let filteredProblems = [];
         let currentPage = 1;
         let pageSize = 20;
+        let sortState = 'asc';  // 'asc' = ID升序, 'desc' = ID降序
+        let sortBy = 'id';  // 'id' = 按ID排序, 'createdAt' = 按时间排序
+        let timeSortState = 'asc';  // 'asc' = 时间升序, 'desc' = 时间降序
 
         const difficultyMap = {
             'easy': { label: '简单', class: 'oj-difficulty-easy' },
@@ -422,12 +461,96 @@
             'hard': { label: '困难', class: 'oj-difficulty-hard' }
         };
 
+        function toggleSort() {
+            sortState = sortState === 'asc' ? 'desc' : 'asc';
+            sortBy = 'id';
+            updateSortButton();
+            updateTimeSortButton();
+            loadProblems();
+        }
+
+        function toggleTimeSort() {
+            timeSortState = timeSortState === 'asc' ? 'desc' : 'asc';
+            sortBy = 'createdAt';
+            sortState = timeSortState;
+            updateSortButton();
+            updateTimeSortButton();
+            loadProblems();
+        }
+
+        function updateSortButton() {
+            const btn = document.getElementById('ojSortBtn');
+            const icon = document.getElementById('ojSortIcon');
+            const text = document.getElementById('ojSortText');
+            // 如果当前按ID排序，显示ID排序按钮的状态
+            if (sortBy === 'id') {
+                btn.classList.remove('active');
+                if (sortState === 'asc') {
+                    btn.classList.remove('desc');
+                    icon.textContent = '⬆️';
+                    text.textContent = 'ID 升序';
+                } else {
+                    btn.classList.add('desc');
+                    icon.textContent = '⬇️';
+                    text.textContent = 'ID 降序';
+                }
+            } else {
+                // 如果当前按时间排序，ID按钮显示为非激活状态
+                btn.classList.add('active');
+                icon.textContent = '⏱';
+                text.textContent = 'ID 排序';
+            }
+        }
+
+        function updateTimeSortButton() {
+            const btn = document.getElementById('ojTimeSortBtn');
+            const icon = document.getElementById('ojTimeSortIcon');
+            const text = document.getElementById('ojTimeSortText');
+            // 如果当前按时间排序，显示时间排序按钮的状态
+            if (sortBy === 'createdAt') {
+                btn.classList.remove('active');
+                if (timeSortState === 'asc') {
+                    btn.classList.remove('desc');
+                    icon.textContent = '⬆️';
+                    text.textContent = '时间 升序';
+                } else {
+                    btn.classList.add('desc');
+                    icon.textContent = '⬇️';
+                    text.textContent = '时间 降序';
+                }
+            } else {
+                // 如果当前按ID排序，时间按钮显示为非激活状态
+                btn.classList.add('active');
+                btn.classList.remove('desc');
+                icon.textContent = '⏱';
+                text.textContent = '时间 排序';
+            }
+        }
+
         async function loadProblems() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
 
             try {
-                const response = await fetch(API_BASE + '/problems', { signal: controller.signal });
+                // 构建请求参数
+                let url = API_BASE + '/problems?sort=' + sortState + '&sortBy=' + sortBy + '&page=' + currentPage + '&size=' + pageSize;
+                
+                // 添加搜索和筛选参数
+                const searchVal = document.getElementById('ojSearchInput').value.toLowerCase().trim();
+                const diffVal = document.getElementById('ojDifficultyFilter').value;
+                const tagVal = document.getElementById('ojTagFilter').value;
+                
+                if (searchVal) {
+                    url += '&keyword=' + encodeURIComponent(searchVal);
+                }
+                if (diffVal) {
+                    url += '&difficulty=' + encodeURIComponent(diffVal);
+                }
+                if (tagVal) {
+                    url += '&keyword=' + encodeURIComponent(tagVal);
+                }
+
+                const response = await fetch(url, { signal: controller.signal });
                 clearTimeout(timeoutId);
 
                 if (!response.ok) {
@@ -437,6 +560,7 @@
                 const data = await response.json();
 
                 if (data.success && data.problems) {
+                    // 直接使用后端返回的数据（已经在数据库层面排序和分页）
                     allProblems = data.problems.map(function(problem, index) {
                         var problemNoValue = problem.problem_no || problem.problemNo;
                         var problemId = 0;
@@ -459,8 +583,13 @@
                         };
                     });
 
-                    populateTagFilter();
-                    applyFilters();
+                    // 更新分页信息（使用后端返回的分页数据）
+                    currentPage = data.page || 1;
+                    updatePagination(data.total || 0, data.totalPages || 1);
+                    
+                    // 直接渲染当前页的数据（不需要再在前端分页）
+                    filteredProblems = allProblems;
+                    renderProblems(filteredProblems);
                 } else {
                     showError('加载题目失败', '后端返回数据格式异常');
                 }
@@ -478,18 +607,50 @@
             }
         }
 
+        function updatePagination(total, totalPages) {
+            const curPageEl = document.getElementById('ojCurrentPage');
+            const totalPagesEl = document.getElementById('ojTotalPages');
+            const totalCountEl = document.getElementById('ojTotalCount');
+            const prevBtn = document.getElementById('ojPrevPage');
+            const nextBtn = document.getElementById('ojNextPage');
+            const paginationBar = document.getElementById('ojPaginationBar');
+            const pageStartEl = document.getElementById('ojPageStart');
+            const pageEndEl = document.getElementById('ojPageEnd');
+            const pageTotalEl = document.getElementById('ojPageTotal');
+            
+            if (curPageEl) curPageEl.textContent = currentPage;
+            if (totalPagesEl) totalPagesEl.textContent = totalPages;
+            if (totalCountEl) totalCountEl.textContent = total;
+            
+            // 更新分页范围显示
+            if (pageStartEl) pageStartEl.textContent = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+            if (pageEndEl) pageEndEl.textContent = Math.min(currentPage * pageSize, total);
+            if (pageTotalEl) pageTotalEl.textContent = total;
+            
+            // 显示分页栏
+            if (paginationBar && total > 0) {
+                paginationBar.style.display = 'flex';
+            }
+            
+            // 更新按钮状态
+            if (prevBtn) prevBtn.disabled = currentPage <= 1;
+            if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+        }
+
         function showError(title, message) {
             var content = document.getElementById('ojListContent');
             var paginationBar = document.getElementById('ojPaginationBar');
-            paginationBar.style.display = 'none';
-            content.innerHTML =
-                '<div class="oj-list-error">' +
-                    '<div class="oj-list-error-icon">⚠️</div>' +
-                    '<div class="oj-list-error-title">' + title + '</div>' +
-                    '<div class="oj-list-error-message">' + message + '</div>' +
-                    '<button onclick="loadProblems()" class="oj-list-retry-btn">🔄 重试加载</button>' +
-                    '<div class="oj-list-error-hint">请确保后端 Spring Boot 服务已启动（端口 80）</div>' +
-                '</div>';
+            if (paginationBar) paginationBar.style.display = 'none';
+            if (content) {
+                content.innerHTML =
+                    '<div class="oj-list-error">' +
+                        '<div class="oj-list-error-icon">⚠️</div>' +
+                        '<div class="oj-list-error-title">' + title + '</div>' +
+                        '<div class="oj-list-error-message">' + message + '</div>' +
+                        '<button onclick="loadProblems()" class="oj-list-retry-btn">🔄 重试加载</button>' +
+                        '<div class="oj-list-error-hint">请确保后端 Spring Boot 服务已启动（端口 80）</div>' +
+                    '</div>';
+            }
         }
 
         function populateTagFilter() {
@@ -498,29 +659,14 @@
 
         function renderProblems(problems) {
             var content = document.getElementById('ojListContent');
-            var paginationBar = document.getElementById('ojPaginationBar');
 
             if (problems.length === 0) {
-                paginationBar.style.display = 'none';
                 showEmpty('未找到匹配的题目');
                 return;
             }
 
-            // 更新总数
-            document.getElementById('ojTotalCount').textContent = problems.length;
-
-            // 计算分页
-            var totalPages = Math.ceil(problems.length / pageSize);
-            if (currentPage > totalPages) {
-                currentPage = totalPages;
-            }
-            if (currentPage < 1) {
-                currentPage = 1;
-            }
-
-            var start = (currentPage - 1) * pageSize;
-            var end = Math.min(start + pageSize, problems.length);
-            var pageProblems = problems.slice(start, end);
+            // 渲染题目卡片（只显示当前页的数据，已经由后端分页）
+            var html = '';
 
             // 渲染表格
             var tableHtml =
@@ -535,7 +681,7 @@
                     '</thead>' +
                     '<tbody>';
 
-            pageProblems.forEach(function(problem) {
+            problems.forEach(function(problem) {
                 var diff = difficultyMap[problem.difficulty] || difficultyMap['easy'];
                 var tagsHtml = problem.tags.map(function(t) { return '<span class="oj-tag">' + t + '</span>'; }).join('');
 
@@ -550,36 +696,24 @@
 
             tableHtml += '</tbody></table>';
             content.innerHTML = tableHtml;
-
-            // 更新分页信息
-            document.getElementById('ojPageStart').textContent = problems.length === 0 ? 0 : start + 1;
-            document.getElementById('ojPageEnd').textContent = end;
-            document.getElementById('ojPageTotal').textContent = problems.length;
-            document.getElementById('ojCurrentPage').textContent = currentPage;
-            document.getElementById('ojTotalPages').textContent = totalPages;
-
-            // 更新按钮状态
-            document.getElementById('ojPrevPage').disabled = currentPage <= 1;
-            document.getElementById('ojNextPage').disabled = currentPage >= totalPages;
-
-            // 显示分页
-            paginationBar.style.display = 'flex';
         }
 
         function changePage(delta) {
-            var totalPages = Math.ceil(filteredProblems.length / pageSize);
             currentPage += delta;
             if (currentPage < 1) currentPage = 1;
-            if (currentPage > totalPages) currentPage = totalPages;
-            renderProblems(filteredProblems);
+            // 直接调用 loadProblems 从后端获取指定页的数据
+            loadProblems();
         }
 
         function showEmpty(message) {
-            document.getElementById('ojListContent').innerHTML =
-                '<div class="oj-list-empty">' +
-                    '<div class="oj-list-empty-icon">📭</div>' +
-                    '<div>' + message + '</div>' +
-                '</div>';
+            var content = document.getElementById('ojListContent');
+            if (content) {
+                content.innerHTML =
+                    '<div class="oj-list-empty">' +
+                        '<div class="oj-list-empty-icon">📭</div>' +
+                        '<div>' + message + '</div>' +
+                    '</div>';
+            }
         }
 
         function goToProblem(id) {
@@ -587,38 +721,24 @@
         }
 
         function applyFilters() {
-            var searchVal = document.getElementById('ojSearchInput').value.toLowerCase().trim();
-            var diffVal = document.getElementById('ojDifficultyFilter').value;
-            var tagVal = document.getElementById('ojTagFilter').value;
-
-            filteredProblems = allProblems;
-
-            if (searchVal) {
-                filteredProblems = filteredProblems.filter(function(p) {
-                    return p.title.toLowerCase().indexOf(searchVal) !== -1 ||
-                           p.tags.some(function(t) { return t.toLowerCase().indexOf(searchVal) !== -1; });
-                });
-            }
-
-            if (diffVal) {
-                filteredProblems = filteredProblems.filter(function(p) { return p.difficulty === diffVal; });
-            }
-
-            if (tagVal) {
-                filteredProblems = filteredProblems.filter(function(p) { return p.tags.indexOf(tagVal) !== -1; });
-            }
-
+            // 筛选逻辑已移到后端，直接调用 loadProblems 重新加载数据
             currentPage = 1;
-            renderProblems(filteredProblems);
+            loadProblems();
         }
 
-        document.getElementById('ojSearchInput').addEventListener('input', applyFilters);
+        document.getElementById('ojSearchInput').addEventListener('input', function() {
+            // 搜索框输入时延迟 300ms 搜索
+            clearTimeout(window.searchTimer);
+            window.searchTimer = setTimeout(function() {
+                applyFilters();
+            }, 300);
+        });
         document.getElementById('ojDifficultyFilter').addEventListener('change', applyFilters);
         document.getElementById('ojTagFilter').addEventListener('change', applyFilters);
         document.getElementById('ojPageSizeSelect').addEventListener('change', function(e) {
             pageSize = parseInt(e.target.value);
             currentPage = 1;
-            renderProblems(filteredProblems);
+            loadProblems();
         });
 
         loadProblems();

@@ -12,6 +12,7 @@ import com.algoviz.entity.OJSolutionLike;
 import com.algoviz.mapper.OJSolutionCommentMapper;
 import com.algoviz.mapper.OJSolutionLikeMapper;
 import com.algoviz.mapper.OJSolutionMapper;
+import com.algoviz.util.DebugLogger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,11 @@ public class OJSolutionCommentService {
 
     @Transactional
     public PublishResult publish(OJSolutionComment c) {
+        // 调试日志
+        DebugLogger.log("OJSolutionCommentService.publish", "userId=" + c.getUserId() + 
+            ", username=" + c.getUsername() + ", avatar=" + c.getAvatar() +
+            ", problemId=" + c.getProblemId() + ", solutionId=" + c.getSolutionId());
+        
         // 敏感词检测
         DetectResult d = auditDetectService.detect("OJ_COMMENT", "ALL",
                 null, c.getContent());

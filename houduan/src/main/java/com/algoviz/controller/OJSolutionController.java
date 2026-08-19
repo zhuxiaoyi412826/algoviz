@@ -3,8 +3,12 @@ package com.algoviz.controller;
 import com.algoviz.dto.interview.PageResult;
 import com.algoviz.entity.OJSolution;
 import com.algoviz.entity.OJSolutionComment;
+import com.algoviz.entity.User;
+import com.algoviz.mapper.OJSolutionMapper;
+import com.algoviz.mapper.UserMapper;
 import com.algoviz.service.OJSolutionCommentService;
 import com.algoviz.service.OJSolutionService;
+import com.algoviz.util.DebugLogger;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +28,27 @@ public class OJSolutionController {
 
     private final OJSolutionService solutionService;
     private final OJSolutionCommentService commentService;
+    private final UserMapper userMapper;
+    private final OJSolutionMapper solutionMapper;
+
+    /**
+     * 根据用户ID获取用户信息
+     */
+    private User getUserInfo(Long userId) {
+        if (userId == null) return null;
+        try {
+            User user = userMapper.findById(Math.toIntExact(userId));
+            if (user == null) {
+                DebugLogger.log("OJSolutionController", "用户不存在, userId=" + userId);
+            } else {
+                DebugLogger.log("OJSolutionController", "获取用户成功, id=" + user.getId() + ", username=" + user.getUsername() + ", avatarUrl=" + user.getAvatarUrl());
+            }
+            return user;
+        } catch (Exception e) {
+            DebugLogger.log("OJSolutionController", "获取用户异常, userId=" + userId + ", error=" + e.getMessage());
+            return null;
+        }
+    }
 
     // ==================== 题解 ====================
 
@@ -71,6 +96,16 @@ public class OJSolutionController {
     public Map<String, Object> publish(@RequestBody OJSolution solution,
                                         @RequestHeader("X-User-Id") Long userId) {
         solution.setUserId(userId);
+        // 设置用户冗余信息
+        User user = getUserInfo(userId);
+        if (user != null) {
+            solution.setUsername(user.getUsername());
+            String avatar = user.getAvatarUrl();
+            solution.setAvatar((avatar != null && !avatar.isEmpty()) ? avatar : "/default-avatar.png");
+        } else {
+            solution.setUsername("用户" + userId);
+            solution.setAvatar("/default-avatar.png");
+        }
         OJSolutionService.PublishResult r = solutionService.publish(solution);
         Map<String, Object> result = new HashMap<>();
         result.put("success", r.isSuccess());
@@ -123,6 +158,24 @@ public class OJSolutionController {
                                                @RequestHeader("X-User-Id") Long userId) {
         comment.setSolutionId(solutionId);
         comment.setUserId(userId);
+        
+        // 设置用户冗余信息
+        User user = getUserInfo(userId);
+        if (user != null) {
+            comment.setUsername(user.getUsername());
+            String avatar = user.getAvatarUrl();
+            comment.setAvatar((avatar != null && !avatar.isEmpty()) ? avatar : "/default-avatar.png");
+        } else {
+            comment.setUsername("用户" + userId);
+            comment.setAvatar("/default-avatar.png");
+        }
+        
+        // 从题解中获取 problemId
+        OJSolution solution = solutionMapper.selectById(solutionId);
+        if (solution != null) {
+            comment.setProblemId(solution.getProblemId());
+        }
+        
         OJSolutionCommentService.PublishResult r = commentService.publish(comment);
         Map<String, Object> result = new HashMap<>();
         result.put("success", r.isSuccess());

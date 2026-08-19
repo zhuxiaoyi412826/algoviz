@@ -1,22 +1,43 @@
 package com.algoviz.service;
 
 import com.algoviz.entity.OJProblem;
+import com.algoviz.entity.PageResult;
 
 import java.util.List;
 
 public interface OJProblemService {
     
-    List<OJProblem> getAllProblems();
+    /**
+     * 分页查询题目（数据库层面排序+分页）
+     * @param keyword 搜索关键词（题号、标题、标签）
+     * @param difficulty 难度筛选
+     * @param status 状态筛选
+     * @param sort 排序方式：ASC/DESC
+     * @param sortBy 排序字段：id/createdAt
+     * @param page 页码（从1开始）
+     * @param size 每页大小
+     */
+    PageResult<OJProblem> getProblemsByPage(
+        String keyword, 
+        String difficulty, 
+        String status,
+        String sort, 
+        String sortBy, 
+        int page, 
+        int size
+    );
+
+    List<OJProblem> getAllProblems(String sort, String sortBy);
     
     OJProblem getProblemById(String id);
     
     OJProblem getProblemByNo(String problemNo);
     
-    List<OJProblem> searchProblems(String keyword);
+    List<OJProblem> searchProblems(String keyword, String sort, String sortBy);
     
-    List<OJProblem> getProblemsByDifficulty(String difficulty);
+    List<OJProblem> getProblemsByDifficulty(String difficulty, String sort, String sortBy);
     
-    List<OJProblem> getActiveProblems();
+    List<OJProblem> getActiveProblems(String sort, String sortBy);
     
     void addProblem(OJProblem problem);
     

@@ -4,6 +4,7 @@ import com.algoviz.dto.AIGenerateProblemResponse;
 import com.algoviz.dto.BatchAddProblemsRequest;
 import com.algoviz.dto.BatchAddProblemsResponse;
 import com.algoviz.entity.OJProblem;
+import com.algoviz.entity.PageResult;
 import com.algoviz.service.ExcelImportService;
 import com.algoviz.service.MdImportService;
 import com.algoviz.service.JsonImportService;
@@ -51,53 +52,69 @@ public class OJProblemController {
     @Autowired
     private ObjectMapper objectMapper;
 
+    /**
+     * 获取题目列表（分页+排序）
+     * 默认只返回 ACTIVE 状态的题目
+     */
     @GetMapping
-    @Operation(summary = "获取题目列表", description = "获取所有题目或按条件筛选")
+    @Operation(summary = "获取题目列表", description = "分页获取题目，支持排序和筛选")
     public Map<String, Object> getProblems(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String difficulty) {
+            @RequestParam(required = false) String difficulty,
+            @RequestParam(required = false, defaultValue = "asc") String sort,
+            @RequestParam(required = false, defaultValue = "id") String sortBy,
+            @RequestParam(required = false, defaultValue = "1") int page,
+            @RequestParam(required = false, defaultValue = "20") int size) {
         
-        logger.info("获取题目列表 - 关键词: {}, 难度: {}", keyword, difficulty);
+        logger.info("获取题目列表 - keyword={}, difficulty={}, sort={}, sortBy={}, page={}, size={}", 
+            keyword, difficulty, sort, sortBy, page, size);
         
         Map<String, Object> result = new HashMap<>();
-        List<OJProblem> problems;
-
-        if (keyword != null && !keyword.isEmpty()) {
-            problems = problemService.searchProblems(keyword);
-        } else if (difficulty != null && !difficulty.isEmpty()) {
-            problems = problemService.getProblemsByDifficulty(difficulty);
-        } else {
-            problems = problemService.getActiveProblems();
-        }
+        
+        // 使用数据库层面的分页查询（只返回 ACTIVE 状态）
+        PageResult<OJProblem> pageResult = problemService.getProblemsByPage(
+            keyword, difficulty, "ACTIVE", sort, sortBy, page, size
+        );
 
         result.put("success", true);
-        result.put("problems", problems);
-        result.put("count", problems.size());
+        result.put("problems", pageResult.getList());
+        result.put("total", pageResult.getTotal());
+        result.put("page", pageResult.getPage());
+        result.put("size", pageResult.getSize());
+        result.put("totalPages", pageResult.getTotalPages());
         
         return result;
     }
 
+    /**
+     * 获取所有题目（含禁用状态，用于后台管理）
+     */
     @GetMapping("/all")
-    @Operation(summary = "获取所有题目(含禁用)", description = "获取所有题目，包括已禁用的")
+    @Operation(summary = "获取所有题目(含禁用)", description = "分页获取所有题目，包括已禁用的")
     public Map<String, Object> getAllProblems(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String difficulty) {
-        logger.info("获取所有题目 - 关键词: {}, 难度: {}", keyword, difficulty);
+            @RequestParam(required = false) String difficulty,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false, defaultValue = "asc") String sort,
+            @RequestParam(required = false, defaultValue = "id") String sortBy,
+            @RequestParam(required = false, defaultValue = "1") int page,
+            @RequestParam(required = false, defaultValue = "20") int size) {
+        logger.info("获取所有题目 - keyword={}, difficulty={}, status={}, sort={}, sortBy={}, page={}, size={}", 
+            keyword, difficulty, status, sort, sortBy, page, size);
         
         Map<String, Object> result = new HashMap<>();
-        List<OJProblem> problems;
-
-        if (keyword != null && !keyword.isEmpty()) {
-            problems = problemService.searchProblems(keyword);
-        } else if (difficulty != null && !difficulty.isEmpty()) {
-            problems = problemService.getProblemsByDifficulty(difficulty);
-        } else {
-            problems = problemService.getAllProblems();
-        }
         
+        // 使用数据库层面的分页查询
+        PageResult<OJProblem> pageResult = problemService.getProblemsByPage(
+            keyword, difficulty, status, sort, sortBy, page, size
+        );
+
         result.put("success", true);
-        result.put("problems", problems);
-        result.put("count", problems.size());
+        result.put("problems", pageResult.getList());
+        result.put("total", pageResult.getTotal());
+        result.put("page", pageResult.getPage());
+        result.put("size", pageResult.getSize());
+        result.put("totalPages", pageResult.getTotalPages());
         
         return result;
     }
@@ -429,7 +446,7 @@ public class OJProblemController {
     @Operation(summary = "导出题目(SQL)", description = "将所有题目导出为 SQL INSERT 语句文件")
     public ResponseEntity<byte[]> exportAsSql() throws IOException {
         logger.info("导出题目为 SQL 文件");
-        List<OJProblem> problems = problemService.getAllProblems();
+        List<OJProblem> problems = problemService.getAllProblems("asc", "id");
 
         StringBuilder sb = new StringBuilder();
         sb.append("-- OJ 题目数据导出\n");
@@ -485,7 +502,7 @@ public class OJProblemController {
     @Operation(summary = "导出题目(JSON)", description = "将所有题目导出为 JSON 格式文件")
     public ResponseEntity<byte[]> exportAsJson() throws IOException {
         logger.info("导出题目为 JSON 文件");
-        List<OJProblem> problems = problemService.getAllProblems();
+        List<OJProblem> problems = problemService.getAllProblems("asc", "id");
 
         Map<String, Object> exportData = new HashMap<>();
         exportData.put("exportTime", java.time.LocalDateTime.now().toString());

@@ -13,6 +13,7 @@ import com.algoviz.entity.Submission;
 import com.algoviz.mapper.OJSolutionLikeMapper;
 import com.algoviz.mapper.OJSolutionMapper;
 import com.algoviz.mapper.SubmissionMapper;
+import com.algoviz.util.DebugLogger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,10 @@ public class OJSolutionService {
 
     @Transactional
     public PublishResult publish(OJSolution s) {
+        // 调试日志
+        DebugLogger.log("OJSolutionService.publish", "userId=" + s.getUserId() + 
+            ", username=" + s.getUsername() + ", avatar=" + s.getAvatar());
+        
         // 检测内容：标题 + 思路 + 解题过程 + 代码
         String fullText = safe(s.getTitle()) + "\n" + safe(s.getIdea()) + "\n"
                 + safe(s.getProcess()) + "\n" + safe(s.getCode());
@@ -82,7 +87,17 @@ public class OJSolutionService {
         s.setRiskLevel(d.getRiskLevel());
         s.setDetectSummary(buildSummary(d));
         s.setStatus("PUBLISHED");
+        
+        // 调试日志 - 插入前
+        DebugLogger.log("OJSolutionService.publish", "insert前: userId=" + s.getUserId() + 
+            ", username=" + s.getUsername() + ", avatar=" + s.getAvatar() +
+            ", problemId=" + s.getProblemId());
+        
         solutionMapper.insert(s);
+        
+        // 调试日志 - 插入后
+        DebugLogger.log("OJSolutionService.publish", "insert后: id=" + s.getId());
+        
         logAudit(s, d, d.getAuditStatus());
         return new PublishResult(true, "题解发布成功",
                 d.getRiskLevel(), d.getAuditStatus(), s.getId());

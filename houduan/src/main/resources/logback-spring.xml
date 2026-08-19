@@ -6,39 +6,60 @@
     <!-- %X{trace_id} 引用 MDC 中的 TraceId，由 TraceIdFilter 设置 -->
     <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{trace_id:-no-trace}] [%thread] %-5level %logger{36} - %msg%n"/>
 
-    <!-- 控制台输出 Appender -->
+    <!-- 控制台输出 Appender - 接收所有级别日志，使用 GBK 编码适配 Windows -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
-            <charset>UTF-8</charset>
+            <charset>GBK</charset>
         </encoder>
     </appender>
 
-    <!-- INFO 日志 Appender：10MB 分割 + 保留 30 天 -->
+    <!-- INFO 日志 Appender：只接收 INFO 级别日志 -->
     <appender name="INFO_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/info.log</file>
         <createDirs>true</createDirs>
         <cleanHistoryOnStart>true</cleanHistoryOnStart>
-        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+        <!-- 只接收 INFO 级别，过滤掉 DEBUG 和 WARN/ERROR -->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
             <level>INFO</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
         </filter>
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
             <charset>UTF-8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <!-- 按天+序号命名归档文件 -->
             <fileNamePattern>${LOG_PATH}/info-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <!-- 单文件达到 10MB 触发分割 -->
             <maxFileSize>10MB</maxFileSize>
-            <!-- 归档文件保留 30 天，超期自动删除 -->
             <maxHistory>30</maxHistory>
-            <!-- 所有归档总大小上限，超过后删除最旧的 -->
             <totalSizeCap>5GB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <!-- ERROR 日志 Appender：10MB 分割 + 保留 30 天 -->
+    <!-- WARN 日志 Appender：只接收 WARN 级别日志 -->
+    <appender name="WARN_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/warn.log</file>
+        <createDirs>true</createDirs>
+        <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>WARN</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/warn-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ERROR 日志 Appender：只接收 ERROR 级别日志 -->
     <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/error.log</file>
         <createDirs>true</createDirs>
@@ -60,25 +81,44 @@
         </rollingPolicy>
     </appender>
 
-    <!-- Spring Profile 配置 -->
+    <!-- Spring Profile 配置 - 开发环境 -->
     <springProfile name="!prod">
+        <!--
+            com.algoviz 包配置：
+            - level="DEBUG": 控制台显示 DEBUG 及以上级别日志
+            - additivity="false": 日志不传递到 root logger，避免重复
+            - CONSOLE: 接收所有级别日志（DEBUG 及以上）
+            - INFO_FILE: 只接收 INFO 级别（通过 filter 控制）
+            - WARN_FILE: 只接收 WARN 级别
+            - ERROR_FILE: 只接收 ERROR 级别
+        -->
         <logger name="com.algoviz" level="DEBUG" additivity="false">
             <appender-ref ref="CONSOLE"/>
             <appender-ref ref="INFO_FILE"/>
+            <appender-ref ref="WARN_FILE"/>
             <appender-ref ref="ERROR_FILE"/>
         </logger>
+
+        <!-- root logger: 其他包的日志只输出到控制台和 ERROR_FILE -->
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="INFO_FILE"/>
             <appender-ref ref="ERROR_FILE"/>
         </root>
     </springProfile>
 
+    <!-- Spring Profile 配置 - 生产环境 -->
     <springProfile name="prod">
-        <logger name="com.algoviz" level="DEBUG" additivity="false">
+        <!--
+            生产环境：
+            - 控制台不输出 DEBUG 日志
+            - 文件只收集相应级别的日志
+        -->
+        <logger name="com.algoviz" level="INFO" additivity="false">
             <appender-ref ref="INFO_FILE"/>
+            <appender-ref ref="WARN_FILE"/>
             <appender-ref ref="ERROR_FILE"/>
         </logger>
+
         <root level="INFO">
             <appender-ref ref="INFO_FILE"/>
             <appender-ref ref="ERROR_FILE"/>
