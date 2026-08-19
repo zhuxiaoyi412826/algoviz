@@ -76,6 +76,7 @@
                                 <button class="oj-problem-tab active" data-tab="description">📝 题目描述</button>
                                 <button class="oj-problem-tab" data-tab="solution">💡 解法</button>
                                 <button class="oj-problem-tab" data-tab="submissions">📊 提交记录</button>
+                                <button class="oj-problem-tab" data-tab="userSolutions">💬 用户题解</button>
                             </div>
                             <span class="oj-problem-difficulty" id="ojProblemDifficulty"></span>
                         </div>
@@ -112,6 +113,14 @@
                         <div class="oj-empty-state">
                             <div class="oj-empty-icon" style="font-size: 32px; margin-bottom: 8px;">📊</div>
                             <p>暂无提交记录</p>
+                        </div>
+                    </div>
+
+                    <!-- User Solutions Content -->
+                    <div class="oj-problem-content" id="ojUserSolutionsContent" style="display: none;">
+                        <div class="oj-empty-state">
+                            <div class="oj-empty-icon" style="font-size: 32px; margin-bottom: 8px;">💬</div>
+                            <p>点击「用户题解」加载...</p>
                         </div>
                     </div>
                 </div>
@@ -249,6 +258,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <script src="../js/oj.js"></script>
+    <script src="../js/oj-solution.js"></script>
 </body>
 
 </html>

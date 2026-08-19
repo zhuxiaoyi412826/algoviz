@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algoviz.mapper.OJSolutionMapper">
+
+    <resultMap id="SolutionMap" type="com.algoviz.entity.OJSolution">
+        <id column="id" property="id"/>
+        <result column="problem_id" property="problemId"/>
+        <result column="problem_title" property="problemTitle"/>
+        <result column="user_id" property="userId"/>
+        <result column="username" property="username"/>
+        <result column="avatar" property="avatar"/>
+        <result column="title" property="title"/>
+        <result column="format" property="format"/>
+        <result column="idea" property="idea"/>
+        <result column="process" property="process"/>
+        <result column="complexity" property="complexity"/>
+        <result column="code_lang" property="codeLang"/>
+        <result column="code" property="code"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="comment_count" property="commentCount"/>
+        <result column="is_passed" property="isPassed"/>
+        <result column="is_featured" property="isFeatured"/>
+        <result column="audit_status" property="auditStatus"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="detect_summary" property="detectSummary"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="cols">
+        id, problem_id, problem_title, user_id, username, avatar,
+        title, format, idea, process, complexity, code_lang, code,
+        like_count, view_count, comment_count, is_passed, is_featured,
+        audit_status, risk_level, detect_summary, status, created_at, updated_at
+    </sql>
+
+    <!-- 用户侧：已发布题解列表（排除 DELETED/HIDDEN/blocked） -->
+    <select id="selectPublished" resultMap="SolutionMap">
+        SELECT <include refid="cols"/> FROM oj_solution
+        WHERE problem_id = #{problemId}
+          AND status = 'PUBLISHED'
+          AND audit_status != 'blocked'
+        ORDER BY is_featured DESC, like_count DESC, created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countPublished" resultType="int">
+        SELECT COUNT(*) FROM oj_solution
+        WHERE problem_id = #{problemId}
+          AND status = 'PUBLISHED'
+          AND audit_status != 'blocked'
+    </select>
+
+    <!-- 后台：全量分页 -->
+    <select id="selectByPage" resultMap="SolutionMap">
+        SELECT <include refid="cols"/> FROM oj_solution
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (title LIKE CONCAT('%', #{keyword}, '%')
+                     OR problem_title LIKE CONCAT('%', #{keyword}, '%')
+                     OR username LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="auditStatus != null and auditStatus != ''">
+                AND audit_status = #{auditStatus}
+            </if>
+            AND status != 'DELETED'
+        </where>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByPage" resultType="int">
+        SELECT COUNT(*) FROM oj_solution
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (title LIKE CONCAT('%', #{keyword}, '%')
+                     OR problem_title LIKE CONCAT('%', #{keyword}, '%')
+                     OR username LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="auditStatus != null and auditStatus != ''">
+                AND audit_status = #{auditStatus}
+            </if>
+            AND status != 'DELETED'
+        </where>
+    </select>
+
+    <select id="selectById" resultMap="SolutionMap">
+        SELECT <include refid="cols"/> FROM oj_solution WHERE id = #{id}
+    </select>
+
+    <select id="selectByUserAndProblem" resultMap="SolutionMap">
+        SELECT <include refid="cols"/> FROM oj_solution
+        WHERE user_id = #{userId} AND problem_id = #{problemId}
+          AND status != 'DELETED'
+        ORDER BY created_at DESC LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO oj_solution
+        (problem_id, problem_title, user_id, username, avatar,
+         title, format, idea, process, complexity, code_lang, code,
+         like_count, view_count, comment_count, is_passed, is_featured,
+         audit_status, risk_level, detect_summary, status)
+        VALUES
+        (#{problemId}, #{problemTitle}, #{userId}, #{username}, #{avatar},
+         #{title}, #{format}, #{idea}, #{process}, #{complexity}, #{codeLang}, #{code},
+         0, 0, 0, #{isPassed}, #{isFeatured},
+         #{auditStatus}, #{riskLevel}, #{detectSummary}, #{status})
+    </insert>
+
+    <update id="updateById">
+        UPDATE oj_solution SET
+            title = #{title},
+            format = #{format},
+            idea = #{idea},
+            process = #{process},
+            complexity = #{complexity},
+            code_lang = #{codeLang},
+            code = #{code},
+            is_passed = #{isPassed},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateAuditStatus">
+        UPDATE oj_solution SET
+            audit_status = #{auditStatus},
+            risk_level = #{riskLevel},
+            detect_summary = #{detectSummary},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE oj_solution SET status = #{status}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="incrementViewCount">
+        UPDATE oj_solution SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+
+    <update id="incrementLikeCount">
+        UPDATE oj_solution SET like_count = like_count + #{delta} WHERE id = #{id}
+    </update>
+
+    <update id="incrementCommentCount">
+        UPDATE oj_solution SET comment_count = comment_count + #{delta} WHERE id = #{id}
+    </update>
+
+    <select id="countByProblemAndUser" resultType="int">
+        SELECT COUNT(*) FROM oj_solution
+        WHERE problem_id = #{problemId} AND user_id = #{userId} AND status != 'DELETED'
+    </select>
+
+</mapper>

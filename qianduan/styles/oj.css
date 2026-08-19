@@ -325,6 +325,7 @@
     flex: 1;
     padding: 12px;
     overflow-y: auto;
+    min-height: 0;
     font-size: 13px;
     line-height: 1.6;
 }

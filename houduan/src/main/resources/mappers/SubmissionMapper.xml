@@ -77,4 +77,8 @@
     <select id="getRecentSubmissionsByUserId" resultMap="SubmissionResultMap">
         SELECT * FROM submission WHERE user_id = #{userId} ORDER BY submit_time DESC LIMIT #{limit}
     </select>
+
+    <select id="findByUserIdAndProblemId" resultMap="SubmissionResultMap">
+        SELECT * FROM submission WHERE user_id = #{userId} AND problem_id = #{problemId}
+    </select>
 </mapper>

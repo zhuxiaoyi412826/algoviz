@@ -290,10 +290,11 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import {
   ElCard, ElTabs, ElTabPane, ElTable, ElTableColumn, ElButton, ElInput, ElSelect,
   ElOption, ElTag, ElPagination, ElDialog, ElForm, ElFormItem, ElRadioGroup, ElRadio,
-  ElSwitch, ElInputNumber, ElPopconfirm, ElAlert, ElMessage
+  ElSwitch, ElInputNumber, ElPopconfirm, ElAlert
 } from 'element-plus'
 import { Search, Plus, Refresh, Upload, Promotion, Delete } from '@element-plus/icons-vue'
 import { auditApi } from '@/api/audit'

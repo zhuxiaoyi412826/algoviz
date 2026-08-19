@@ -84,7 +84,8 @@ public class SensitiveWordService {
         return t;
     }
 
-    /** word -> 元信息（等级/分类） */
+    /** word -> 元信息（等级/分类）：同时放入原词形 + stripNoise 干净词形键，
+     *  因为 DfaTrie.Hit.word 在 FUZZY 模式下返回的是干净词形，需要能正确映射回原始行。*/
     public java.util.Map<String, SensitiveWord> getWordMeta() {
         List<SensitiveWord> words = getEnabledWords();
         String fp = words.size() + "@" + (words.isEmpty() ? "-" : words.get(words.size() - 1).getId());
@@ -93,6 +94,11 @@ public class SensitiveWordService {
             java.util.Map<String, SensitiveWord> nm = new java.util.HashMap<>();
             for (SensitiveWord w : words) {
                 nm.put(w.getWord(), w);
+                String clean = DfaTrie.stripNoise(w.getWord());
+                if (clean != null && !clean.isEmpty() && !clean.equals(w.getWord())) {
+                    // 不同词若剥噪声后冲突，后写会覆盖 —— 通常等级一致，若不同建议在 save 时加唯一性校验
+                    nm.put(clean, w);
+                }
             }
             wordMetaCache = nm;
             metaFingerprint = fp;

@@ -73,4 +73,9 @@ public interface SubmissionMapper {
      * 获取用户最近提交
      */
     List<Submission> getRecentSubmissionsByUserId(@Param("userId") Long userId, @Param("limit") int limit);
+
+    /**
+     * 按用户+题目查询提交记录（题解发布时查是否已 AC）
+     */
+    List<Submission> findByUserIdAndProblemId(@Param("userId") Long userId, @Param("problemId") Long problemId);
 }

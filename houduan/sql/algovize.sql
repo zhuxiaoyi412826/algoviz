@@ -864,3 +864,42 @@ INSERT INTO dangerous_code_rule (rule_code, rule_name, LANGUAGE, rule_type, rule
 ('DC-009', '端口扫描', 'ALL', 'REGEX', '(port|PORT)\\s*(_?)+\\d{2,5}.*for.*range', 'MEDIUM', 70, '疑似端口扫描循环'),
 ('DC-010', '矿池地址', 'ALL', 'REGEX', '(stratum\\+tcp|miner|矿池)', 'HIGH', 90, '挖矿特征')
 ON DUPLICATE KEY UPDATE update_time = update_time;
+
+-- 10. 用户题解表
+DROP TABLE IF EXISTS `oj_solution`;
+CREATE TABLE `oj_solution` (
+    `id`               BIGINT         NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `problem_id`       BIGINT         NOT NULL COMMENT '题目ID',
+    `problem_title`    VARCHAR(200)   DEFAULT NULL COMMENT '题目标题冗余',
+    `user_id`          BIGINT         NOT NULL COMMENT '发布用户ID',
+    `username`         VARCHAR(100)   DEFAULT NULL COMMENT '用户名冗余',
+    `avatar`           VARCHAR(500)   DEFAULT NULL COMMENT '头像冗余',
+
+    `title`            VARCHAR(200)   NOT NULL COMMENT '题解标题',
+    `format`           VARCHAR(100)   DEFAULT NULL COMMENT '解题格式（双指针/DP/回溯等）',
+    `idea`             MEDIUMTEXT     COMMENT '思路',
+    `process`          MEDIUMTEXT     COMMENT '解题过程',
+    `complexity`       VARCHAR(500)   DEFAULT NULL COMMENT '复杂度分析',
+    `code_lang`        VARCHAR(50)    DEFAULT 'java' COMMENT '代码语言',
+    `code`             MEDIUMTEXT     COMMENT '题解代码',
+
+    `like_count`       INT            DEFAULT 0 COMMENT '点赞数',
+    `view_count`       INT            DEFAULT 0 COMMENT '观看数',
+    `comment_count`    INT            DEFAULT 0 COMMENT '评论数',
+
+    `is_passed`        TINYINT(1)     DEFAULT 0 COMMENT '是否已AC该题',
+    `is_featured`      TINYINT(1)     DEFAULT 0 COMMENT '精选置顶',
+
+    `audit_status`     VARCHAR(20)    DEFAULT 'none' COMMENT '审核状态 none/pending/blocked/passed/rejected',
+    `risk_level`       VARCHAR(10)    DEFAULT 'NONE' COMMENT '风险等级 NONE/LOW/MEDIUM/HIGH',
+    `detect_summary`   VARCHAR(1000)  DEFAULT NULL COMMENT '检测命中摘要',
+
+    `status`           VARCHAR(20)    DEFAULT 'PUBLISHED' COMMENT 'PUBLISHED/HIDDEN/DELETED',
+    `created_at`       DATETIME       DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`       DATETIME       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (`id`),
+    KEY `idx_solution_problem` (`problem_id`, `status`, `created_at` DESC),
+    KEY `idx_solution_user` (`user_id`, `created_at` DESC),
+    KEY `idx_solution_audit` (`audit_status`, `created_at` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='OJ用户题解表';

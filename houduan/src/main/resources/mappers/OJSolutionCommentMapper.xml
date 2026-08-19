@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algoviz.mapper.OJSolutionCommentMapper">
+
+    <resultMap id="CommentMap" type="com.algoviz.entity.OJSolutionComment">
+        <id column="id" property="id"/>
+        <result column="solution_id" property="solutionId"/>
+        <result column="problem_id" property="problemId"/>
+        <result column="user_id" property="userId"/>
+        <result column="username" property="username"/>
+        <result column="avatar" property="avatar"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="root_id" property="rootId"/>
+        <result column="reply_to_user_id" property="replyToUserId"/>
+        <result column="reply_to_username" property="replyToUsername"/>
+        <result column="content" property="content"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="audit_status" property="auditStatus"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="detect_summary" property="detectSummary"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="cols">
+        id, solution_id, problem_id, user_id, username, avatar,
+        parent_id, root_id, reply_to_user_id, reply_to_username,
+        content, like_count, audit_status, risk_level, detect_summary,
+        status, created_at, updated_at
+    </sql>
+
+    <!-- 用户侧：顶层评论 -->
+    <select id="selectTopLevel" resultMap="CommentMap">
+        SELECT <include refid="cols"/> FROM oj_solution_comment
+        WHERE solution_id = #{solutionId}
+          AND parent_id = 0
+          AND status = 'PUBLISHED'
+          AND audit_status != 'blocked'
+        ORDER BY like_count DESC, created_at ASC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countTopLevel" resultType="int">
+        SELECT COUNT(*) FROM oj_solution_comment
+        WHERE solution_id = #{solutionId}
+          AND parent_id = 0
+          AND status = 'PUBLISHED'
+          AND audit_status != 'blocked'
+    </select>
+
+    <!-- 子评论 -->
+    <select id="selectReplies" resultMap="CommentMap">
+        SELECT <include refid="cols"/> FROM oj_solution_comment
+        WHERE root_id = #{rootId}
+          AND parent_id != 0
+          AND status = 'PUBLISHED'
+          AND audit_status != 'blocked'
+        ORDER BY created_at ASC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countReplies" resultType="int">
+        SELECT COUNT(*) FROM oj_solution_comment
+        WHERE root_id = #{rootId}
+          AND parent_id != 0
+          AND status = 'PUBLISHED'
+          AND audit_status != 'blocked'
+    </select>
+
+    <!-- 后台分页 -->
+    <select id="selectByPage" resultMap="CommentMap">
+        SELECT <include refid="cols"/> FROM oj_solution_comment
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (content LIKE CONCAT('%', #{keyword}, '%')
+                     OR username LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="auditStatus != null and auditStatus != ''">
+                AND audit_status = #{auditStatus}
+            </if>
+            AND status != 'DELETED'
+        </where>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByPage" resultType="int">
+        SELECT COUNT(*) FROM oj_solution_comment
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (content LIKE CONCAT('%', #{keyword}, '%')
+                     OR username LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="auditStatus != null and auditStatus != ''">
+                AND audit_status = #{auditStatus}
+            </if>
+            AND status != 'DELETED'
+        </where>
+    </select>
+
+    <select id="selectById" resultMap="CommentMap">
+        SELECT <include refid="cols"/> FROM oj_solution_comment WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO oj_solution_comment
+        (solution_id, problem_id, user_id, username, avatar,
+         parent_id, root_id, reply_to_user_id, reply_to_username,
+         content, like_count, audit_status, risk_level, detect_summary, status)
+        VALUES
+        (#{solutionId}, #{problemId}, #{userId}, #{username}, #{avatar},
+         #{parentId}, #{rootId}, #{replyToUserId}, #{replyToUsername},
+         #{content}, 0, #{auditStatus}, #{riskLevel}, #{detectSummary}, #{status})
+    </insert>
+
+    <update id="updateAuditStatus">
+        UPDATE oj_solution_comment SET
+            audit_status = #{auditStatus},
+            risk_level = #{riskLevel},
+            detect_summary = #{detectSummary},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE oj_solution_comment SET status = #{status}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="incrementLikeCount">
+        UPDATE oj_solution_comment SET like_count = like_count + #{delta} WHERE id = #{id}
+    </update>
+
+    <update id="updateRootId">
+        UPDATE oj_solution_comment SET root_id = #{rootId} WHERE id = #{id}
+    </update>
+
+</mapper>

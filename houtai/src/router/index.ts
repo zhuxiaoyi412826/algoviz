@@ -157,6 +157,12 @@ const routes: RouteRecordRaw[] = [
             name: 'AuditReview',
             component: () => import('@/views/audit/AuditReview.vue'),
             meta: { title: '人工审核' }
+          },
+          {
+            path: 'solution-review',
+            name: 'SolutionReview',
+            component: () => import('@/views/audit/SolutionReview.vue'),
+            meta: { title: '题解审核' }
           }
         ]
       },

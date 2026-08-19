@@ -293,6 +293,7 @@ function initTabs() {
             document.getElementById('ojProblemContent').style.display = 'none';
             document.getElementById('ojSolutionContent').style.display = 'none';
             document.getElementById('ojSubmissionsContent').style.display = 'none';
+            document.getElementById('ojUserSolutionsContent').style.display = 'none';
 
             // 切换语言选择栏（仅解法标签显示）
             const langBar = document.getElementById('ojSolutionLangBar');
@@ -308,6 +309,12 @@ function initTabs() {
             } else if (tabName === 'submissions') {
                 document.getElementById('ojSubmissionsContent').style.display = 'block';
                 langBar.style.display = 'none';
+            } else if (tabName === 'userSolutions') {
+                document.getElementById('ojUserSolutionsContent').style.display = 'block';
+                langBar.style.display = 'none';
+                if (window.OJSolution && OJState.currentProblem) {
+                    OJSolution.loadList(OJState.currentProblem.id);
+                }
             }
         });
     });
