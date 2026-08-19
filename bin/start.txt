@@ -1,0 +1,7 @@
+start.bat文件用于启动AlgoVize 核心应用程序。以下是启动脚本的详细说明：
+mvn spring-boot:run  目录AlgoVize\houduan 命令用于启动Spring Boot应用程序。启动后，应用程序会监听指定的端口（默认为8080），并提供相应的API和界面供用户访问。
+api 访问端口是 localhost/doc.html，用于访问应用程序的API接口。
+npm run dev 管理员界面启动端口 AlgoVize\houtai 目录 
+npm install -g 全局安装 http-server -p 9000 -o --cors# 指定端口9000，自动打开浏览器，开启跨域   目录文件  AlgoVize\qianduan
+
+stop.bat文件用于停止AlgoVize 核心应用程序

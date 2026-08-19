@@ -33,6 +33,10 @@ __pycache__/
 /.env
 *.env
 
+# 某个目录下的 txt 要提交
+!resources/txt/*.txt
+!bin/*.txt
+
 # JS/TS bundlers & build outputs
 .next
 .nuxt

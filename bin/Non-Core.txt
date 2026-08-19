@@ -1,0 +1,18 @@
+Non-Core.start.bat 
+文件是启动非核心程序 如  向量数据库 ELK 日志收集 Pyhton向量 语义搜索 
+启动顺序为:1 Elasticsearch :9200" 2 Kibana :5601" 3 Fluentd :采集 D:\rizi -> ES" 4 Chroma :8000" 5 Python 向量服务 :8001"
+启动目录分别为
+ES                         = "D:\software\Elasticsearch\elasticsearch-7.12.1-windows-x86_64\elasticsearch-7.12.1\bin"
+KIBANA                       = "D:\software\Kibana\kibana-7.12.1-windows-x86_64\kibana-7.12.1-windows-x86_64\bin"
+KNOW_DIR                     = "D:\daima\XiangMu\算法数据结构可视化\AlgoVize\Agent\know-retrieval"
+Python向量服务                = "D:\daima\XiangMu\算法数据结构可视化\AlgoVize\Agent\know-retrieval"
+Chroma                       = 那个命令行都可以
+启动命令分别为
+ES                           = elasticsearch.bat
+KIBANA                       = kibana.bat
+KNOW_DIR (Fluentd)           = td-agent -c fluentd.conf
+Python向量服务                = python run.py
+Chroma                       = chroma run --path ./chroma_data --host 0.0.0.0 --port 8000 
+Non-Core Stop.bat 
+文件是关闭非核心程序关闭顺序为
+1 Python 向量服务 :8001" 2 Chroma :8000" 3 Fluentd :采集 D:\rizi -> ES" 4 Kibana :5601" 5 Elasticsearch :9200"
