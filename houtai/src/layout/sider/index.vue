@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import * as icons from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
 
-const isCollapse = ref(false)
+const layoutState = inject<any>('layoutState')
+const sidebarCollapsed = computed(() => layoutState.sidebarCollapsed.value)
+const toggleSidebar = () => layoutState.toggleSidebar()
 
 const getIcon = (iconName: string) => {
   return (icons as any)[iconName] || icons.Odometer
@@ -123,16 +125,16 @@ const handleSelect = (index: string) => {
 </script>
 
 <template>
-  <aside class="sidebar" :class="{ 'sidebar--collapse': isCollapse }">
+  <aside class="sidebar" :class="{ 'sidebar--collapse': sidebarCollapsed }">
     <div class="sidebar-header">
       <div class="logo">
         <el-icon :size="28"><component :is="getIcon('Odometer')" /></el-icon>
-        <span v-show="!isCollapse" class="logo-text">算法可视化平台</span>
+        <span v-show="!sidebarCollapsed" class="logo-text">算法可视化平台</span>
       </div>
     </div>
     <el-menu
       :default-active="activeIndex"
-      :collapse="isCollapse"
+      :collapse="sidebarCollapsed"
       :collapse-transition="false"
       background-color="#304156"
       text-color="#bfcbd9"
@@ -159,6 +161,9 @@ const handleSelect = (index: string) => {
         </el-menu-item>
       </template>
     </el-menu>
+    <button class="sidebar-toggle" :class="{ 'sidebar-toggle--collapse': sidebarCollapsed }" @click="toggleSidebar" :title="sidebarCollapsed ? '展开菜单' : '收起菜单'">
+      <span class="triangle"></span>
+    </button>
   </aside>
 </template>
 
@@ -167,9 +172,10 @@ const handleSelect = (index: string) => {
   width: 220px;
   height: 100vh;
   background-color: var(--color-bg-sidebar);
-  transition: width 0.3s;
+  transition: width 0.3s ease;
   overflow-x: hidden;
   flex-shrink: 0;
+  position: relative;
 
   &--collapse {
     width: 64px;
@@ -195,6 +201,57 @@ const handleSelect = (index: string) => {
     font-size: 16px;
     font-weight: 600;
     white-space: nowrap;
+  }
+}
+
+.sidebar-toggle {
+  position: absolute;
+  top: 50%;
+  right: -12px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background-color: #409eff;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.4);
+  z-index: 10;
+  transition: all 0.3s ease;
+  padding: 0;
+
+  &:hover {
+    background-color: #66b1ff;
+    box-shadow: 0 2px 12px rgba(64, 158, 255, 0.6);
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  &--collapse {
+    right: -12px;
+    .triangle {
+      border-left-color: #fff;
+      border-right-color: transparent;
+    }
+  }
+
+  .triangle {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 6px solid transparent;
+    border-right: 6px solid #fff;
+    transition: transform 0.3s ease;
+  }
+
+  &--collapse .triangle {
+    border-left-color: #fff;
+    border-right-color: transparent;
   }
 }
 

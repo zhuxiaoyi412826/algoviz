@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar, ElIcon, ElBadge } from 'element-plus'
-import { User, Setting, SwitchButton, Bell, Expand, Fold } from '@element-plus/icons-vue'
+import { User, Setting, SwitchButton, Bell } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
-const isCollapsed = ref(false)
+
+const layoutState = inject<any>('layoutState')
+const sidebarCollapsed = computed(() => layoutState.sidebarCollapsed.value)
+const toggleSidebar = () => layoutState.toggleSidebar()
 
 const handleCommand = (command: string) => {
   switch (command) {
@@ -28,10 +31,10 @@ const handleCommand = (command: string) => {
 <template>
   <header class="header">
     <div class="header-left">
-      <el-icon class="collapse-btn">
-        <Fold v-if="!isCollapsed" />
-        <Expand v-else />
-      </el-icon>
+      <div class="collapse-btn" @click="toggleSidebar" :title="sidebarCollapsed ? '展开菜单' : '收起菜单'">
+        <span class="tri-left" v-if="!sidebarCollapsed"></span>
+        <span class="tri-right" v-else></span>
+      </div>
       <el-breadcrumb separator="/">
         <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
         <el-breadcrumb-item v-if="$route.meta?.parent">
@@ -84,13 +87,42 @@ const handleCommand = (command: string) => {
 }
 
 .collapse-btn {
-  font-size: 20px;
+  width: 28px;
+  height: 28px;
   cursor: pointer;
-  color: #606266;
-  transition: color 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  padding: 0;
+  background: transparent;
+  border: none;
 
   &:hover {
-    color: var(--color-primary);
+    background-color: #f5f7fa;
+    .tri-left, .tri-right {
+      border-color: var(--color-primary);
+    }
+  }
+
+  .tri-left, .tri-right {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    transition: all 0.3s ease;
+  }
+
+  .tri-left {
+    border-right: 7px solid #606266;
+    border-left: 0;
+  }
+
+  .tri-right {
+    border-left: 7px solid #606266;
+    border-right: 0;
   }
 }
 
