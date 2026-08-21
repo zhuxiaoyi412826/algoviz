@@ -5,6 +5,21 @@
 // API基础地址
 const API_BASE = 'http://localhost:80/api';
 
+// 从localStorage获取当前登录用户信息
+function getCurrentUser() {
+    try {
+        const raw = localStorage.getItem('userInfo');
+        if (raw) {
+            const u = JSON.parse(raw);
+            return {
+                id: u.id || u.userId || 1,
+                username: u.username || u.nickname || '前端用户'
+            };
+        }
+    } catch (e) {}
+    return { id: 1, username: '前端用户' };
+}
+
 // 语言配置映射
 const LANGUAGE_CONFIG = {
     java: { label: 'Java', mode: 'text/x-java', ext: 'java' },
@@ -190,7 +205,11 @@ async function initOJ() {
 // 从后端获取题目列表
 async function loadProblems() {
     try {
-        const response = await fetch(`${API_BASE}/problems`);
+        const curUser = getCurrentUser();
+        const response = await fetch(`${API_BASE}/problems`, {
+            credentials: 'include',
+            headers: { 'X-User-Id': String(curUser.id) }
+        });
         const data = await response.json();
 
         if (data.success && data.problems && data.problems.length > 0) {
@@ -675,9 +694,11 @@ async function runCode() {
     `;
 
     try {
+        const curUser = getCurrentUser();
         const response = await fetch(`${API_BASE}/submissions/run`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-User-Id': String(curUser.id) },
+            credentials: 'include',
             body: JSON.stringify({
                 problemId: OJState.currentProblem.id,
                 code: code,
@@ -753,15 +774,17 @@ async function submitCode() {
 
     try {
         // 1. 提交代码
+        const curUser = getCurrentUser();
         const submitResponse = await fetch(`${API_BASE}/submissions`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-User-Id': String(curUser.id) },
+            credentials: 'include',
             body: JSON.stringify({
                 problemId: OJState.currentProblem.id,
                 code: code,
                 language: lang,
-                userId: 1,
-                username: '前端用户'
+                userId: curUser.id,
+                username: curUser.username
             })
         });
 
@@ -791,7 +814,10 @@ async function submitCode() {
         while (pollCount < maxPollCount) {
             await new Promise(resolve => setTimeout(resolve, 500)); // 等待500ms
             
-            const detailResponse = await fetch(`${API_BASE}/submissions/${submissionId}`);
+            const detailResponse = await fetch(`${API_BASE}/submissions/${submissionId}`, {
+                credentials: 'include',
+                headers: { 'X-User-Id': String(curUser.id) }
+            });
             const detailData = await detailResponse.json();
             
             if (detailData.success && detailData.submission) {

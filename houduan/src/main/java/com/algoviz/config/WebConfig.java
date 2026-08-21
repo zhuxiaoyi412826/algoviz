@@ -72,6 +72,15 @@ public class WebConfig implements WebMvcConfigurer {
                         // 内容审核系统（后台 Bearer Token 鉴权）
                         "/api/audit",
                         "/api/audit/**",
+                        // 反馈管理（后台接口）
+                        "/api/feedback",
+                        "/api/feedback/**",
+                        // 公告管理（后台接口）
+                        "/api/announcements",
+                        "/api/announcements/**",
+                        // 仪表盘数据（后台接口）
+                        "/api/dashboard",
+                        "/api/dashboard/**",
                         // Knife4j / Swagger 文档资源
                         "/doc.html",
                         "/webjars/**",

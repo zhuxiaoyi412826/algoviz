@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElTable, ElTableColumn, ElButton, ElTag, ElDialog, ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElSwitch, ElMessage, ElMessageBox, ElPagination } from 'element-plus'
 import { Plus, Edit, Delete, Top, Search } from '@element-plus/icons-vue'
+import request from '@/api/request'
 
 interface Announcement {
   id: number | string
@@ -15,8 +16,6 @@ interface Announcement {
   createTime?: string
   updateTime?: string
 }
-
-const API_BASE = 'http://localhost/api/announcements'
 
 const tableData = ref<Announcement[]>([])
 const loading = ref(false)
@@ -59,35 +58,29 @@ onMounted(() => loadData())
 const loadData = async () => {
   loading.value = true
   try {
-    const response = await fetch(API_BASE)
-    const data = await response.json()
-    if (data.success) {
-      const list: Announcement[] = (data.announcements || []).map((item: any) => ({
-        id: item.id,
-        title: item.title || '',
-        content: item.content || '',
-        type: item.type || 'notice',
-        isTop: !!item.isTop,
-        status: item.status || 'draft',
-        sortOrder: item.sortOrder,
-        publishTime: item.publishTime,
-        createTime: item.createTime,
-        updateTime: item.updateTime
-      }))
-      // 置顶优先，再按发布/创建时间倒序
-      list.sort((a, b) => {
-        if (a.isTop !== b.isTop) return a.isTop ? -1 : 1
-        const ta = new Date(a.publishTime || a.createTime || 0).getTime()
-        const tb = new Date(b.publishTime || b.createTime || 0).getTime()
-        return tb - ta
-      })
-      tableData.value = list
-    } else {
-      ElMessage.error(data.message || '加载公告列表失败')
-    }
+    const data: any = await request.get('/announcements')
+    const list: Announcement[] = (data?.announcements || []).map((item: any) => ({
+      id: item.id,
+      title: item.title || '',
+      content: item.content || '',
+      type: item.type || 'notice',
+      isTop: !!item.isTop,
+      status: item.status || 'draft',
+      sortOrder: item.sortOrder,
+      publishTime: item.publishTime,
+      createTime: item.createTime,
+      updateTime: item.updateTime
+    }))
+    // 置顶优先，再按发布/创建时间倒序
+    list.sort((a, b) => {
+      if (a.isTop !== b.isTop) return a.isTop ? -1 : 1
+      const ta = new Date(a.publishTime || a.createTime || 0).getTime()
+      const tb = new Date(b.publishTime || b.createTime || 0).getTime()
+      return tb - ta
+    })
+    tableData.value = list
   } catch (error) {
     console.error('加载公告列表失败:', error)
-    ElMessage.error('加载公告列表失败')
   } finally {
     loading.value = false
   }
@@ -137,18 +130,12 @@ const handleEdit = (row: Announcement) => {
 const handleDelete = async (row: Announcement) => {
   try {
     await ElMessageBox.confirm(`确定删除公告「${row.title}」吗？`, '提示', { type: 'warning' })
-    const response = await fetch(`${API_BASE}/${row.id}`, { method: 'DELETE' })
-    const data = await response.json()
-    if (data.success) {
-      ElMessage.success('删除成功')
-      loadData()
-    } else {
-      ElMessage.error(data.message || '删除失败')
-    }
+    await request.delete(`/announcements/${row.id}`)
+    ElMessage.success('删除成功')
+    loadData()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除失败:', error)
-      ElMessage.error('删除失败')
     }
   }
 }
@@ -167,24 +154,16 @@ const handleSubmit = async () => {
         status: formData.status
       }
       const isEdit = formData.id !== undefined && formData.id !== null
-      const url = isEdit ? `${API_BASE}/${formData.id}` : API_BASE
-      const method = isEdit ? 'PUT' : 'POST'
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      const data = await response.json()
-      if (data.success) {
-        ElMessage.success(dialogTitle.value + '成功')
-        dialogVisible.value = false
-        loadData()
+      if (isEdit) {
+        await request.put(`/announcements/${formData.id}`, payload)
       } else {
-        ElMessage.error(data.message || '操作失败')
+        await request.post('/announcements', payload)
       }
+      ElMessage.success(dialogTitle.value + '成功')
+      dialogVisible.value = false
+      loadData()
     } catch (error) {
       console.error('提交失败:', error)
-      ElMessage.error('操作失败')
     } finally {
       submitting.value = false
     }
@@ -193,33 +172,21 @@ const handleSubmit = async () => {
 
 const handlePublish = async (row: Announcement) => {
   try {
-    const response = await fetch(`${API_BASE}/${row.id}/publish`, { method: 'PUT' })
-    const data = await response.json()
-    if (data.success) {
-      ElMessage.success('发布成功')
-      loadData()
-    } else {
-      ElMessage.error(data.message || '发布失败')
-    }
+    await request.put(`/announcements/${row.id}/publish`)
+    ElMessage.success('发布成功')
+    loadData()
   } catch (error) {
     console.error('发布失败:', error)
-    ElMessage.error('发布失败')
   }
 }
 
 const handleUnpublish = async (row: Announcement) => {
   try {
-    const response = await fetch(`${API_BASE}/${row.id}/unpublish`, { method: 'PUT' })
-    const data = await response.json()
-    if (data.success) {
-      ElMessage.success('已取消发布')
-      loadData()
-    } else {
-      ElMessage.error(data.message || '操作失败')
-    }
+    await request.put(`/announcements/${row.id}/unpublish`)
+    ElMessage.success('已取消发布')
+    loadData()
   } catch (error) {
     console.error('取消发布失败:', error)
-    ElMessage.error('操作失败')
   }
 }
 

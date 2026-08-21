@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElImage } from 'element-plus'
+import request from '@/api/request'
 
 interface Feedback {
   id: string
@@ -15,8 +16,6 @@ interface Feedback {
   createTime: string
   imageCount: number
 }
-
-const API_BASE = 'http://localhost'
 
 const tableData = ref<Feedback[]>([])
 const loading = ref(false)
@@ -35,34 +34,31 @@ onMounted(() => loadData())
 const loadData = async () => {
   loading.value = true
   try {
-    const params = new URLSearchParams()
-    if (searchForm.type) params.append('type', searchForm.type)
-    if (searchForm.status) params.append('status', searchForm.status.toUpperCase())
+    const params: any = {}
+    if (searchForm.type) params.type = searchForm.type
+    if (searchForm.status) params.status = searchForm.status.toUpperCase()
 
-    const response = await fetch(`${API_BASE}/api/feedback?${params.toString()}`)
-    const data = await response.json()
+    const data: any = await request.get('/feedback', { params })
 
-    if (data.success) {
-      tableData.value = data.feedbacks.map((item: any) => ({
-        id: item.id,
-        userId: item.userId || '',
-        username: item.username || '',
-        email: item.email || '',
-        type: item.type || '',
-        title: item.title || '',
-        content: item.content || '',
-        status: item.status || '',
-        reply: item.reply || '',
-        createTime: item.createTime || '',
-        imageCount: item.imageCount ?? 0
-      }))
-      total.value = data.count
-    } else {
-      ElMessage.error('加载反馈列表失败')
-    }
+    const list = Array.isArray(data) ? data : (data?.feedbacks || [])
+    const count = Array.isArray(data) ? data.length : (data?.count || list.length)
+
+    tableData.value = list.map((item: any) => ({
+      id: item.id,
+      userId: item.userId || '',
+      username: item.username || '',
+      email: item.email || '',
+      type: item.type || '',
+      title: item.title || '',
+      content: item.content || '',
+      status: item.status || '',
+      reply: item.reply || '',
+      createTime: item.createTime || '',
+      imageCount: item.imageCount ?? 0
+    }))
+    total.value = count
   } catch (error) {
     console.error('加载反馈列表失败:', error)
-    ElMessage.error('加载反馈列表失败')
   } finally { loading.value = false }
 }
 
@@ -70,16 +66,13 @@ const handleDetail = async (row: Feedback) => {
   currentFeedback.value = { ...row }
   detailImageUrls.value = []
   detailVisible.value = true
-  // 加载图片 URL
   try {
     if ((row.imageCount ?? 0) > 0) {
-      const r = await fetch(`${API_BASE}/api/feedback/${row.id}/images`)
-      const j = await r.json()
-      if (j.success) {
-        detailImageUrls.value = (j.urls || []).map((u: string) =>
-          u.startsWith('http') ? u : `${API_BASE}${u}`
-        )
-      }
+      const data: any = await request.get(`/feedback/${row.id}/images`)
+      const urls: string[] = data?.urls || []
+      detailImageUrls.value = urls.map((u: string) =>
+        u.startsWith('http') ? u : `${u}`
+      )
     }
   } catch (e) { console.warn('加载反馈图片失败:', e) }
 }
@@ -97,44 +90,22 @@ const handleSubmitReply = async () => {
   }
 
   try {
-    const response = await fetch(`${API_BASE}/api/feedback/${currentFeedback.value.id}/reply`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reply: replyContent.value })
-    })
-    const data = await response.json()
-
-    if (data.success) {
-      ElMessage.success('回复成功')
-      replyVisible.value = false
-      loadData()
-    } else {
-      ElMessage.error(data.message || '回复失败')
-    }
+    await request.put(`/feedback/${currentFeedback.value.id}/reply`, { reply: replyContent.value })
+    ElMessage.success('回复成功')
+    replyVisible.value = false
+    loadData()
   } catch (error) {
     console.error('回复失败:', error)
-    ElMessage.error('回复失败')
   }
 }
 
 const handleUpdateStatus = async (row: Feedback) => {
   try {
-    const response = await fetch(`${API_BASE}/api/feedback/${row.id}/reply`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reply: row.reply || '问题已处理完成' })
-    })
-    const data = await response.json()
-
-    if (data.success) {
-      ElMessage.success('状态更新成功')
-      loadData()
-    } else {
-      ElMessage.error(data.message || '操作失败')
-    }
+    await request.put(`/feedback/${row.id}/reply`, { reply: row.reply || '问题已处理完成' })
+    ElMessage.success('状态更新成功')
+    loadData()
   } catch (error) {
     console.error('更新状态失败:', error)
-    ElMessage.error('操作失败')
   }
 }
 

@@ -25,10 +25,10 @@
         return { id: 1, username: '前端用户', avatar: '👤' };
     }
 
-    /** API 请求带 X-User-Id header */
+    /** API 请求带 X-User-Id header + credentials */
     async function apiGet(url) {
         const u = getCurrentUser();
-        const r = await fetch(url, { headers: { 'X-User-Id': String(u.id) } });
+        const r = await fetch(url, { headers: { 'X-User-Id': String(u.id) }, credentials: 'include' });
         return r.json();
     }
     async function apiPost(url, body) {
@@ -36,12 +36,13 @@
         const r = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-User-Id': String(u.id) },
+            credentials: 'include',
             body: JSON.stringify(body)
         });
         return r.json();
     }
     async function apiPut(url) {
-        const r = await fetch(url, { method: 'PUT' });
+        const r = await fetch(url, { method: 'PUT', credentials: 'include' });
         return r.json();
     }
 

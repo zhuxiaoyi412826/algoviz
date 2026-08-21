@@ -39,6 +39,21 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        // 0. 快速路径：检查 X-User-Id Header（前端直连页面用，绕过 Cookie 跨域限制）
+        String headerUid = request.getHeader("X-User-Id");
+        if (headerUid != null && !headerUid.isEmpty()) {
+            try {
+                Integer userId = Integer.parseInt(headerUid);
+                User user = userService.findById(userId);
+                if (user != null) {
+                    HttpSession session = request.getSession(true);
+                    session.setAttribute(SESSION_USER, user);
+                    logger.debug("X-User-Id Header认证通过，用户: {}", user.getUsername());
+                    return true;
+                }
+            } catch (NumberFormatException ignored) {}
+        }
+
         // 1. 优先检查 Session（重要数据存服务端，最可靠）
         HttpSession session = request.getSession(false);
         if (session != null && session.getAttribute(SESSION_USER) != null) {

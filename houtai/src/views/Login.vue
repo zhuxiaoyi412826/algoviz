@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import request from '@/api/request'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -13,9 +14,7 @@ const loading = ref(false)
 
 const formData = reactive({
   username: '',
-  password: '',
-  captcha: '',
-  captchaId: ''
+  password: ''
 })
 
 const rules = {
@@ -31,36 +30,32 @@ const handleLogin = async () => {
 
     loading.value = true
     try {
-      // 账号密码校验
-      if (formData.username !== 'admin' || formData.password !== 'admin123') {
-        ElMessage.error('用户名或密码错误，请输入 admin/admin123')
-        loading.value = false
+      const data: any = await request.post('/admin/login', {
+        username: formData.username,
+        password: formData.password
+      })
+
+      // 后端返回: { data: { token: "xxx", userInfo: {...} } }
+      const token = data?.token || data?.data?.token
+      const userInfo = data?.userInfo || data?.data?.userInfo
+
+      if (!token) {
+        ElMessage.error('登录失败，未获取到 Token')
         return
       }
 
-      // 模拟登录
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      const mockToken = 'mock_token_' + Date.now()
-      const mockUser = {
-        id: '1',
-        username: formData.username,
-        nickname: '管理员',
-        role: 'super_admin' as const,
-        status: 'active' as const,
-        createTime: new Date().toISOString(),
-        updateTime: new Date().toISOString()
+      userStore.setToken(token)
+      if (userInfo) {
+        userStore.setUserInfo(userInfo)
+        localStorage.setItem('userInfo', JSON.stringify(userInfo))
       }
-
-      userStore.setToken(mockToken)
-      userStore.setUserInfo(mockUser)
-      try { localStorage.setItem('token', mockToken) } catch (e) {}
-      try { localStorage.setItem('userInfo', JSON.stringify(mockUser)) } catch (e) {}
 
       ElMessage.success('登录成功')
       router.push('/')
-    } catch {
-      ElMessage.error('登录失败，请检查用户名和密码')
+    } catch (error: any) {
+      // axios 拦截器已处理 401/403 等错误
+      const msg = error?.response?.data?.message || error?.message || '登录失败，请检查用户名和密码'
+      ElMessage.error(msg)
     } finally {
       loading.value = false
     }
