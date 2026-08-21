@@ -10,6 +10,9 @@ request.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
     if (token) {
+      // Sa-Token 默认使用 satoken 作为 header 名称
+      config.headers['satoken'] = token
+      // 同时兼容旧的 Authorization header
       config.headers.Authorization = `Bearer ${token}`
     }
     return config

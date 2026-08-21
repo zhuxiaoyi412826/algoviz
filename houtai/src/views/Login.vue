@@ -35,9 +35,12 @@ const handleLogin = async () => {
         password: formData.password
       })
 
-      // 后端返回: { data: { token: "xxx", userInfo: {...} } }
-      const token = data?.token || data?.data?.token
-      const userInfo = data?.userInfo || data?.data?.userInfo
+      // 后端返回格式: { code: 200, data: { token, tokenName, userInfo, roles, permissions, menus, loginId } }
+      const payload = data?.data || data
+      const token = payload?.token
+      const userInfo = payload?.userInfo
+      const userRoles = payload?.roles || []
+      const userPermissions = payload?.permissions || []
 
       if (!token) {
         ElMessage.error('登录失败，未获取到 Token')
@@ -46,8 +49,30 @@ const handleLogin = async () => {
 
       userStore.setToken(token)
       if (userInfo) {
-        userStore.setUserInfo(userInfo)
-        localStorage.setItem('userInfo', JSON.stringify(userInfo))
+        // 适配前端 User 类型：将 sysUser 字段转为前端期望的格式
+        const rawStatus = userInfo.status
+        const statusValue: 'active' | 'disabled' =
+          rawStatus === 1 || rawStatus === 'active' || rawStatus === 'enabled'
+            ? 'active'
+            : 'disabled'
+
+        const adaptedUserInfo = {
+          id: userInfo.id?.toString() || '',
+          username: userInfo.username || '',
+          nickname: userInfo.realName || userInfo.username || '',
+          email: userInfo.email || '',
+          phone: userInfo.phone || '',
+          role: userRoles[0] || '',
+          status: statusValue,
+          avatar: userInfo.avatar || '',
+          createTime: userInfo.createdAt || '',
+          updateTime: userInfo.updatedAt || '',
+          lastLoginTime: userInfo.lastLoginTime || ''
+        }
+        userStore.setUserInfo(adaptedUserInfo, userRoles, userPermissions)
+        localStorage.setItem('userInfo', JSON.stringify(adaptedUserInfo))
+        localStorage.setItem('roles', JSON.stringify(userRoles))
+        localStorage.setItem('permissions', JSON.stringify(userPermissions))
       }
 
       ElMessage.success('登录成功')
@@ -114,7 +139,7 @@ const handleLogin = async () => {
         </el-form-item>
       </el-form>
       <div class="login-footer">
-        <span>默认账号: admin / admin123</span>
+        <span>默认账号: algovize / algovize123</span>
       </div>
     </div>
   </div>

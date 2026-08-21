@@ -5,12 +5,16 @@ export interface User {
   avatar?: string
   email?: string
   phone?: string
-  role: 'super_admin' | 'content_admin' | 'operation_admin'
+  role: string  // 角色编码，如 SUPER_ADMIN, LEVEL1_ADMIN, DS_PUBLISHER 等
   status: 'active' | 'disabled'
   lastLoginTime?: string
   lastLoginIp?: string
   createTime: string
   updateTime: string
+  // 可选扩展字段
+  roleCode?: string
+  roleCategory?: 'level1' | 'level2'
+  roleLabel?: string
 }
 
 export interface LoginLog {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar, ElIcon, ElBadge } from 'element-plus'
+import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar, ElIcon, ElBadge, ElTag } from 'element-plus'
 import { User, Setting, SwitchButton, Bell } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
@@ -11,6 +11,69 @@ const userStore = useUserStore()
 const layoutState = inject<any>('layoutState')
 const sidebarCollapsed = computed(() => layoutState.sidebarCollapsed.value)
 const toggleSidebar = () => layoutState.toggleSidebar()
+
+// 角色编码到中文显示的映射
+const roleDisplayMap: Record<string, { label: string; level: number }> = {
+  'SUPER_ADMIN': { label: '超级管理员', level: 1 },
+  'LEVEL1_ADMIN': { label: '一级管理员', level: 2 },
+  'PERM_MANAGER': { label: '权限分配管理员', level: 2 },
+  'CONTENT_PUBLISHER': { label: '内容发布管理员', level: 2 },
+  'CONTENT_AUDITOR': { label: '内容审核管理员', level: 2 },
+  'EFK_LOG_ADMIN': { label: 'EFK日志分析管理员', level: 2 },
+  'DATA_ANALYST': { label: '数据分析管理员', level: 2 },
+  'ORDER_ADMIN': { label: '订单分析管理员', level: 2 },
+  'OPS_ADMIN': { label: '运营活动管理员', level: 2 },
+  'FINANCE_ADMIN': { label: '财务管理员', level: 2 },
+  'CS_ADMIN': { label: '客服管理员', level: 2 },
+  'SECURITY_AUDITOR': { label: '安全审计管理员', level: 2 },
+  'DS_PUBLISHER': { label: '数据结构发布管理员', level: 3 },
+  'ALGO_PUBLISHER': { label: '算法发布管理员', level: 3 },
+  'GENERAL_SUB_ADMIN': { label: '通用子管理员', level: 3 },
+  'TEST_VALIDATOR': { label: '题目校验测试管理员', level: 3 },
+  'KEYWORD_AUDITOR': { label: '关键词审核管理员', level: 3 },
+  'SOLUTION_COMMENT_AUDITOR': { label: '题解评论审核管理员', level: 3 },
+  'BIZ_LOG_ADMIN': { label: '业务日志管理员', level: 3 },
+  'DEV_LOG_ADMIN': { label: '开发日志管理员', level: 3 },
+  'SYS_LOG_ADMIN': { label: '系统日志管理员', level: 3 },
+  'OPS_LOG_ADMIN': { label: '运维管理员', level: 3 },
+  'UV_PV_ANALYST': { label: 'UV/PV数据分析师', level: 3 },
+  'RETENTION_ANALYST': { label: '用户留存数据分析师', level: 3 },
+  'ORDER_ANALYST_SUB': { label: '订单数据分析师', level: 3 },
+  'PRODUCT_ADMIN': { label: '商品管理员', level: 3 },
+  'COIN_ADMIN': { label: '金币管理员', level: 3 },
+  'EXTERNAL_AUTHOR': { label: '外部出题人', level: 3 }
+}
+
+// 获取当前用户的主要角色（取层级最高的角色）
+const primaryRoleInfo = computed(() => {
+  const roles = userStore.roles
+  if (!roles || roles.length === 0) return null
+
+  let highestLevel = 999
+  let primaryRole = null
+
+  for (const role of roles) {
+    const info = roleDisplayMap[role]
+    if (info && info.level < highestLevel) {
+      highestLevel = info.level
+      primaryRole = { code: role, ...info }
+    }
+  }
+
+  if (!primaryRole) {
+    return { code: roles[0], label: roles[0], level: 999 }
+  }
+
+  return primaryRole
+})
+
+// 角色标签颜色
+const roleTagType = computed(() => {
+  const level = primaryRoleInfo.value?.level || 999
+  if (level === 1) return 'danger'
+  if (level === 2) return 'warning'
+  return 'info'
+})
 
 const handleCommand = (command: string) => {
   switch (command) {
@@ -51,10 +114,14 @@ const handleCommand = (command: string) => {
         <div class="user-info">
           <el-avatar :size="32" :icon="User" />
           <span class="username">{{ userStore.userInfo?.nickname || '管理员' }}</span>
-          <span class="role-tag">
-            {{ userStore.userInfo?.role === 'super_admin' ? '超级管理员' :
-               userStore.userInfo?.role === 'content_admin' ? '内容管理员' : '运维管理员' }}
-          </span>
+          <el-tag
+            v-if="primaryRoleInfo"
+            :type="roleTagType"
+            size="small"
+            effect="dark"
+          >
+            {{ primaryRoleInfo.label }}
+          </el-tag>
         </div>
         <template #dropdown>
           <el-dropdown-menu>
@@ -159,13 +226,5 @@ const handleCommand = (command: string) => {
 .username {
   font-size: 14px;
   color: var(--color-text-primary);
-}
-
-.role-tag {
-  font-size: 12px;
-  padding: 2px 8px;
-  background-color: #ecf5ff;
-  color: var(--color-primary);
-  border-radius: 4px;
 }
 </style>

@@ -903,3 +903,254 @@ CREATE TABLE `oj_solution` (
     KEY `idx_solution_user` (`user_id`, `created_at` DESC),
     KEY `idx_solution_audit` (`audit_status`, `created_at` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='OJ用户题解表';
+
+--11 ====================================================================
+-- RBAC 角色权限体系 DDL + 种子数据
+--   后台管理员密码：
+--     超级管理员（algovize/algovize123）：Argon2id（本脚本已写生成的 hash）
+--     普通管理员：BCrypt（可由 PasswordEncoderUtil.bcryptEncode 生成）
+--   前台用户密码：
+--     MD5（由 user 表保存）
+-- ====================================================================
+
+-- ============================================================
+-- 1. 后台管理员用户表 sys_user
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `sys_user` (
+    `id`              BIGINT       NOT NULL AUTO_INCREMENT,
+    `username`        VARCHAR(64)  NOT NULL COMMENT '登录账号',
+    `password`        VARCHAR(128) NOT NULL COMMENT '密码：超级管理员Argon2id(≤128)，普通管理员BCrypt(≤60)',
+    `real_name`       VARCHAR(64)  NOT NULL DEFAULT '未设置' COMMENT '真实姓名',
+    `email`           VARCHAR(128) DEFAULT NULL COMMENT '邮箱',
+    `phone`           VARCHAR(20)  DEFAULT NULL COMMENT '手机号',
+    `avatar`          VARCHAR(256) DEFAULT NULL COMMENT '头像 URL',
+    `status`          TINYINT      NOT NULL DEFAULT 1 COMMENT '状态: 0-禁用 1-正常 2-封禁',
+    `account_type`    TINYINT      NOT NULL DEFAULT 1 COMMENT '账号类型: 1-内部管理员 2-外部出题人',
+    `last_login_time` DATETIME     DEFAULT NULL COMMENT '最后登录时间',
+    `last_login_ip`   VARCHAR(45)  DEFAULT NULL COMMENT '最后登录 IP',
+    `created_by`      BIGINT       DEFAULT NULL COMMENT '创建人 ID',
+    `created_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted`         TINYINT      NOT NULL DEFAULT 0 COMMENT '软删除: 0-未删除 1-已删除',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_username` (`username`),
+    KEY `idx_status` (`status`),
+    KEY `idx_account_type` (`account_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台用户表';
+
+
+-- ============================================================
+-- 2. 角色表 sys_role
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `sys_role` (
+    `id`             BIGINT      NOT NULL AUTO_INCREMENT,
+    `role_code`      VARCHAR(64) NOT NULL COMMENT '角色编码',
+    `role_name`      VARCHAR(64) NOT NULL COMMENT '角色名称',
+    `role_level`     TINYINT     NOT NULL COMMENT '角色层级: 1-超级 2-一级 3-二级',
+    `parent_role_id` BIGINT      DEFAULT NULL COMMENT '父角色 ID（NULL=顶级）',
+    `data_scope`     TINYINT     NOT NULL DEFAULT 1 COMMENT '数据范围: 1-全部 2-本部门 3-本人',
+    `description`    VARCHAR(256) DEFAULT NULL COMMENT '描述',
+    `status`         TINYINT     NOT NULL DEFAULT 1 COMMENT '0-禁用 1-正常',
+    `is_system`      TINYINT     NOT NULL DEFAULT 0 COMMENT '0-否 1-系统内置',
+    `sort_order`     INT         NOT NULL DEFAULT 0,
+    `created_at`     DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`     DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_role_code` (`role_code`),
+    KEY `idx_role_level` (`role_level`),
+    KEY `idx_parent_role` (`parent_role_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
+
+
+-- ============================================================
+-- 3. 菜单表 sys_menu（目录/菜单/按钮）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `sys_menu` (
+    `id`         BIGINT       NOT NULL AUTO_INCREMENT,
+    `parent_id`  BIGINT       NOT NULL DEFAULT 0 COMMENT '父菜单 ID，0=根节点',
+    `menu_name`  VARCHAR(64)  NOT NULL,
+    `menu_type`  TINYINT      NOT NULL COMMENT '1-目录 2-菜单 3-按钮',
+    `path`       VARCHAR(128) DEFAULT NULL,
+    `component`  VARCHAR(128) DEFAULT NULL,
+    `perms`      VARCHAR(128) DEFAULT NULL COMMENT '权限标识如 content:ds:list',
+    `icon`       VARCHAR(64)  DEFAULT NULL,
+    `sort_order` INT          NOT NULL DEFAULT 0,
+    `visible`    TINYINT      NOT NULL DEFAULT 1 COMMENT '0-隐藏 1-显示',
+    `status`     TINYINT      NOT NULL DEFAULT 1,
+    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_parent` (`parent_id`),
+    KEY `idx_type` (`menu_type`),
+    KEY `idx_sort` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='菜单权限表';
+
+
+-- ============================================================
+-- 4. 权限点表 sys_permission（按钮级权限）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `sys_permission` (
+    `id`          BIGINT       NOT NULL AUTO_INCREMENT,
+    `menu_id`     BIGINT       NOT NULL COMMENT '所属菜单 ID',
+    `perm_code`   VARCHAR(128) NOT NULL COMMENT '权限编码如 content:ds:add',
+    `perm_name`   VARCHAR(64)  NOT NULL,
+    `perm_type`   TINYINT      NOT NULL COMMENT '1-新增 2-编辑 3-删除 4-导出 5-审核 6-其他',
+    `api_method`  VARCHAR(10)  DEFAULT NULL,
+    `api_path`    VARCHAR(256) DEFAULT NULL,
+    `status`      TINYINT      NOT NULL DEFAULT 1,
+    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_perm_code` (`perm_code`),
+    KEY `idx_menu` (`menu_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='权限点表';
+
+
+-- ============================================================
+-- 5-7. 关联表
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `sys_user_role` (
+    `id`         BIGINT   NOT NULL AUTO_INCREMENT,
+    `user_id`    BIGINT   NOT NULL,
+    `role_id`    BIGINT   NOT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_role` (`user_id`, `role_id`),
+    KEY `idx_user` (`user_id`),
+    KEY `idx_role` (`role_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户角色关联表';
+
+CREATE TABLE IF NOT EXISTS `sys_role_menu` (
+    `id`         BIGINT   NOT NULL AUTO_INCREMENT,
+    `role_id`    BIGINT   NOT NULL,
+    `menu_id`    BIGINT   NOT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_role_menu` (`role_id`, `menu_id`),
+    KEY `idx_role` (`role_id`),
+    KEY `idx_menu` (`menu_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色菜单关联表';
+
+CREATE TABLE IF NOT EXISTS `sys_role_permission` (
+    `id`            BIGINT   NOT NULL AUTO_INCREMENT,
+    `role_id`       BIGINT   NOT NULL,
+    `permission_id` BIGINT   NOT NULL,
+    `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_role_perm` (`role_id`, `permission_id`),
+    KEY `idx_role` (`role_id`),
+    KEY `idx_perm` (`permission_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色权限关联表';
+
+
+-- ============================================================
+-- 8-10. 审计/登录/业务操作日志
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `sys_audit_log` (
+    `id`             BIGINT       NOT NULL AUTO_INCREMENT,
+    `user_id`        BIGINT       NOT NULL,
+    `username`       VARCHAR(64)  NOT NULL,
+    `role_name`      VARCHAR(64)  DEFAULT NULL,
+    `module`         VARCHAR(64)  NOT NULL,
+    `operation`      VARCHAR(128) NOT NULL,
+    `method`         VARCHAR(10)  DEFAULT NULL,
+    `request_url`    VARCHAR(512) DEFAULT NULL,
+    `request_params` TEXT         DEFAULT NULL,
+    `response_code`  INT          DEFAULT NULL,
+    `ip`             VARCHAR(45)  NOT NULL,
+    `location`       VARCHAR(128) DEFAULT NULL,
+    `cost_time`      BIGINT       DEFAULT NULL,
+    `operation_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_user` (`user_id`),
+    KEY `idx_module` (`module`),
+    KEY `idx_time` (`operation_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审计日志表';
+
+CREATE TABLE IF NOT EXISTS `sys_login_log` (
+    `id`         BIGINT       NOT NULL AUTO_INCREMENT,
+    `user_id`    BIGINT       DEFAULT NULL,
+    `username`   VARCHAR(64)  NOT NULL,
+    `login_type` TINYINT      NOT NULL COMMENT '1-登录 2-登出',
+    `status`     TINYINT      NOT NULL COMMENT '0-失败 1-成功',
+    `ip`         VARCHAR(45)  NOT NULL,
+    `location`   VARCHAR(128) DEFAULT NULL,
+    `browser`    VARCHAR(64)  DEFAULT NULL,
+    `os`         VARCHAR(64)  DEFAULT NULL,
+    `message`    VARCHAR(256) DEFAULT NULL,
+    `login_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_user` (`user_id`),
+    KEY `idx_time` (`login_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录日志表';
+
+CREATE TABLE IF NOT EXISTS `sys_operation_log` (
+    `id`             BIGINT       NOT NULL AUTO_INCREMENT,
+    `user_id`        BIGINT       NOT NULL,
+    `username`       VARCHAR(64)  NOT NULL,
+    `business_type`  VARCHAR(64)  NOT NULL,
+    `operation_type` VARCHAR(32)  NOT NULL,
+    `target_id`      BIGINT       DEFAULT NULL,
+    `target_name`    VARCHAR(128) DEFAULT NULL,
+    `before_data`    TEXT         DEFAULT NULL,
+    `after_data`     TEXT         DEFAULT NULL,
+    `remark`         VARCHAR(256) DEFAULT NULL,
+    `operation_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_user` (`user_id`),
+    KEY `idx_business` (`business_type`),
+    KEY `idx_time` (`operation_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='业务操作日志表';
+
+
+-- ====================================================================
+-- 种子数据：28 个角色
+-- ====================================================================
+INSERT IGNORE INTO `sys_role` (`id`, `role_code`, `role_name`, `role_level`, `parent_role_id`, `data_scope`, `description`, `is_system`, `sort_order`) VALUES
+-- 超级 + 一级
+(1,  'SUPER_ADMIN',                '超级管理员',                 1, NULL, 1, '运维应急，全部权限',                                      1, 1),
+(2,  'LEVEL1_ADMIN',               '一级管理员',                 2, 1,    1, '日常业务管理员',                                          1, 2),
+(3,  'PERM_MANAGER',               '权限分配子管理员',           3, 2,    2, '仅分配账号角色',                                          1, 3),
+(4,  'CONTENT_PUBLISHER',          '内容发布管理员',             2, 2,    1, '管理内容发布',                                            1, 4),
+(5,  'CONTENT_AUDITOR',            '内容审核管理员',             2, 2,    1, '只做审核，不能新增',                                      1, 5),
+(6,  'EFK_LOG_ADMIN',              'EFK日志分析管理员',          2, 2,    1, '日志检索，ES 操作',                                       1, 6),
+(7,  'DATA_ANALYST',               '数据分析管理员',             2, 2,    1, '报表 + 看板配置',                                         1, 7),
+(8,  'ORDER_ADMIN',                '订单分析管理员',             2, 2,    1, '订单/商品/金币',                                          1, 8),
+(9,  'OPS_ADMIN',                  '运营活动管理员',             2, 2,    1, '活动配置',                                                1, 9),
+(10, 'FINANCE_ADMIN',              '财务管理员',                 2, 2,    1, '对账退款审核',                                            1, 10),
+(11, 'CS_ADMIN',                   '客服管理员',                 2, 2,    1, '申诉工单/禁言解封',                                       1, 11),
+(12, 'SECURITY_AUDITOR',           '安全审计管理员',             2, 1,    1, '只读审计',                                                1, 12),
+(13, 'EXTERNAL_AUTHOR',            '外部出题人',                 3, NULL, 3, '外部合作出题',                                            1, 13),
+-- 内容发布二级
+(14, 'DS_PUBLISHER',               '二级-数据结构发布管理员',     3, 4,    3, '仅自己创建的数据结构题目',                                  1, 14),
+(15, 'ALGO_PUBLISHER',             '二级-算法发布管理员',         3, 4,    3, '仅自己创建的算法题目',                                     1, 15),
+(16, 'GENERAL_SUB_ADMIN',          '二级-通用子管理员',           3, 4,    3, '按需开放模块',                                            1, 16),
+-- 内容审核二级
+(17, 'TEST_VALIDATOR',             '题目校验测试管理员',         3, 5,    1, '仅校验不可直接上线',                                       1, 17),
+(18, 'KEYWORD_AUDITOR',            '二级-关键词审核管理员',       3, 5,    1, '关键词屏蔽审核',                                           1, 18),
+(19, 'SOLUTION_COMMENT_AUDITOR',   '二级-题解评论审核管理员',     3, 5,    1, '题解审核、评论审核',                                       1, 19),
+-- EFK 二级
+(20, 'BIZ_LOG_ADMIN',              '二级-业务日志管理员',         3, 6,    1, '业务日志检索导出',                                         1, 20),
+(21, 'DEV_LOG_ADMIN',              '二级-开发日志管理员',         3, 6,    1, '开发日志检索导出',                                         1, 21),
+(22, 'SYS_LOG_ADMIN',              '二级-系统日志管理员',         3, 6,    1, '系统日志检索导出',                                         1, 22),
+(23, 'OPS_LOG_ADMIN',              '二级-运维管理员',             3, 6,    1, '日志平台/ES 配置',                                        1, 23),
+-- 数据分析二级
+(24, 'UV_PV_ANALYST',              '二级-UV/PV数据分析师',        3, 7,    1, 'UV/PV 报表',                                              1, 24),
+(25, 'RETENTION_ANALYST',          '二级-用户留存数据分析师',     3, 7,    1, '留存报表',                                                1, 25),
+(26, 'ORDER_ANALYST_SUB',          '二级-订单数据分析师',         3, 7,    1, '订单只读分析',                                            1, 26),
+-- 订单二级
+(27, 'PRODUCT_ADMIN',              '商品管理员',                 3, 8,    1, '商品增删改查上下架',                                       1, 27),
+(28, 'COIN_ADMIN',                 '金币管理员',                 3, 8,    2, '金币调整与流水',                                           1, 28);
+
+
+-- ====================================================================
+-- 种子数据：超级管理员 algovize / algovize123（Argon2id 加密）
+--   密码由 doc/tools/gen_argon2_hash.py 生成
+-- ====================================================================
+INSERT IGNORE INTO `sys_user` (`id`, `username`, `password`, `real_name`, `email`, `status`, `account_type`)
+VALUES (1, 'algovize',
+        '$argon2id$v=19$m=65536,t=3,p=1$IOLmhNf9s/Z03JV7O/tJZA$YT/C7YsDrOroO1hD5Ik2cpXkPSja6J0y8xtVdcjbq88',
+        '超级管理员', 'algovize@dsaol.asia', 1, 1);
+
+-- 超级管理员 → SUPER_ADMIN 角色
+INSERT IGNORE INTO `sys_user_role` (`user_id`, `role_id`) VALUES (1, 1);

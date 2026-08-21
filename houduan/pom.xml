@@ -110,6 +110,37 @@
             <version>13.2.1</version>
         </dependency>
 
+        <!-- ==================== RBAC 权限体系（Sa-Token + 三层加密） ==================== -->
+
+        <!-- Sa-Token（轻量级权限认证框架） -->
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-spring-boot3-starter</artifactId>
+            <version>1.37.0</version>
+        </dependency>
+
+        <!-- Sa-Token + Spring AOP 注解鉴权（@SaCheckPermission 等） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- Spring Security Crypto（BCryptPasswordEncoder，用于普通管理员密码） -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+            <version>6.2.1</version>
+        </dependency>
+
+        <!-- Argon2 加密（超级管理员密码，Bouncy Castle 提供） -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>1.78.1</version>
+        </dependency>
+
+        <!-- ==================== RBAC END ==================== -->
+
         <!-- 测试依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
