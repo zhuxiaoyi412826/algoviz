@@ -17,7 +17,11 @@ import com.algoviz.audit.DetectResult;
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
@@ -25,7 +29,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminService {
+public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminService, ApplicationContextAware {
 
     private final InterviewProblemMapper problemMapper;
     private final InterviewUserMapper userMapper;
@@ -33,6 +37,26 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
     private final AuditDetectService auditDetectService;
     private final AuditLogService auditLogService;
     private final AuditReviewService auditReviewService;
+
+    /** 通过 ApplicationContext 获取 self 代理，确保同类内部调用时 @Transactional 生效 */
+    private ApplicationContext applicationContext;
+    private InterviewProblemAdminServiceImpl self;
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
+        // 延迟到 setter 之后再取 bean，避免初始化期循环依赖
+    }
+
+    private InterviewProblemAdminServiceImpl self() {
+        if (self == null) {
+            self = applicationContext.getBean(InterviewProblemAdminServiceImpl.class);
+        }
+        return self;
+    }
+
+    /** 批量导入小事务：每批 50 条一提交，大幅缩短 InnoDB 行锁持有时间 */
+    public static final int IMPORT_CHUNK_SIZE = 50;
 
     // =================== 工具 ===================
     /** 允许 Markdown 常用标签（允许 img 但仅使用 http/https/data 协议） */
@@ -364,17 +388,28 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
     }
 
     // =================== B10 JSON 批量导入 ===================
+    // 注意：去掉外层大 @Transactional，避免长事务把 InnoDB 行锁持有到分钟级
+    // 改为：
+    //   1) 预处理 & 关键词检测（无 DB 事务）
+    //   2) 分块 IMPORT_CHUNK_SIZE 条，每块通过 self.saveChunkTransactional()
+    //      在独立小事务里完成 selectByNo+insert/update+syncTags，一提交立即释放锁
+    //   3) 所有入库提交完成后，再调用 vectorSearchService.syncBatch / esSyncBatch
+    //      二者已标注 @Async，在线程池里异步执行，完全不占用 MySQL 连接和锁
     @Override
-    @Transactional
     public BatchImportResult batchImport(List<InterviewProblemSaveDTO> problemList,
                                          boolean overwriteOnConflict, String adminId) {
-        if (problemList == null) return BatchImportResult.of(0, 0, 0, List.of());
-        int total = problemList.size();
-        int succ = 0;
-        List<String> fails = new ArrayList<>();
-        // 收集成功处理的题目用于批量同步到向量库
-        List<InterviewProblem> syncedProblems = new ArrayList<>();
-        for (int i = 0; i < problemList.size(); i++) {
+        if (problemList == null || problemList.isEmpty()) {
+            return BatchImportResult.of(0, 0, 0, List.of());
+        }
+        final int total = problemList.size();
+        final List<String> fails = new ArrayList<>();
+        // 收集成功入库的题目（用于向量/ES 异步同步）
+        final List<InterviewProblem> syncedProblems = new ArrayList<>();
+        int succCount = 0;
+
+        // ========== 阶段 1：逐条进行实体转换 & 关键词屏蔽检测（非事务） ==========
+        List<ChunkItem> allValidItems = new ArrayList<>(total);
+        for (int i = 0; i < total; i++) {
             InterviewProblemSaveDTO dto = problemList.get(i);
             try {
                 InterviewProblem p = toEntity(dto);
@@ -391,33 +426,127 @@ public class InterviewProblemAdminServiceImpl implements InterviewProblemAdminSe
                 }
                 p.setCreatedBy(adminId);
                 p.setUpdatedBy(adminId);
-                InterviewProblem dup = problemMapper.selectByNo(p.getProblemNo());
+                // 构造外层 ChunkItem（注意 dupIfExist 下一阶段才填充）
+                allValidItems.add(new ChunkItem(i + 1, p, null));
+            } catch (Exception e) {
+                fails.add("第" + (i + 1) + "条: " + e.getMessage());
+            }
+        }
+
+        // 收集所有有效记录的 problem_no，一次性批量 SELECT 查出已有冲突
+        Set<String> existNoSet = new HashSet<>();
+        if (!allValidItems.isEmpty()) {
+            List<String> nos = allValidItems.stream()
+                    .map(it -> it.entity.getProblemNo())
+                    .distinct()
+                    .toList();
+            // 分批查询（IN 列表过大时分批，避免 IN 超长 SQL）
+            for (int i = 0; i < nos.size(); i += 200) {
+                int end = Math.min(i + 200, nos.size());
+                List<String> sub = nos.subList(i, end);
+                List<InterviewProblem> founds = problemMapper.selectByNos(sub);
+                for (InterviewProblem f : founds) existNoSet.add(f.getProblemNo());
+            }
+            // 对冲突项查出 dup 实体填入 ChunkItem.dupIfExist
+            for (ChunkItem it : allValidItems) {
+                if (existNoSet.contains(it.entity.getProblemNo())) {
+                    it.dupIfExist = problemMapper.selectByNo(it.entity.getProblemNo());
+                }
+            }
+        }
+
+        // ========== 阶段 2：分块写入，每块独立小事务，写一块提交一块 ==========
+        int chunks = (allValidItems.size() + IMPORT_CHUNK_SIZE - 1) / IMPORT_CHUNK_SIZE;
+        for (int c = 0; c < chunks; c++) {
+            int from = c * IMPORT_CHUNK_SIZE;
+            int to = Math.min(from + IMPORT_CHUNK_SIZE, allValidItems.size());
+            List<ChunkItem> chunk = allValidItems.subList(from, to);
+            try {
+                ChunkSaveResult chunkRes = self().saveChunkTransactional(
+                        new ArrayList<>(chunk), overwriteOnConflict
+                );
+                succCount += chunkRes.successCount;
+                fails.addAll(chunkRes.failMessages);
+                syncedProblems.addAll(chunkRes.syncedProblems);
+            } catch (Exception e) {
+                // 整块异常：按块内每条分别添加失败
+                for (ChunkItem it : chunk) {
+                    fails.add("第" + it.idx1Based + "条: 入库事务异常, " + e.getMessage());
+                }
+            }
+        }
+
+        // ========== 阶段 3：全部数据落库 & 提交后，异步触发向量/ES 同步 ==========
+        // syncBatch / esSyncBatch 现在带 @Async("syncTaskExecutor")，会在新线程里执行，
+        // 调用后立即返回，进度通过 SyncProgressHolder 轮询。
+        if (!syncedProblems.isEmpty()) {
+            List<InterviewProblem> copy = new ArrayList<>(syncedProblems);
+            vectorSearchService.syncBatch(copy);
+            vectorSearchService.esSyncBatch(copy);
+        }
+
+        return BatchImportResult.of(total, succCount, fails.size(), fails);
+    }
+
+    /** 单块批量写入的返回值 */
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    public static class ChunkSaveResult {
+        int successCount;
+        List<String> failMessages;
+        List<InterviewProblem> syncedProblems;
+    }
+
+    /**
+     * 单块写入事务（每个事务 ~IMPORT_CHUNK_SIZE 条）：
+     *   - 事务传播 REQUIRES_NEW：每次调用都开启新事务并在结束时提交
+     *   - 完成即释放 InnoDB 行锁/gap lock，避免 Lock wait timeout
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+    public ChunkSaveResult saveChunkTransactional(
+            List<ChunkItem> items,
+            boolean overwriteOnConflict
+    ) {
+        int successCount = 0;
+        List<String> failMessages = new ArrayList<>();
+        List<InterviewProblem> syncedProblems = new ArrayList<>();
+        for (ChunkItem it : items) {
+            InterviewProblem p = it.entity;
+            try {
+                InterviewProblem dup = it.dupIfExist;
                 if (dup == null) {
+                    // 新增：写入后 id 自动回写
                     problemMapper.insert(p);
                     syncTags("", p.getTags(), p.getCategory());
                     syncedProblems.add(p);
-                    succ++;
+                    successCount++;
                 } else if (overwriteOnConflict) {
                     String oldTags = dup.getTags();
                     p.setId(dup.getId());
                     problemMapper.updateById(p);
                     syncTags(oldTags, p.getTags(), p.getCategory());
                     syncedProblems.add(p);
-                    succ++;
+                    successCount++;
                 } else {
-                    fails.add("第" + (i + 1) + "条: problemNo=" + p.getProblemNo() + " 已存在(未覆盖)");
+                    failMessages.add("第" + it.idx1Based + "条: problemNo=" + p.getProblemNo() + " 已存在(未覆盖)");
                 }
             } catch (Exception e) {
-                fails.add("第" + (i + 1) + "条: " + e.getMessage());
+                failMessages.add("第" + it.idx1Based + "条: 写入异常, " + e.getMessage());
             }
         }
-        // 自动批量同步到向量库（异步）
-        if (!syncedProblems.isEmpty()) {
-            vectorSearchService.syncBatch(syncedProblems);
-            // 自动批量同步到 ES 索引
-            vectorSearchService.esSyncBatch(syncedProblems);
-        }
-        return BatchImportResult.of(total, succ, fails.size(), fails);
+        return new ChunkSaveResult(successCount, failMessages, syncedProblems);
+    }
+
+    /** 批量写入块的单条记录（外层静态内部类，供 saveChunkTransactional 跨方法共用） */
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    public static class ChunkItem {
+        /** 1-based 原始序号 */
+        public int idx1Based;
+        /** 已转换好的实体（必定不为 null） */
+        public InterviewProblem entity;
+        /** 若已存在冲突，这里为 DB 中的旧实体；否则为 null */
+        public InterviewProblem dupIfExist;
     }
 
     // =================== B12 导出 ===================

@@ -165,6 +165,12 @@
         SELECT <include refid="baseColumns"/> FROM interview_problem WHERE problem_no = #{problemNo}
     </select>
 
+    <select id="selectByNos" resultMap="ProblemResultMap">
+        SELECT <include refid="baseColumns"/> FROM interview_problem
+        WHERE problem_no IN
+        <foreach collection="problemNos" item="no" open="(" separator="," close=")">#{no}</foreach>
+    </select>
+
     <select id="selectByNoActive" resultMap="ProblemResultMap">
         SELECT <include refid="baseColumns"/> FROM interview_problem
         WHERE problem_no = #{problemNo} AND status = 'ACTIVE' AND is_deleted = 0

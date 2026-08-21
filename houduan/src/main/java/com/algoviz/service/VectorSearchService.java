@@ -153,9 +153,14 @@ public class VectorSearchService {
     }
 
     /**
-     * 批量同步题目到向量库（批量导入题目时触发）
+     * 批量同步题目到向量库（批量导入题目时触发，异步执行）
      * 如果此时没有正在进行的大任务，则启用进度上报；否则静默追加
+     *
+     * 重要：该方法必须在调用方的数据库事务提交后执行（@Async 开启新线程），
+     *      否则在长事务内调用 Python HTTP 会拉长 InnoDB 行锁持有时间，
+     *      出现 Lock wait timeout exceeded。
      */
+    @Async("syncTaskExecutor")
     public void syncBatch(List<InterviewProblem> problems) {
         if (problems == null || problems.isEmpty()) return;
         boolean useProgress = !progress.isRunning();
@@ -163,25 +168,59 @@ public class VectorSearchService {
         if (useProgress) {
             progress.startTask("vector_sync", batchCount);
             progress.enterRunningPhase(batchCount);
+            progress.updateMessage("正在批量生成向量嵌入, 共 " + batchCount + " 条");
         }
         try {
-            List<VectorEmbedRequest> reqList = problems.stream()
-                    .filter(Objects::nonNull)
-                    .filter(p -> p.getId() != null)
-                    .map(this::toEmbedRequest)
-                    .toList();
-            if (reqList.isEmpty()) {
-                if (useProgress) progress.complete("没有需要同步的题目");
-                return;
+            // 分批：VECTOR_BATCH_SIZE=100，调用 Python embedding 服务
+            int success = 0;
+            int fail = 0;
+            for (int i = 0; i < batchCount; i += VECTOR_BATCH_SIZE) {
+                int end = Math.min(i + VECTOR_BATCH_SIZE, batchCount);
+                List<InterviewProblem> part = problems.subList(i, end);
+                try {
+                    List<VectorEmbedRequest> reqList = part.stream()
+                            .filter(Objects::nonNull)
+                            .filter(p -> p.getId() != null)
+                            .map(this::toEmbedRequest)
+                            .toList();
+                    if (reqList.isEmpty()) continue;
+                    VectorBatchEmbedRequest batchReq = new VectorBatchEmbedRequest();
+                    batchReq.setProblems(reqList);
+                    Map<String, Object> result = vectorClient.embedBatch(batchReq);
+                    Object succObj = result.get("success");
+                    Object failObj = result.get("failed");
+                    int batchOk = (succObj instanceof Number n) ? n.intValue() : reqList.size();
+                    int batchFail = (failObj instanceof Number n) ? n.intValue() : 0;
+                    success += batchOk;
+                    fail += batchFail;
+                    if (useProgress) {
+                        progress.addProcessed(batchOk);
+                        progress.addFailed(batchFail);
+                        progress.updateMessage(String.format(
+                                "向量同步: 已处理 %d / %d (成功 %d, 失败 %d)",
+                                success + fail, batchCount, success, fail
+                        ));
+                    }
+                } catch (Exception e) {
+                    int size = part.size();
+                    fail += size;
+                    if (useProgress) {
+                        progress.addFailed(size);
+                        progress.updateMessage(String.format(
+                                "向量同步: 批次 %d-%d 异常: %s",
+                                i + 1, end, e.getMessage()
+                        ));
+                    }
+                    log.warn("[向量同步] 批次 {}-{} 异常: {}", i + 1, end, e.getMessage());
+                }
             }
-            VectorBatchEmbedRequest batchReq = new VectorBatchEmbedRequest();
-            batchReq.setProblems(reqList);
-            vectorClient.embedBatch(batchReq);
             if (useProgress) {
-                progress.addProcessed(reqList.size());
-                progress.complete(String.format("批量向量同步完成, 共 %d 条", reqList.size()));
+                progress.complete(String.format(
+                        "批量向量同步完成: 成功 %d, 失败 %d, 共 %d",
+                        success, fail, batchCount
+                ));
             }
-            log.info("[向量同步] 批量同步已提交: {} 条", reqList.size());
+            log.info("[向量同步] 批量同步完成: {} 条", batchCount);
         } catch (Exception e) {
             if (useProgress) progress.fail(e.getMessage());
             log.warn("[向量同步] 批量同步失败: {} 条, err={}", problems.size(), e.getMessage());
@@ -355,9 +394,13 @@ public class VectorSearchService {
     }
 
     /**
-     * 批量同步题目到 ES 索引（批量导入时触发）
+     * 批量同步题目到 ES 索引（批量导入时触发，异步执行）
      * 如果此时没有正在进行的大任务，则启用进度上报
+     *
+     * 重要：该方法必须在调用方数据库事务提交后通过 @Async 新线程执行，
+     *      避免在 MySQL 事务内进行长时间的 HTTP 索引调用导致锁超时。
      */
+    @Async("syncTaskExecutor")
     public void esSyncBatch(List<InterviewProblem> problems) {
         if (problems == null || problems.isEmpty()) return;
         boolean useProgress = !progress.isRunning();
@@ -365,36 +408,69 @@ public class VectorSearchService {
         if (useProgress) {
             progress.startTask("es_sync", batchCount);
             progress.enterRunningPhase(batchCount);
+            progress.updateMessage("正在批量构建 ES 索引, 共 " + batchCount + " 条");
         }
         try {
-            List<Map<String, Object>> problemList = new ArrayList<>();
-            for (InterviewProblem p : problems) {
-                if (p == null || p.getId() == null) continue;
-                Map<String, Object> item = new LinkedHashMap<>();
-                item.put("id", p.getId());
-                item.put("problemNo", p.getProblemNo());
-                item.put("title", p.getTitle());
-                item.put("tags", p.getTags());
-                item.put("category", p.getCategory());
-                item.put("difficulty", p.getDifficulty());
-                item.put("description", p.getDescription());
-                item.put("content", p.getTitle() + " " + p.getTags() + " " + p.getCategory() + " " + p.getDescription());
-                item.put("viewCount", p.getViewCount() != null ? p.getViewCount() : 0);
-                item.put("createdAt", formatEsDate(p.getCreatedAt()));
-                problemList.add(item);
+            int success = 0;
+            int fail = 0;
+            for (int i = 0; i < batchCount; i += ES_BATCH_SIZE) {
+                int end = Math.min(i + ES_BATCH_SIZE, batchCount);
+                List<InterviewProblem> part = problems.subList(i, end);
+                try {
+                    List<Map<String, Object>> problemList = new ArrayList<>();
+                    for (InterviewProblem p : part) {
+                        if (p == null || p.getId() == null) continue;
+                        Map<String, Object> item = new LinkedHashMap<>();
+                        item.put("id", p.getId());
+                        item.put("problemNo", p.getProblemNo());
+                        item.put("title", p.getTitle());
+                        item.put("tags", p.getTags());
+                        item.put("category", p.getCategory());
+                        item.put("difficulty", p.getDifficulty());
+                        item.put("description", p.getDescription());
+                        item.put("content", p.getTitle() + " " + p.getTags() + " " + p.getCategory() + " " + p.getDescription());
+                        item.put("viewCount", p.getViewCount() != null ? p.getViewCount() : 0);
+                        item.put("createdAt", formatEsDate(p.getCreatedAt()));
+                        problemList.add(item);
+                    }
+                    if (problemList.isEmpty()) continue;
+                    Map<String, Object> request = new LinkedHashMap<>();
+                    request.put("problems", problemList);
+                    Map<String, Object> result = vectorClient.esIndexBatch(request);
+                    Object succObj = result.get("success");
+                    Object failObj = result.get("failed");
+                    int batchOk = (succObj instanceof Number n) ? n.intValue() : problemList.size();
+                    int batchFail = (failObj instanceof Number n) ? n.intValue() : 0;
+                    success += batchOk;
+                    fail += batchFail;
+                    if (useProgress) {
+                        progress.addProcessed(batchOk);
+                        progress.addFailed(batchFail);
+                        progress.updateMessage(String.format(
+                                "ES 索引: 已处理 %d / %d (成功 %d, 失败 %d)",
+                                success + fail, batchCount, success, fail
+                        ));
+                    }
+                } catch (Exception e) {
+                    int size = part.size();
+                    fail += size;
+                    if (useProgress) {
+                        progress.addFailed(size);
+                        progress.updateMessage(String.format(
+                                "ES 索引: 批次 %d-%d 异常: %s",
+                                i + 1, end, e.getMessage()
+                        ));
+                    }
+                    log.warn("[ES 同步] 批次 {}-{} 异常: {}", i + 1, end, e.getMessage());
+                }
             }
-            if (problemList.isEmpty()) {
-                if (useProgress) progress.complete("没有需要同步的题目");
-                return;
-            }
-            Map<String, Object> request = new LinkedHashMap<>();
-            request.put("problems", problemList);
-            vectorClient.esIndexBatch(request);
             if (useProgress) {
-                progress.addProcessed(problemList.size());
-                progress.complete(String.format("批量 ES 索引完成, 共 %d 条", problemList.size()));
+                progress.complete(String.format(
+                        "批量 ES 索引完成: 成功 %d, 失败 %d, 共 %d",
+                        success, fail, batchCount
+                ));
             }
-            log.info("[ES 同步] 批量索引已提交: {} 条", problemList.size());
+            log.info("[ES 同步] 批量索引完成: {} 条", batchCount);
         } catch (Exception e) {
             if (useProgress) progress.fail(e.getMessage());
             log.warn("[ES 同步] 批量索引失败: {} 条, err={}", problems.size(), e.getMessage());

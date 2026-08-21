@@ -34,6 +34,9 @@ request.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       window.location.href = '/login'
+    } else if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
+      // axios 超时：error.code = 'ECONNABORTED'，message 含 'timeout'
+      ElMessage.error('请求超时：后端处理面试题导入/向量同步耗时较长，请稍后重试或减少单次导入数量')
     } else {
       ElMessage.error(error.response?.data?.message || '网络错误')
     }

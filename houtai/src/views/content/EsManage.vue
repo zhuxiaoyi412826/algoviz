@@ -131,7 +131,8 @@ const progressStatusType = computed(() => {
   if (progress.phase === 'completed') return 'success' as const
   if (progress.phase === 'preparing') return 'warning' as const
   if (progress.inProgress) return undefined
-  return 'info' as const
+  // ElProgress status 仅支持 ""/success/exception/warning，空字符串表示默认（运行中蓝色）
+  return '' as const
 })
 
 const taskTypeLabel = computed(() => {
@@ -305,13 +306,24 @@ onBeforeUnmount(() => {
       <!-- 索引统计 -->
       <el-row :gutter="20">
         <el-col :span="6">
-          <el-statistic title="索引是否存在" :value="stats.exists ? '是' : '否'" />
+          <el-statistic title="索引是否存在">
+            <!-- el-statistic value 仅支持 Number|Object，文本用默认插槽渲染 -->
+            <template #default>
+              <el-tag :type="stats.exists ? 'success' : 'info'" size="large">
+                {{ stats.exists ? '是' : '否' }}
+              </el-tag>
+            </template>
+          </el-statistic>
         </el-col>
         <el-col :span="6">
-          <el-statistic title="索引文档数" :value="stats.count || 0" />
+          <el-statistic title="索引文档数" :value="Number(stats.count) || 0" />
         </el-col>
         <el-col :span="12">
-          <el-statistic title="分词器" :value="stats.analyzer || 'ik_max_word / ik_smart'" />
+          <el-statistic title="分词器">
+            <template #default>
+              <span class="analyzer-text">{{ stats.analyzer || 'ik_max_word / ik_smart' }}</span>
+            </template>
+          </el-statistic>
         </el-col>
       </el-row>
 
@@ -506,6 +518,16 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+/* el-statistic 文本值样式（替换默认数值样式，保持视觉一致） */
+.analyzer-text {
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  line-height: 1.6;
+  word-break: break-all;
 }
 
 .analyzer-result {

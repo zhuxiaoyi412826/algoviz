@@ -121,7 +121,8 @@ const progressStatusType = computed(() => {
   if (progress.phase === 'completed') return 'success' as const
   if (progress.phase === 'preparing') return 'warning' as const
   if (progress.inProgress) return undefined
-  return 'info' as const
+  // ElProgress status 仅支持 ""/success/exception/warning，空字符串表示默认（运行中蓝色）
+  return '' as const
 })
 
 const taskTypeLabel = computed(() => {

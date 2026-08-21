@@ -58,6 +58,9 @@ public interface InterviewProblemMapper {
     InterviewProblem selectByNo(@Param("problemNo") String problemNo);
     InterviewProblem selectByNoActive(@Param("problemNo") String problemNo);
 
+    /** 批量按 problem_no 查询（用于批量导入前一次性查冲突） */
+    List<InterviewProblem> selectByNos(@Param("problemNos") List<String> problemNos);
+
     int insert(InterviewProblem p);
     int updateById(InterviewProblem p);
     int updateStatus(@Param("id") Long id, @Param("status") String status, @Param("updatedBy") String updatedBy);

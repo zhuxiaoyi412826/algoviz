@@ -133,21 +133,24 @@ export function batchPermanentDelete(ids: number[]) {
 }
 
 // B10 批量导入
+// 批量导入会触发向量嵌入 + ES 索引同步，耗时较长，放宽到 60 分钟
 export function batchImportProblems(problems: ProblemSavePayload[], overwriteOnConflict = false) {
   return request.post<any, BatchImportResult>(
     `${base}/problems/batch-import?overwriteOnConflict=${overwriteOnConflict}`,
-    { problems }
+    { problems },
+    { timeout: 3600000 }
   )
 }
 
 // B11 上传 JSON 文件导入
+// 文件解析 + 同步触发向量/ES 索引，放宽到 3 分钟
 export function importJsonFile(file: File, overwriteOnConflict = false) {
   const fd = new FormData()
   fd.append('file', file)
   return request.post<any, BatchImportResult>(
     `${base}/problems/import-json?overwriteOnConflict=${overwriteOnConflict}`,
     fd,
-    { headers: { 'Content-Type': 'multipart/form-data' } }
+    { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 180000 }
   )
 }
 
@@ -161,13 +164,15 @@ export function exportProblemsUrl(difficulty?: string, category?: string) {
 }
 
 // B13 AI 生成
+// 调用 DeepSeek API 生成面试题，单次可能耗时 60s+，放宽到 5 分钟
 export function aiGenerateProblems(params: { category?: string; difficulty?: string; num: number }) {
-  return request.post<any, ProblemSavePayload[]>(`${base}/ai/generate`, params)
+  return request.post<any, ProblemSavePayload[]>(`${base}/ai/generate`, params, { timeout: 300000 })
 }
 
 // B14 保存 AI 生成（文档：/problems/batch-save）
+// 批量入库触发向量/ES 同步，放宽到 3 分钟
 export function aiBatchSave(problems: ProblemSavePayload[]) {
-  return request.post<any, BatchImportResult>(`${base}/problems/batch-save`, { problems })
+  return request.post<any, BatchImportResult>(`${base}/problems/batch-save`, { problems }, { timeout: 180000 })
 }
 
 // B15 统计

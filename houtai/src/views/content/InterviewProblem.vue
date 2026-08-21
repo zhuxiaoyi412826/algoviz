@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import {
   ElTable, ElTableColumn, ElButton, ElTag, ElDialog, ElForm, ElFormItem,
   ElInput, ElSelect, ElOption, ElMessage, ElMessageBox, ElPagination,
   ElInputNumber, ElRadioGroup, ElRadio, ElDivider, ElCheckbox, ElSwitch,
-  ElDescriptions, ElDescriptionsItem, ElTabs, ElTabPane, ElEmpty, ElUpload
+  ElDescriptions, ElDescriptionsItem, ElTabs, ElTabPane, ElEmpty, ElUpload,
+  ElProgress, ElIcon, ElCard
 } from 'element-plus'
-import { Plus, Edit, Delete, Search, Refresh, Upload, Download, View, MagicStick, Promotion, FullScreen, Aim } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search, Refresh, Upload, Download, View, MagicStick, Promotion, FullScreen, Aim, Loading, Warning } from '@element-plus/icons-vue'
 import {
   listProblems, createProblem, updateProblem, deleteProblem,
   updateProblemStatus, batchImportProblems, exportProblemsUrl,
@@ -14,6 +15,7 @@ import {
   convertToFront, convertToBackend, toBackendStatus
 } from '@/api/interview'
 import type { BackendProblem, ProblemSavePayload } from '@/api/interview'
+import { vectorApi } from '@/api/vector'
 import { renderMarkdown } from '@/utils/markdown'
 
 interface InterviewProblem {
@@ -43,6 +45,265 @@ const dialogTitle = ref('新增面试题')
 const importVisible = ref(false)
 const importLoading = ref(false)
 const importOverwrite = ref(false)
+
+// ==================== 导入进度（前端秒表 + 模拟进度 + 后端进度优先覆盖） ====================
+// 关键背景：batchImportProblems 是同步 HTTP 请求（等待后端导入+同步全部完成才返回），
+// 响应回来前浏览器无法拿到服务器内部处理条数。因此做了三层机制：
+//   1) 前端秒表：实时显示「已用时间」，用户能感知任务还在跑
+//   2) 前端总题数：文件解析后已知 payloads.length，显示「总数」避免显示 0
+//   3) 模拟进度 + 后端轮询：后端进度一旦有有效值立即覆盖模拟值，无则缓慢爬升
+
+const importProgress = reactive<{
+  // —— 后端真实进度（来自 syncProgress，若可用） ——
+  inProgress: boolean
+  phase: 'idle' | 'preparing' | 'running' | 'completed' | 'failed' | string
+  processed: number      // 已导入/同步成功条数（后端值，若 0 则用前端模拟 processed）
+  failed: number         // 失败条数
+  total: number          // 总条数（后端值，若 0 则用前端 clientTotal）
+  remaining: number      // 剩余条数
+  percent: number        // 百分比（后端 percent，若 0 且后端未更新则用 mockPercent）
+  message: string
+  lastError: string | null
+  // —— 后端时间（若后端返回 elapsedSeconds 则优先使用） ——
+  elapsedSeconds: number | null
+  estimatedRemainingSeconds: number | null
+  // —— 前端自有字段 ——
+  clientTotal: number    // 前端解析 JSON 得到的总题数（payloads.length）
+  mockProcessed: number  // 前端模拟的已处理数（后端 processed 为 0 时用）
+  mockPercent: number    // 前端模拟百分比（后端 percent 为 0 时用）
+  clientElapsed: number  // 前端秒表：已用秒数（一直累加）
+  clientEstimated: number | null  // 前端推算的预计剩余秒数
+  clientResult: { successNum: number; failNum: number } | null  // HTTP 返回后的最终结果
+}>({
+  inProgress: false,
+  phase: 'idle',
+  processed: 0,
+  failed: 0,
+  total: 0,
+  remaining: 0,
+  percent: 0,
+  message: '',
+  lastError: null,
+  elapsedSeconds: null,
+  estimatedRemainingSeconds: null,
+  clientTotal: 0,
+  mockProcessed: 0,
+  mockPercent: 0,
+  clientElapsed: 0,
+  clientEstimated: null,
+  clientResult: null
+})
+
+let progressPollTimer: number | null = null   // 后端 syncProgress 轮询 1s
+let clientTickTimer: number | null = null     // 前端秒表 + 模拟进度 1s
+let mockStartTs = 0                           // 模拟进度起点时间戳
+
+// 格式化秒 -> "X小时Y分Z秒"
+const formatSeconds = (sec: number | null | undefined): string => {
+  if (sec == null || sec < 0) return '计算中...'
+  if (sec === 0) return '0秒'
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  const s = sec % 60
+  if (h > 0) return `${h}小时${m}分${s}秒`
+  if (m > 0) return `${m}分${s}秒`
+  return `${s}秒`
+}
+
+// —— 后端进度轮询：一旦后端返回有效值（total>0 或 percent>0 或 processed>0），立即覆盖 ——
+const fetchBackendProgress = async () => {
+  try {
+    const snap: any = await vectorApi.syncProgress()
+    if (!snap) return
+    if (snap.inProgress !== undefined) importProgress.inProgress = !!snap.inProgress
+    if (snap.phase) importProgress.phase = snap.phase
+    if (snap.message !== undefined) importProgress.message = snap.message || ''
+    if (snap.lastError !== undefined) importProgress.lastError = snap.lastError || null
+    if (typeof snap.elapsedSeconds === 'number') importProgress.elapsedSeconds = snap.elapsedSeconds
+    if (typeof snap.estimatedRemainingSeconds === 'number') importProgress.estimatedRemainingSeconds = snap.estimatedRemainingSeconds
+
+    const backTotal = Number(snap.total) || 0
+    const backProcessed = Number(snap.processed) || 0
+    const backFailed = Number(snap.failed) || 0
+    const backPercent = Math.min(100, Number(snap.percent) || 0)
+    const backRemaining = Number(snap.remaining) || 0
+
+    // 只有后端返回有效值时才覆盖。避免后端暂时返回 0/空 覆盖了前端总题数
+    if (backTotal > 0) importProgress.total = backTotal
+    if (backProcessed > 0) importProgress.processed = backProcessed
+    if (backFailed >= 0) importProgress.failed = backFailed
+    if (backPercent > 0.001) importProgress.percent = backPercent
+    if (backRemaining >= 0 && backTotal > 0) importProgress.remaining = backRemaining
+  } catch (e) {
+    // 静默，下一轮继续
+  }
+}
+
+// —— 前端秒表 tick + 模拟进度推进（每秒 1 次） ——
+const clientTickOnce = () => {
+  // 1) 秒表累加
+  importProgress.clientElapsed += 1
+
+  // 2) 模拟进度：仅在"后端 processed/total/percent 都还没更新"时推进
+  //    目标：2 分钟爬升到 15%（入库预估占比），超过 2 分钟维持 15% 等待后端
+  const backUpdated =
+    importProgress.total > 0 && importProgress.total !== importProgress.clientTotal
+    || importProgress.processed > importProgress.mockProcessed
+    || importProgress.percent > importProgress.mockPercent
+
+  if (!backUpdated && importProgress.clientTotal > 0) {
+    const elapsed = Date.now() - mockStartTs  // ms
+    const twoMin = 2 * 60 * 1000
+    const ratio = Math.min(1, elapsed / twoMin)
+    const targetMock = 15 * ratio  // 0 ~ 15%
+    importProgress.mockPercent = targetMock
+    importProgress.mockProcessed = Math.min(
+      importProgress.clientTotal,
+      Math.floor(importProgress.clientTotal * (targetMock / 100))
+    )
+  }
+
+  // 3) 前端估算预计剩余时间（基于 percent 和 clientElapsed）
+  const pct = displayPercent.value
+  if (pct > 0.5 && pct < 99.5 && importProgress.clientElapsed > 2) {
+    const elapsed = importProgress.clientElapsed
+    // 剩余 = elapsed * (100 - pct) / pct
+    const remain = Math.max(0, Math.round(elapsed * (100 - pct) / pct))
+    importProgress.clientEstimated = remain
+  } else if (pct >= 99.5) {
+    importProgress.clientEstimated = 0
+  }
+}
+
+// —— 对外：显示用 computed（统一前端+后端源） ——
+const displayPercent = computed(() => {
+  // 最终结果出来了直接设 100
+  if (importProgress.clientResult) return 100
+  // 后端 percent > 0 表示后端已在更新，优先显示
+  if (importProgress.percent > 0.001) return Number(importProgress.percent.toFixed(1))
+  // 否则用模拟值
+  return Number(importProgress.mockPercent.toFixed(1))
+})
+
+const displayTotal = computed(() => {
+  // HTTP 返回了最终总数就用 clientResult 的；否则后端 total>0 用后端；再否则前端 clientTotal
+  if (importProgress.clientResult) {
+    return importProgress.clientResult.successNum + importProgress.clientResult.failNum
+  }
+  if (importProgress.total > 0) return importProgress.total
+  return importProgress.clientTotal
+})
+
+const displayProcessed = computed(() => {
+  if (importProgress.clientResult) return importProgress.clientResult.successNum
+  if (importProgress.processed > 0) return importProgress.processed
+  return importProgress.mockProcessed
+})
+
+const displayFailed = computed(() => {
+  if (importProgress.clientResult) return importProgress.clientResult.failNum
+  return importProgress.failed
+})
+
+const displayRemaining = computed(() => {
+  const total = displayTotal.value
+  const done = displayProcessed.value + displayFailed.value
+  return Math.max(0, total - done)
+})
+
+const displayElapsed = computed(() => {
+  // 优先后端 elapsedSeconds，否则前端秒表 clientElapsed
+  if (typeof importProgress.elapsedSeconds === 'number' && importProgress.elapsedSeconds >= importProgress.clientElapsed) {
+    return importProgress.elapsedSeconds
+  }
+  return importProgress.clientElapsed
+})
+
+const displayEstimated = computed(() => {
+  // HTTP 返回了最终结果 -> 0
+  if (importProgress.clientResult) return 0
+  // 后端 estimatedRemaining 存在且合理（<= 3 小时）就用
+  if (typeof importProgress.estimatedRemainingSeconds === 'number'
+    && importProgress.estimatedRemainingSeconds >= 0
+    && importProgress.estimatedRemainingSeconds <= 3 * 3600) {
+    return importProgress.estimatedRemainingSeconds
+  }
+  return importProgress.clientEstimated
+})
+
+const progressStatusType = computed(() => {
+  if (importProgress.phase === 'failed' || (importProgress.clientResult && importProgress.clientResult.failNum > 0 && importProgress.clientResult.successNum === 0)) {
+    return 'exception' as const
+  }
+  if (importProgress.phase === 'completed' || importProgress.clientResult) {
+    return 'success' as const
+  }
+  if (importProgress.phase === 'preparing') return 'warning' as const
+  return '' as const
+})
+
+const progressHeaderText = computed(() => {
+  if (importProgress.clientResult) {
+    const { successNum, failNum } = importProgress.clientResult
+    if (successNum > 0 && failNum > 0) return `导入完成：成功 ${successNum} 道，失败 ${failNum} 道`
+    if (successNum > 0) return `导入完成：成功 ${successNum} 道`
+    return '导入完成'
+  }
+  if (importProgress.inProgress || importLoading.value) {
+    if (importProgress.message) {
+      return importProgress.message
+    }
+    return '正在导入面试题并同步向量/ES 索引...'
+  }
+  if (importProgress.phase === 'failed') return '导入失败'
+  return '导入进度'
+})
+
+const importProgressVisible = computed(() => {
+  return importLoading.value
+    || importProgress.inProgress
+    || importProgress.clientTotal > 0
+    || importProgress.clientResult
+    || importProgress.phase === 'completed'
+    || importProgress.phase === 'failed'
+})
+
+// —— 生命周期方法 ——
+const startAllProgressTimers = () => {
+  stopAllProgressTimers()
+  mockStartTs = Date.now()
+  progressPollTimer = window.setInterval(fetchBackendProgress, 1000)
+  clientTickTimer = window.setInterval(clientTickOnce, 1000)
+  fetchBackendProgress()
+}
+
+const stopAllProgressTimers = () => {
+  if (progressPollTimer != null) { clearInterval(progressPollTimer); progressPollTimer = null }
+  if (clientTickTimer != null)  { clearInterval(clientTickTimer);  clientTickTimer = null }
+}
+
+const resetImportProgress = () => {
+  stopAllProgressTimers()
+  Object.assign(importProgress, {
+    inProgress: false,
+    phase: 'idle',
+    processed: 0,
+    failed: 0,
+    total: 0,
+    remaining: 0,
+    percent: 0,
+    message: '',
+    lastError: null,
+    elapsedSeconds: null,
+    estimatedRemainingSeconds: null,
+    clientTotal: 0,
+    mockProcessed: 0,
+    mockPercent: 0,
+    clientElapsed: 0,
+    clientEstimated: null,
+    clientResult: null
+  })
+}
 
 const searchForm = reactive({
   keyword: '',
@@ -123,6 +384,11 @@ const pagedProblems = allProblems
 
 onMounted(() => {
   loadData()
+})
+
+onBeforeUnmount(() => {
+  // 离开页面时清理进度轮询定时器，避免内存泄漏
+  stopAllProgressTimers()
 })
 
 // 分页切换 -> 重新请求
@@ -275,6 +541,7 @@ const handleFileChange = async (uploadFile: any) => {
     return
   }
 
+  resetImportProgress()
   importLoading.value = true
   try {
     const text = await raw.text()
@@ -336,9 +603,24 @@ const handleFileChange = async (uploadFile: any) => {
       }
     })
 
+    // 【关键】前端已知总题数，立刻写入 clientTotal，让进度条从一开始就显示"总数 N 道"
+    importProgress.clientTotal = payloads.length
+
+    // 【关键】提交 HTTP 之前启动所有计时器：
+    //   - clientTickTimer 每秒 +1 秒表 + 推进模拟进度（后端未更新前）
+    //   - progressPollTimer 每秒拉取后端 syncProgress，一旦后端有进度立刻覆盖模拟值
+    startAllProgressTimers()
+
     const res = await batchImportProblems(payloads, importOverwrite.value)
     const failNum = res?.failNum ?? 0
     const succNum = res?.successNum ?? 0
+
+    // 写入最终结果 -> display computed 会立刻让进度条到 100% 并显示结果数字
+    importProgress.clientResult = { successNum: succNum, failNum: failNum }
+    importProgress.phase = failNum > 0 && succNum === 0 ? 'failed' : 'completed'
+    importProgress.percent = 100
+    importProgress.mockPercent = 100
+
     if (failNum > 0) {
       ElMessage.warning(`导入完成：成功 ${succNum} 道，失败 ${failNum} 道`)
       if (res?.failList?.length) ElMessageBox.alert(res.failList.join('<br/>'), '失败明细', { dangerouslyUseHTMLString: true, type: 'warning' })
@@ -348,8 +630,14 @@ const handleFileChange = async (uploadFile: any) => {
     importVisible.value = false
     loadData()
   } catch (e: any) {
+    importProgress.phase = 'failed'
+    importProgress.lastError = e?.message || String(e || '未知错误')
     ElMessage.error('导入异常：' + (e.message || e))
   } finally {
+    // 请求结束后再跑 3 秒（抓后端最后一次进度刷新 + 让用户看到 100% 状态）再停
+    setTimeout(() => {
+      stopAllProgressTimers()
+    }, 3000)
     importLoading.value = false
   }
 }
@@ -993,7 +1281,7 @@ const saveAIEdit = () => {
     <el-dialog
       v-model="importVisible"
       title="批量导入面试题"
-      width="560px"
+      width="640px"
       :close-on-click-modal="false"
     >
       <el-alert type="info" :closable="false" style="margin-bottom: 16px">
@@ -1023,8 +1311,11 @@ const saveAIEdit = () => {
             accept=".json"
             :on-change="handleFileChange"
             :on-exceed="() => ElMessage.warning('只支持 1 个文件')"
+            :disabled="importLoading"
           >
-            <el-button type="primary" :icon="Upload">点击选择 JSON 文件</el-button>
+            <el-button type="primary" :icon="Upload" :loading="importLoading">
+              {{ importLoading ? '导入中...' : '点击选择 JSON 文件' }}
+            </el-button>
             <template #tip>
               <div style="color:#909399;font-size:12px;margin-top:8px">
                 支持 .json 格式（数组或 { problems: [...] } 包装对象），最大 10MB。
@@ -1035,8 +1326,88 @@ const saveAIEdit = () => {
         </el-form-item>
       </el-form>
 
+      <!-- 导入进度条：导入中或后端有同步任务时显示，实时展示已导入/剩余/时间/成功失败数 -->
+      <el-card v-if="importProgressVisible" shadow="never" class="import-progress-card">
+        <div class="import-progress-header">
+          <el-icon v-if="!importProgress.clientResult && (importProgress.inProgress || importLoading)" class="spin-icon" :size="16" color="#409eff">
+            <Loading />
+          </el-icon>
+          <el-icon v-else-if="importProgress.phase === 'failed'" :size="16" color="#f56c6c">
+            <Warning />
+          </el-icon>
+          <el-icon v-else-if="importProgress.phase === 'completed' || importProgress.clientResult" :size="16" color="#67c23a">
+            <Refresh />
+          </el-icon>
+          <span class="import-progress-title">
+            {{ progressHeaderText }}
+          </span>
+          <!-- 右上角实时百分比 -->
+          <span class="import-progress-percent">
+            {{ displayPercent }}%
+          </span>
+        </div>
+
+        <el-progress
+          :percentage="displayPercent"
+          :status="progressStatusType"
+          :stroke-width="22"
+          :format="(p: number) => `${p}%`"
+          striped
+          striped-flow
+        />
+
+        <!-- 6 格统计面板：已导入 / 失败 / 总数 / 剩余 / 已用时间 / 预计剩余 -->
+        <div class="import-progress-stats">
+          <div class="stat-item">
+            <span class="stat-label">已导入</span>
+            <span class="stat-value stat-ok">{{ displayProcessed }} 道</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-label">失败</span>
+            <span class="stat-value stat-err">{{ displayFailed }} 道</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-label">总数</span>
+            <span class="stat-value">{{ displayTotal }} 道</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-label">剩余</span>
+            <span class="stat-value stat-warn">{{ displayRemaining }} 道</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-label">已用时间</span>
+            <span class="stat-value time-value">{{ formatSeconds(displayElapsed) }}</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-label">预计剩余</span>
+            <span class="stat-value time-value" :class="displayEstimated === 0 ? '' : 'stat-warn'">
+              {{ formatSeconds(displayEstimated) }}
+            </span>
+          </div>
+        </div>
+
+        <div v-if="importProgress.message && !importProgress.clientResult" class="import-progress-msg">
+          <span class="msg-label">状态：</span>
+          <span class="msg-text">{{ importProgress.message }}</span>
+        </div>
+
+        <el-alert
+          v-if="importProgress.phase === 'failed' && importProgress.lastError"
+          type="error"
+          :title="'导入失败: ' + importProgress.lastError"
+          show-icon
+          :closable="false"
+          style="margin-top: 10px"
+        />
+      </el-card>
+
       <template #footer>
-        <el-button @click="importVisible = false" :disabled="importLoading">取消</el-button>
+        <el-button @click="importVisible = false" :disabled="importLoading">关闭</el-button>
       </template>
     </el-dialog>
   </div>
@@ -1217,5 +1588,122 @@ const saveAIEdit = () => {
   display: flex;
   gap: 0;
   width: 100%;
+}
+
+/* ============ 导入进度条样式 ============ */
+.import-progress-card {
+  margin-top: 16px;
+  border: 1px solid #d9ecff;
+  background: #f5fbff;
+}
+
+.import-progress-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  position: relative;
+}
+
+.import-progress-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  flex: 1;
+}
+
+/* 右上角实时百分比 */
+.import-progress-percent {
+  font-size: 22px;
+  font-weight: 700;
+  color: #409eff;
+  font-variant-numeric: tabular-nums;
+  font-family: 'Fira Code', Consolas, monospace;
+  line-height: 1;
+}
+
+.spin-icon {
+  animation: import-spin 1s linear infinite;
+}
+@keyframes import-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.import-progress-stats {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  /* 6 个统计项 + 5 条分隔线 = 11 列，每 2 列：stat-item(1fr) stat-divider(1px 用 0.05fr 占位) */
+  grid-template-columns: 1fr 0.05fr 1fr 0.05fr 1fr 0.05fr 1fr 0.05fr 1fr 0.05fr 1fr;
+  gap: 0;
+  margin-top: 14px;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.import-progress-stats .stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 4px;
+}
+.import-progress-stats .stat-label {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 6px;
+}
+.import-progress-stats .stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #303133;
+  font-variant-numeric: tabular-nums;
+}
+/* 时间字段字号略小，避免溢出 6 列布局 */
+.import-progress-stats .stat-value.time-value {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+.import-progress-stats .stat-ok   { color: #67c23a; }
+.import-progress-stats .stat-err { color: #f56c6c; }
+.import-progress-stats .stat-warn{ color: #e6a23c; }
+
+.import-progress-stats .stat-divider {
+  width: 1px;
+  height: 36px;
+  align-self: center;
+  justify-self: center;
+  background: #ebeef5;
+}
+
+.import-progress-msg {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #ecf5ff;
+  border: 1px solid #d9ecff;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.import-progress-msg .msg-label {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: #409eff;
+}
+.import-progress-msg .msg-text {
+  color: #303133;
+  word-break: break-all;
+}
+
+@media (max-width: 640px) {
+  .import-progress-stats {
+    /* 窄屏 3 列：stat / divider / stat / divider / stat 共 5 列，2 行 */
+    grid-template-columns: 1fr 0.05fr 1fr 0.05fr 1fr;
+  }
+  .import-progress-stats .stat-divider:nth-child(10) { display: none; }
+  .import-progress-stats .stat-value.time-value {
+    font-size: 12px;
+  }
 }
 </style>
