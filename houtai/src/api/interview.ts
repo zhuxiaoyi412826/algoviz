@@ -134,11 +134,16 @@ export function batchPermanentDelete(ids: number[]) {
 
 // B10 批量导入
 // 批量导入会触发向量嵌入 + ES 索引同步，耗时较长，放宽到 60 分钟
-export function batchImportProblems(problems: ProblemSavePayload[], overwriteOnConflict = false) {
+// 可选 AbortSignal：前端取消导入时通过 AbortController.abort() 中断浏览器端 HTTP 等待
+export function batchImportProblems(
+  problems: ProblemSavePayload[],
+  overwriteOnConflict = false,
+  signal?: AbortSignal
+) {
   return request.post<any, BatchImportResult>(
     `${base}/problems/batch-import?overwriteOnConflict=${overwriteOnConflict}`,
     { problems },
-    { timeout: 3600000 }
+    { timeout: 3600000, ...(signal ? { signal } : {}) }
   )
 }
 

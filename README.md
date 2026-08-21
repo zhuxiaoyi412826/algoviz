@@ -29,6 +29,7 @@ AlgoViz 是一个交互式的数据结构和算法可视化学习网站，帮助
 | JDK                  | 17          | 运行环境                             |
 | MyBatis              | 3.0.3       | ORM 数据库操作                       |
 | MySQL Connector      | 父 pom 托管 | MySQL8.0 连接驱动                    |
+| Redis |  | 缓存数据 |
 | SentenceTransformers |             | 语句转换向量                         |
 | ChromaDB             | 1.59        | 存储向量                             |
 | FastAPI + Uvicorn    |             | 向量检索                             |
@@ -44,6 +45,7 @@ AlgoViz 是一个交互式的数据结构和算法可视化学习网站，帮助
 | IK Analyzer          | 7.12.1      | 中文分词插件（ik_max_word 索引 / ik_smart 搜索） |
 | Kibana               | 7.12.1      | 日志可视化看板                       |
 | Fluentd              | 4.3.3       | 日志采集                             |
+| Metricbeat | 7.12.1 | 采集**各类系统、服务的指标度量数据** |
 
 ## 项目结构
 
@@ -53,7 +55,7 @@ AlgoViz 是一个交互式的数据结构和算法可视化学习网站，帮助
 | houduan  | 后端核心业务服务      |
 | houtai   | 后台管理系统          |
 | qianduan | 前端门户网站          |
-| bin      | 一些脚本文件          |
+| bin      | 快捷启动文件          |
 
 ## 部署
 
