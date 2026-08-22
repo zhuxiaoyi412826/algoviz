@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加密算法全景 - AlgoViz</title>
+    <link rel="icon" type="image/png" href="../images/tubiao.png">
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/algorithms.css">
+    <link rel="stylesheet" href="../styles/oj.css">
+    <script src="../js/main.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        .nav-avatar {
+            font-size: 1rem;
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            line-height: 24px;
+            text-align: center;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            transition: all 0.2s ease;
+        }
+
+        .nav-avatar:hover {
+            transform: scale(1.1);
+        }
+
+        .visit-counter {
+            margin-right: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--hover-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* 页面头部 */
+        .page-header {
+            text-align: center;
+            padding: 3rem 1rem 2rem;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(150, 94, 255, 0.1) 100%);
+            border-radius: 16px;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            margin: 0 0 0.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #965eff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-header p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        .overview-table {
+            max-width: 900px;
+            margin: 2rem auto 0;
+            border-collapse: collapse;
+            width: 100%;
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        .overview-table th,
+        .overview-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .overview-table th {
+            background: var(--hover-bg);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .overview-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* 分类标题 */
+        .category-section {
+            margin-bottom: 3rem;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 3px solid var(--primary);
+        }
+
+        .category-icon {
+            font-size: 2rem;
+        }
+
+        .category-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        .category-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-top: 0.25rem;
+        }
+
+        /* 卡片网格 */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.25rem;
+        }
+
+        /* 算法卡片 */
+        .algo-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            cursor: default;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .algo-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+            border-color: var(--primary);
+        }
+
+        .algo-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #965eff);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .algo-card:hover::before {
+            opacity: 1;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+
+        .card-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        .card-status {
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-safe {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+        }
+
+        .status-safe-rec {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            border: 1px solid #22c55e;
+        }
+
+        .status-warn {
+            background: rgba(234, 179, 8, 0.15);
+            color: #eab308;
+        }
+
+        .status-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        .card-tagline {
+            font-size: 0.85rem;
+            color: var(--primary);
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+        }
+
+        .card-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .card-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            padding-top: 0.75rem;
+            border-top: 1px dashed var(--border);
+        }
+
+        .meta-item {
+            font-size: 0.8rem;
+        }
+
+        .meta-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .meta-value {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-left: 0.25rem;
+        }
+
+        /* 分类说明卡 */
+        .category-intro {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(150, 94, 255, 0.08) 100%);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .category-intro p {
+            margin: 0.25rem 0;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .category-intro strong {
+            color: var(--text-primary);
+        }
+
+        .intro-highlight {
+            color: var(--primary) !important;
+            font-weight: 600;
+        }
+
+        /* KDF 小分区 */
+        .sub-section {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .sub-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 1rem;
+            padding-left: 0.75rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        /* 页脚 */
+        .footer {
+            margin-top: 3rem;
+        }
+    </style>
+</head>
+
+<body onload="initTheme()">
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="./video.html" class="nav-logo">
+                <span class="nav-logo-icon">📊</span>
+                <span class="text-gradient">AlgoVize</span>
+            </a>
+            <div class="nav-links">
+                <a href="../index.html" class="nav-link">首页</a>
+                <a href="../pages/datastructures.html" class="nav-link">数据结构</a>
+                <a href="../pages/algorithms.html" class="nav-link active">算法演示</a>
+                <a href="../pages/oj-list.html" class="nav-link">在线OJ</a>
+                <a href="../pages/interview-list.html" class="nav-link">面试题目</a>
+                <a href="../pages/products.html" class="nav-link">商品</a>
+                <a href="../pages/ai.html" class="nav-link ai-link">
+                    <span>✨</span> AI助手
+                </a>
+            </div>
+            <div class="nav-actions">
+                <div class="visit-counter">访问量: <span id="visitCount">0</span></div>
+                <button id="themeToggle" class="theme-switch" aria-label="切换主题">
+                    <div class="theme-switch-handle">
+                        <span class="theme-icon">☀️</span>
+                    </div>
+                </button>
+                <a href="javascript:void(0)" class="nav-link" id="profileLink">
+                    <span class="nav-avatar" id="navAvatar">👤</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <script>
+        (function () {
+            function setTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('algoviz-theme', theme);
+                var btn = document.getElementById('themeToggle');
+                if (btn) {
+                    var icon = btn.querySelector('.theme-icon');
+                    if (icon) {
+                        icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+                    }
+                }
+                document.body.style.background = theme === 'dark' ? '#0f0f23' : '#f5f7fa';
+            }
+
+            function toggleTheme() {
+                var current = document.documentElement.getAttribute('data-theme') || 'light';
+                var next = current === 'dark' ? 'light' : 'dark';
+                setTheme(next);
+            }
+
+            window.initTheme = function () {
+                var saved = localStorage.getItem('algoviz-theme') || 'light';
+                setTheme(saved);
+                var btn = document.getElementById('themeToggle');
+                if (btn) {
+                    btn.addEventListener('click', toggleTheme);
+                }
+                checkLoginStatus();
+                updateVisitCount();
+            };
+
+            function updateVisitCount() {
+                var count = localStorage.getItem('visitCount') || 0;
+                var hasVisited = localStorage.getItem('hasVisitedUnique');
+                if (!hasVisited) {
+                    count = parseInt(count) + 1;
+                    localStorage.setItem('visitCount', count);
+                    localStorage.setItem('hasVisitedUnique', 'true');
+                }
+                var el = document.getElementById('visitCount');
+                if (el) el.textContent = count;
+            }
+
+            function checkLoginStatus() {
+                var isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+                var navAvatar = document.getElementById('navAvatar');
+                var profileLink = document.getElementById('profileLink');
+                if (isLoggedIn) {
+                    var userAvatar = localStorage.getItem('userAvatar') || '👤';
+                    navAvatar.textContent = userAvatar;
+                    profileLink.href = 'profile.html';
+                } else {
+                    navAvatar.textContent = '👨';
+                    profileLink.href = 'login.html';
+                }
+            }
+
+            window.toggleTheme = toggleTheme;
+            setTheme(localStorage.getItem('algoviz-theme') || 'light');
+        })();
+    </script>
+
+    <main class="main">
+        <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+            <!-- 页面头部 -->
+            <div class="page-header">
+                <h1>🔐 加密算法全景指南</h1>
+                <p>现代密码学的三大支柱：哈希函数、对称加密、非对称加密</p>
+
+                <table class="overview-table">
+                    <thead>
+                        <tr>
+                            <th>类别</th>
+                            <th>核心思想</th>
+                            <th>代表性算法</th>
+                            <th>主要用途</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong style="color:#ef4444;">哈希（单向）</strong></td>
+                            <td>任意长度输入 → 定长摘要，<strong>不可逆</strong></td>
+                            <td>SHA-2、SHA-3、BLAKE2/3、SM3</td>
+                            <td>完整性校验、密码存储、签名</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color:#3b82f6;">对称加密</strong></td>
+                            <td>加密和解密用<strong>同一把密钥</strong></td>
+                            <td>AES、ChaCha20、SM4、3DES</td>
+                            <td>HTTPS、磁盘、文件、数据库</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color:#22c55e;">非对称加密</strong></td>
+                            <td><strong>公钥</strong>加密、<strong>私钥</strong>解密</td>
+                            <td>RSA、ECC、SM2、后量子</td>
+                            <td>密钥交换、数字签名、身份认证</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ========= 第一类：哈希算法 ========= -->
+            <section class="category-section">
+                <div class="category-header">
+                    <span class="category-icon">🔒</span>
+                    <div>
+                        <h2 class="category-title" style="color: #ef4444;">一、哈希算法（单向散列）</h2>
+                        <div class="category-subtitle">任意长度输入 → 固定长度输出 · 单向不可逆 · 抗碰撞 · 雪崩效应</div>
+                    </div>
+                </div>
+
+                <div class="category-intro">
+                    <p><strong>⚠️ 核心特性：</strong>哈希<span class="intro-highlight">不是加密</span>！没有密钥、不可逆，不能用于保密传输，只能用于"校验/指纹/防篡改"。</p>
+                    <p>📏 <strong>存储最小要求：</strong>输出哈希值至少 16 B（128 bit），推荐 32 B（256 bit）；存密码必须配合"慢哈希 KDF"。</p>
+                </div>
+
+                <div class="cards-grid">
+                    <!-- MD5 -->
+                    <div class="algo-card" style="cursor: pointer;" onclick="window.open('../html/jiami/md5.html', '_blank')">
+                        <div class="card-header">
+                            <h3 class="card-name">MD5 →</h3>
+                            <span class="card-status status-danger">❌ 已攻破</span>
+                        </div>
+                        <div class="card-tagline">输出: 128 bit · 点击查看可视化详情</div>
+                        <div class="card-desc">
+                            2004 年起可制造碰撞，仅用于非安全校验。<strong style="color:#ef4444;">不要用于任何安全场景</strong>。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">已淘汰</span></div>
+                            <div class="meta-item"><span class="meta-label">用途:</span><span class="meta-value">下载校验</span></div>
+                        </div>
+                    </div>
+
+                    <!-- SHA-1 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">SHA-1</h3>
+                            <span class="card-status status-danger">❌ 已淘汰</span>
+                        </div>
+                        <div class="card-tagline">输出: 160 bit</div>
+                        <div class="card-desc">
+                            2017 年 SHAttered 实际碰撞攻击；TLS、证书、Git 均已弃用。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">已淘汰</span></div>
+                            <div class="meta-item"><span class="meta-label">代表:</span><span class="meta-value">旧版Git</span></div>
+                        </div>
+                    </div>
+
+                    <!-- SHA-2 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">SHA-2</h3>
+                            <span class="card-status status-safe-rec">✅ 最流行</span>
+                        </div>
+                        <div class="card-tagline">SHA-256/384/512 · 输出: 256/384/512 bit</div>
+                        <div class="card-desc">
+                            <strong>全球应用最广</strong>：TLS、区块链、证书指纹、HMAC 都在用。现代系统的事实标准。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">安全</span></div>
+                            <div class="meta-item"><span class="meta-label">应用:</span><span class="meta-value">全场景</span></div>
+                        </div>
+                    </div>
+
+                    <!-- SHA-3 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">SHA-3</h3>
+                            <span class="card-status status-safe">✅ 安全</span>
+                        </div>
+                        <div class="card-tagline">Keccak · 输出: 224~512 bit</div>
+                        <div class="card-desc">
+                            NIST 2015 标准，海绵结构，与 SHA-2 互为备份。新系统推荐。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">安全</span></div>
+                            <div class="meta-item"><span class="meta-label">结构:</span><span class="meta-value">海绵</span></div>
+                        </div>
+                    </div>
+
+                    <!-- BLAKE2/3 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">BLAKE2 / BLAKE3</h3>
+                            <span class="card-status status-safe">✅ 快速</span>
+                        </div>
+                        <div class="card-tagline">输出: 256/512 bit</div>
+                        <div class="card-desc">
+                            BLAKE3（2020）<strong>速度极快</strong>、支持并行，现代开发工具常用。速度比 SHA-256 快数倍。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">安全</span></div>
+                            <div class="meta-item"><span class="meta-label">特点:</span><span class="meta-value">超快</span></div>
+                        </div>
+                    </div>
+
+                    <!-- SM3 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">SM3</h3>
+                            <span class="card-status status-safe">🇨🇳 国密</span>
+                        </div>
+                        <div class="card-tagline">输出: 256 bit · 中国国标</div>
+                        <div class="card-desc">
+                            中国商用密码标准，与 SHA-256 同级。政务、金融系统国密合规必备。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">安全</span></div>
+                            <div class="meta-item"><span class="meta-label">级别:</span><span class="meta-value">GB/T</span></div>
+                        </div>
+                    </div>
+
+                    <!-- RIPEMD-160 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">RIPEMD-160</h3>
+                            <span class="card-status status-warn">⚠️ 仍可见</span>
+                        </div>
+                        <div class="card-tagline">输出: 160 bit</div>
+                        <div class="card-desc">
+                            比特币地址中与 SHA-256 组合使用，老系统遗留。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">遗留</span></div>
+                            <div class="meta-item"><span class="meta-label">应用:</span><span class="meta-value">比特币</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 密码哈希 KDF -->
+                <div class="sub-section">
+                    <h3 class="sub-title">💡 密码哈希 KDF（慢哈希 · 专门存用户密码）</h3>
+                    <div class="category-intro">
+                        <p>在普通哈希基础上：<span class="intro-highlight">加盐、多次迭代、消耗 CPU / 内存，故意跑慢</span>，抵抗暴力破解与彩虹表攻击。</p>
+                        <p>明文密码<strong style="color:#ef4444;">绝不</strong>直接存 SHA-256，必须"随机盐 + 慢哈希"。</p>
+                    </div>
+                </div>
+
+                <div class="cards-grid">
+                    <!-- Argon2id -->
+                    <div class="algo-card" style="cursor: pointer;" onclick="window.open('../html/jiami/argon2id.html', '_blank')">
+                        <div class="card-header">
+                            <h3 class="card-name">Argon2id →</h3>
+                            <span class="card-status status-safe-rec">🏆 PHC冠军</span>
+                        </div>
+                        <div class="card-tagline">输出: 32B · 现代首选 · 点击查看可视化详情</div>
+                        <div class="card-desc">
+                            PHC 密码哈希大赛冠军，<strong>抗 GPU 破解</strong>。内存与计算双重困难，新系统<strong style="color:#22c55e;">首选</strong>。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">推荐:</span><span class="meta-value" style="color:#22c55e;">最高</span></div>
+                            <div class="meta-item"><span class="meta-label">存储:</span><span class="meta-value">约97字符</span></div>
+                        </div>
+                    </div>
+
+                    <!-- BCrypt -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">BCrypt</h3>
+                            <span class="card-status status-safe">✅ 常见</span>
+                        </div>
+                        <div class="card-tagline">固定 23B · 生态成熟</div>
+                        <div class="card-desc">
+                            1999 年诞生，抗 ASIC 较好。Spring Security、Sa-Token 广泛使用，生态最成熟。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">存储:</span><span class="meta-value">固定60字符</span></div>
+                            <div class="meta-item"><span class="meta-label">应用:</span><span class="meta-value">Java生态</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Scrypt -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">Scrypt</h3>
+                            <span class="card-status status-safe">✅ 推荐</span>
+                        </div>
+                        <div class="card-tagline">默认 32B · 强内存消耗</div>
+                        <div class="card-desc">
+                            强内存密集型，抗 ASIC 更强。适合<strong>高安全场景</strong>。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">特点:</span><span class="meta-value">吃内存</span></div>
+                            <div class="meta-item"><span class="meta-label">场景:</span><span class="meta-value">高安全</span></div>
+                        </div>
+                    </div>
+
+                    <!-- PBKDF2 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">PBKDF2</h3>
+                            <span class="card-status status-warn">⚠️ 旧兼容</span>
+                        </div>
+                        <div class="card-tagline">HMAC-SHA256 · 标准兼容</div>
+                        <div class="card-desc">
+                            兼容性好，FIPS 合规。SHA256 反复迭代。<strong>抗 GPU/ASIC 较弱</strong>，仅用于旧系统兼容。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">合规:</span><span class="meta-value">FIPS</span></div>
+                            <div class="meta-item"><span class="meta-label">强度:</span><span class="meta-value">较弱</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========= 第二类：对称加密 ========= -->
+            <section class="category-section">
+                <div class="category-header">
+                    <span class="category-icon">🔑</span>
+                    <div>
+                        <h2 class="category-title" style="color: #3b82f6;">二、对称加密算法</h2>
+                        <div class="category-subtitle">加密和解密用同一把密钥 · 速度极快 · 适合大数据量</div>
+                    </div>
+                </div>
+
+                <div class="category-intro">
+                    <p><strong>✅ 优点：</strong>加解密速度极快；适合海量数据；硬件支持广泛（AES-NI）</p>
+                    <p><strong>❌ 不足：</strong><span class="intro-highlight">密钥分发是难题</span>（如何安全给对方？→ 交给非对称加密解决）；密钥管理复杂；模式误用致命（如ECB）</p>
+                </div>
+
+                <!-- 分组密码 -->
+                <div class="sub-section">
+                    <h3 class="sub-title">📦 分组密码（Block Cipher）</h3>
+                </div>
+
+                <div class="cards-grid">
+                    <!-- DES -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">DES</h3>
+                            <span class="card-status status-danger">❌ 已攻破</span>
+                        </div>
+                        <div class="card-tagline">密钥: 56 bit · 分组: 64 bit</div>
+                        <div class="card-desc">
+                            1998 年被穷举破解，已淘汰。<strong style="color:#ef4444;">绝对不要使用</strong>。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">淘汰</span></div>
+                            <div class="meta-item"><span class="meta-label">年份:</span><span class="meta-value">1977</span></div>
+                        </div>
+                    </div>
+
+                    <!-- 3DES -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">3DES</h3>
+                            <span class="card-status status-danger">❌ 退役</span>
+                        </div>
+                        <div class="card-tagline">密钥: 112/168 bit</div>
+                        <div class="card-desc">
+                            NIST 2023 年正式退役，2024 年起禁止新增使用。过渡方案，现在也淘汰了。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">退役</span></div>
+                            <div class="meta-item"><span class="meta-label">年份:</span><span class="meta-value">2023退役</span></div>
+                        </div>
+                    </div>
+
+                    <!-- AES -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">AES</h3>
+                            <span class="card-status status-safe-rec">🌍 最流行</span>
+                        </div>
+                        <div class="card-tagline">Rijndael · 密钥: 128/192/256 bit · 分组: 128 bit</div>
+                        <div class="card-desc">
+                            <strong>全球事实标准</strong>。硬件加速（AES-NI/指令集），HTTPS、磁盘加密、Wi-Fi 都在用。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value" style="color:#22c55e;">主力</span></div>
+                            <div class="meta-item"><span class="meta-label">加速:</span><span class="meta-value">AES-NI</span></div>
+                        </div>
+                    </div>
+
+                    <!-- SM4 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">SM4</h3>
+                            <span class="card-status status-safe">🇨🇳 国密</span>
+                        </div>
+                        <div class="card-tagline">密钥/分组: 128 bit · 中国国标</div>
+                        <div class="card-desc">
+                            中国商用密码标准（GB/T）。WAPI、国密 TLS 常用。政务金融合规改造必备。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">安全</span></div>
+                            <div class="meta-item"><span class="meta-label">级别:</span><span class="meta-value">GB/T</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Blowfish -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">Blowfish</h3>
+                            <span class="card-status status-warn">⚠️ 遗留</span>
+                        </div>
+                        <div class="card-tagline">密钥: 32~448 bit</div>
+                        <div class="card-desc">
+                            老系统/老工具遗留。早期 bcrypt 基础算法，现在不再推荐新项目使用。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">遗留</span></div>
+                            <div class="meta-item"><span class="meta-label">分组:</span><span class="meta-value">64 bit</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Twofish -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">Twofish</h3>
+                            <span class="card-status status-warn">⚠️ 少见</span>
+                        </div>
+                        <div class="card-tagline">密钥: 128~256 bit</div>
+                        <div class="card-desc">
+                            AES 决赛算法之一，安全性好但实际应用较少。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">安全</span></div>
+                            <div class="meta-item"><span class="meta-label">应用:</span><span class="meta-value">少见</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Camellia -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">Camellia</h3>
+                            <span class="card-status status-safe">✅ 安全</span>
+                        </div>
+                        <div class="card-tagline">密钥: 128/192/256 bit</div>
+                        <div class="card-desc">
+                            日本标准，ISO/IEC 18033-3 认证。部分地区政府项目使用。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">安全</span></div>
+                            <div class="meta-item"><span class="meta-label">来源:</span><span class="meta-value">日本</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 流密码 -->
+                <div class="sub-section">
+                    <h3 class="sub-title">🌊 流密码（Stream Cipher）</h3>
+                </div>
+
+                <div class="cards-grid">
+                    <!-- RC4 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">RC4</h3>
+                            <span class="card-status status-danger">❌ 已淘汰</span>
+                        </div>
+                        <div class="card-tagline">密钥: 40~2048 bit</div>
+                        <div class="card-desc">
+                            2015 年 TLS 禁用（RFC 7465）。<strong style="color:#ef4444;">安全性极差</strong>，不要使用。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">禁用</span></div>
+                            <div class="meta-item"><span class="meta-label">年份:</span><span class="meta-value">2015禁用</span></div>
+                        </div>
+                    </div>
+
+                    <!-- ChaCha20 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">ChaCha20</h3>
+                            <span class="card-status status-safe-rec">📱 流行</span>
+                        </div>
+                        <div class="card-tagline">密钥: 256 bit · 软件极快</div>
+                        <div class="card-desc">
+                            <strong>软件实现极快</strong>，手机端/无 AES 硬件时首选。常配 Poly1305 组成 AEAD。TLS 1.3 标配。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">场景:</span><span class="meta-value">移动端</span></div>
+                            <div class="meta-item"><span class="meta-label">搭配:</span><span class="meta-value">Poly1305</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分组工作模式 -->
+                <div class="sub-section">
+                    <h3 class="sub-title">⚙️ 分组工作模式（易踩坑）</h3>
+                </div>
+
+                <div class="cards-grid">
+                    <!-- ECB -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">ECB</h3>
+                            <span class="card-status status-danger">❌ 勿用</span>
+                        </div>
+                        <div class="card-tagline">不认证</div>
+                        <div class="card-desc">
+                            相同明文块输出相同密文，泄露结构模式。<strong style="color:#ef4444;">不安全，绝对不要用</strong>。
+                        </div>
+                    </div>
+
+                    <!-- CBC -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">CBC</h3>
+                            <span class="card-status status-warn">⚠️ 经典</span>
+                        </div>
+                        <div class="card-tagline">不认证 · 需 IV</div>
+                        <div class="card-desc">
+                            经典模式，需 IV，需另配 HMAC 防篡改。老系统可见，新项目不推荐。
+                        </div>
+                    </div>
+
+                    <!-- GCM -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">GCM</h3>
+                            <span class="card-status status-safe-rec">✅ 主力</span>
+                        </div>
+                        <div class="card-tagline">AEAD · 加密+认证一体</div>
+                        <div class="card-desc">
+                            加密+认证一体（AES-GCM），<strong>TLS 1.3 主力</strong>。机密性+完整性+真实性同时保证。
+                        </div>
+                    </div>
+
+                    <!-- ChaCha20-Poly1305 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">ChaCha20-Poly1305</h3>
+                            <span class="card-status status-safe-rec">📱 标配</span>
+                        </div>
+                        <div class="card-tagline">AEAD · TLS 1.3</div>
+                        <div class="card-desc">
+                            TLS 1.3 / WireGuard / 移动端流行。没有 AES 硬件加速时的最佳选择。
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========= 第三类：非对称加密 ========= -->
+            <section class="category-section">
+                <div class="category-header">
+                    <span class="category-icon">🔐</span>
+                    <div>
+                        <h2 class="category-title" style="color: #22c55e;">三、非对称加密算法（公钥密码）</h2>
+                        <div class="category-subtitle">公钥加密+私钥解密 · 私钥签名+公钥验签 · 解决密钥分发</div>
+                    </div>
+                </div>
+
+                <div class="category-intro">
+                    <p><strong>✅ 优点：</strong>解决密钥分发难题；公钥可公开传播；天然支持数字签名与身份认证</p>
+                    <p><strong>❌ 不足：</strong>速度比对称加密慢 2~4 个数量级；<span class="intro-highlight">面临量子威胁</span>（Shor 算法可破 RSA/ECC）→ 后量子成热点</p>
+                </div>
+
+                <div class="cards-grid">
+                    <!-- RSA -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">RSA</h3>
+                            <span class="card-status status-safe">✅ 经典主力</span>
+                        </div>
+                        <div class="card-tagline">基于大整数分解</div>
+                        <div class="card-desc">
+                            经典非对称算法。1024 bit 已破；<strong>最低要求 2048 bit</strong>，推荐 3072/4096。支持加密与签名。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">最低:</span><span class="meta-value">2048 bit</span></div>
+                            <div class="meta-item"><span class="meta-label">应用:</span><span class="meta-value">全场景</span></div>
+                        </div>
+                    </div>
+
+                    <!-- DSA -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">DSA</h3>
+                            <span class="card-status status-danger">❌ 已淘汰</span>
+                        </div>
+                        <div class="card-tagline">FIPS 已移除</div>
+                        <div class="card-desc">
+                            FIPS 186-5 已移除 DSA。改用 ECDSA/EdDSA。<strong>新项目不要使用</strong>。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">移除</span></div>
+                            <div class="meta-item"><span class="meta-label">替代:</span><span class="meta-value">ECDSA</span></div>
+                        </div>
+                    </div>
+
+                    <!-- ECDSA -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">ECDSA</h3>
+                            <span class="card-status status-safe">✅ 流行</span>
+                        </div>
+                        <div class="card-tagline">椭圆曲线签名 · 256 bit ≈ RSA-3072</div>
+                        <div class="card-desc">
+                            椭圆曲线数字签名算法。证书、区块链广泛使用（比特币 secp256k1、以太坊）。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">强度:</span><span class="meta-value">高</span></div>
+                            <div class="meta-item"><span class="meta-label">应用:</span><span class="meta-value">证书/链圈</span></div>
+                        </div>
+                    </div>
+
+                    <!-- EdDSA -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">EdDSA</h3>
+                            <span class="card-status status-safe-rec">💎 更推荐</span>
+                        </div>
+                        <div class="card-tagline">Ed25519/Ed448 · 速度更快</div>
+                        <div class="card-desc">
+                            <strong>比 ECDSA 更推荐</strong>：速度快、实现抗侧信道、确定性签名。SSH/Git/TLS 普及中。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">推荐:</span><span class="meta-value" style="color:#22c55e;">更高</span></div>
+                            <div class="meta-item"><span class="meta-label">应用:</span><span class="meta-value">SSH/Git</span></div>
+                        </div>
+                    </div>
+
+                    <!-- ECDH / X25519 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">ECDH / X25519</h3>
+                            <span class="card-status status-safe-rec">🔄 主流</span>
+                        </div>
+                        <div class="card-tagline">密钥交换 · TLS 1.3 默认</div>
+                        <div class="card-desc">
+                            DH 的椭圆曲线版。<strong>TLS 1.3 默认密钥交换算法</strong>，配合前向保密。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">场景:</span><span class="meta-value">密钥交换</span></div>
+                            <div class="meta-item"><span class="meta-label">地位:</span><span class="meta-value">TLS1.3默认</span></div>
+                        </div>
+                    </div>
+
+                    <!-- SM2 -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">SM2</h3>
+                            <span class="card-status status-safe">🇨🇳 国密</span>
+                        </div>
+                        <div class="card-tagline">256 bit · 签名/加密/密钥交换一体</div>
+                        <div class="card-desc">
+                            中国国标（GB/T）。签名、加密、密钥交换三合一。电子政务、网银 U 盾、政务金融合规。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">状态:</span><span class="meta-value">安全</span></div>
+                            <div class="meta-item"><span class="meta-label">场景:</span><span class="meta-value">政务/金融</span></div>
+                        </div>
+                    </div>
+
+                    <!-- ML-KEM -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">ML-KEM</h3>
+                            <span class="card-status status-safe-rec">🛡️ 后量子</span>
+                        </div>
+                        <div class="card-tagline">Kyber · NIST FIPS 203（2024）</div>
+                        <div class="card-desc">
+                            <strong>抗量子</strong>密钥封装算法。Chrome/Firefox/Apple/Signal 已部署混合方案（X25519 + ML-KEM-768）。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">类型:</span><span class="meta-value">后量子</span></div>
+                            <div class="meta-item"><span class="meta-label">功能:</span><span class="meta-value">密钥封装</span></div>
+                        </div>
+                    </div>
+
+                    <!-- ML-DSA -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">ML-DSA</h3>
+                            <span class="card-status status-safe">🛡️ 后量子</span>
+                        </div>
+                        <div class="card-tagline">Dilithium · NIST FIPS 204（2024）</div>
+                        <div class="card-desc">
+                            <strong>抗量子</strong>签名算法。NIST 标准，2025年后新系统建议叠加使用。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">类型:</span><span class="meta-value">后量子</span></div>
+                            <div class="meta-item"><span class="meta-label">功能:</span><span class="meta-value">数字签名</span></div>
+                        </div>
+                    </div>
+
+                    <!-- SLH-DSA -->
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">SLH-DSA</h3>
+                            <span class="card-status status-safe">🛡️ 最保守</span>
+                        </div>
+                        <div class="card-tagline">SPHINCS+ · NIST FIPS 205（2024）</div>
+                        <div class="card-desc">
+                            <strong>哈希签名</strong>，基于 SHA-2/SHA-3。签名较大但<strong>最保守安全假设</strong>，不需要格密码数学结构。
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item"><span class="meta-label">类型:</span><span class="meta-value">后量子</span></div>
+                            <div class="meta-item"><span class="meta-label">假设:</span><span class="meta-value">最保守</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 混合加密 & 2025-2026 趋势 -->
+            <section class="category-section">
+                <div class="category-header">
+                    <span class="category-icon">🚀</span>
+                    <div>
+                        <h2 class="category-title" style="color: #965eff;">四、实践指南</h2>
+                        <div class="category-subtitle">现实系统的标准做法 · 2025-2026 选型建议</div>
+                    </div>
+                </div>
+
+                <div class="category-intro">
+                    <p><strong>现实系统中的加密几乎都是三者组合（混合加密）：</strong></p>
+                    <p style="padding-left: 1rem;">① <span style="color:#22c55e;">非对称</span>：交换会话密钥 + 证书签名验证身份 &nbsp;&nbsp; ② <span style="color:#3b82f6;">对称</span>：加密实际传输数据 &nbsp;&nbsp; ③ <span style="color:#ef4444;">哈希</span>：完整性校验</p>
+                </div>
+
+                <div class="cards-grid">
+                    <div class="algo-card" style="grid-column: span 2;">
+                        <div class="card-header">
+                            <h3 class="card-name">📋 新系统选型建议</h3>
+                        </div>
+                        <div class="card-desc">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.5rem;">
+                                <div>🔄 <strong>密钥交换：</strong>X25519 + ML-KEM-768 混合</div>
+                                <div>✍️ <strong>数字签名：</strong>Ed25519 / ECDSA + ML-DSA</div>
+                                <div>🔐 <strong>数据加密：</strong>AES-256-GCM / ChaCha20-Poly1305</div>
+                                <div>🔑 <strong>密码存储：</strong>Argon2id（新首选）</div>
+                                <div>🧩 <strong>哈希通用：</strong>SHA-256 / BLAKE3</div>
+                                <div>🇨🇳 <strong>国密合规：</strong>SM2 + SM3 + SM4</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="algo-card">
+                        <div class="card-header">
+                            <h3 class="card-name">📅 发展趋势</h3>
+                        </div>
+                        <div class="card-desc">
+                            <p>• 2024年 NIST 发布 FIPS 203/204/205（后量子标准）</p>
+                            <p>• 各大厂已部署 <strong>混合抗量子方案</strong></p>
+                            <p>• 美国 CNSA 2.0 计划 <strong>2030 年</strong>全面弃用 RSA/ECC</p>
+                            <p>• 中国推行<strong>国密商用密码合规改造</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-slogan">AlgoViz - 数据结构与算法可视化学习平台 · 让学习变得更有趣</div>
+                    <div class="footer-bottom-row">
+                        <span>AlgoViz © 2026</span>
+                        <span class="footer-divider">|</span>
+                        <span class="footer-icp">ICP备案：<a href="https://beian.miit.gov.cn/" target="_blank">豫ICP备12345678号</a></span>
+                        <span class="footer-divider">|</span>
+                        <a href="https://github.com/zhuxiaoyi412826/AlgoViz" target="_blank" class="footer-github" title="查看 GitHub 源码">
+                            <svg height="16" aria-hidden="true" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" fill="currentColor">
+                                <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
+                            </svg>
+                            GitHub
+                        </a>
+                        <span class="footer-divider">|</span>
+                        <a href="../pages/changelog.html" class="footer-link">更新日志</a>
+                        <span class="footer-divider">|</span>
+                        <a href="../pages/suggestion.html" class="footer-link">建议我</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </main>
+</body>
+
+</html>

@@ -152,25 +152,7 @@ CREATE TABLE `submission` (
     KEY `idx_submission_submit_time` (`submit_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='提交记录表';
 
--- 管理员表
-DROP TABLE IF EXISTS `admin`;
-CREATE TABLE `admin` (
-    `id`              VARCHAR(32)  NOT NULL,
-    `username`        VARCHAR(50)  NOT NULL,
-    `nickname`        VARCHAR(100) NOT NULL,
-    `password`        VARCHAR(255) NOT NULL,
-    `avatar`          VARCHAR(500) DEFAULT NULL,
-    `email`           VARCHAR(100) DEFAULT NULL,
-    `phone`           VARCHAR(20)  DEFAULT NULL,
-    `role`            VARCHAR(50)  DEFAULT 'content_admin',
-    `status`          VARCHAR(20)  DEFAULT 'active',
-    `last_login_time` DATETIME     DEFAULT NULL,
-    `last_login_ip`   VARCHAR(64)  DEFAULT NULL,
-    `created_at`      DATETIME     DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`      DATETIME     DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_admin_username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='管理员表';
+
 
 -- 登录日志表
 DROP TABLE IF EXISTS `login_log`;

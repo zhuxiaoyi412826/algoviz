@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MD5 算法可视化 | 消息摘要算法深度解析</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Work+Sans:wght@400;700&family=Tektur:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+<style>
+:root {
+--bg: #0a0e14; --bg2: rgba(22, 27, 34, 0.85); --bg3: rgba(13, 17, 23, 0.6);
+--ink: #c9d1d9; --ink-bright: #f0f6fc; --muted: #7d8590;
+--rule: rgba(48, 54, 61, 0.6);
+--accent: #58a6ff; --accent2: #f778ba; --accent3: #3fb950;
+--accent4: #d29922; --accent5: #bc8cff;
+--accent-glow: rgba(88, 166, 255, 0.15);
+--font: 'Work Sans', sans-serif; --font-heading: 'Tektur', sans-serif;
+--font-mono: 'JetBrains Mono', monospace;
+--max: 1200px; --radius: 10px; --radius-sm: 6px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+font-family: var(--font); color: var(--ink); background: var(--bg);
+background-image:
+radial-gradient(ellipse at 20% 0%, rgba(88, 166, 255, 0.06) 0%, transparent 50%),
+radial-gradient(ellipse at 80% 100%, rgba(247, 120, 186, 0.05) 0%, transparent 50%);
+line-height: 1.7; overflow-x: hidden;
+}
+article.page { max-width: var(--max); margin: 0 auto; padding: 0 1.5rem; }
+h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--ink-bright); line-height: 1.3; }
+h1 { font-size: 3rem; font-weight: 500; letter-spacing: -0.02em; }
+h2 { font-size: 1.75rem; font-weight: 500; margin-top: 4rem; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--rule); }
+h2 .num { color: var(--accent); font-size: 0.85em; margin-right: 0.5rem; }
+h3 { font-size: 1.15rem; font-weight: 500; margin-top: 2rem; margin-bottom: 1rem; color: var(--ink-bright); }
+p { margin-bottom: 1rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+strong { color: var(--ink-bright); }
+code, .mono { font-family: var(--font-mono); font-size: 0.9em; }
+mark.key { background: none; color: var(--accent); font-weight: 600; }
+
+.hero { position: relative; min-height: 55vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 3rem 1.5rem; overflow: hidden; }
+.hero-bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: 0.35; }
+.hex-stream { position: absolute; top: -20%; font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent); white-space: pre; line-height: 1.8; animation: hexFall linear infinite; text-shadow: 0 0 6px var(--accent); }
+@keyframes hexFall { 0% { transform: translateY(-30%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(130vh); opacity: 0; } }
+.hero-content { position: relative; z-index: 1; }
+.hero-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent4); border: 1px solid var(--accent4); border-radius: 20px; padding: 0.3rem 1rem; margin-bottom: 1.5rem; background: rgba(210, 153, 34, 0.08); }
+.hero h1 { font-size: 4rem; letter-spacing: -0.03em; background: linear-gradient(135deg, var(--accent4) 0%, var(--accent) 50%, var(--accent5) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero-subtitle { font-size: 1.2rem; color: var(--muted); max-width: 600px; margin: 1rem auto 0; }
+.hero-meta { display: flex; gap: 2rem; margin-top: 2rem; flex-wrap: wrap; justify-content: center; }
+.hero-meta-item { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+.hero-meta-item span { color: var(--accent); }
+
+.card { background: var(--bg2); border: 1px solid var(--rule); border-radius: var(--radius); padding: 1.5rem; backdrop-filter: blur(10px); }
+.card-grid { display: grid; gap: 1rem; }
+.card-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.card-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+
+.callout { border-left: 3px solid var(--accent5); background: rgba(188, 140, 255, 0.06); padding: 1rem 1.25rem; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin: 1.5rem 0; font-size: 0.9rem; }
+.callout.warn { border-left-color: var(--accent4); background: rgba(210, 153, 34, 0.06); }
+.callout .callout-title { font-weight: 700; color: var(--ink-bright); margin-bottom: 0.3rem; }
+
+.encrypt-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0; }
+.input-panel, .pipeline-panel { background: var(--bg2); border: 1px solid var(--rule); border-radius: var(--radius); padding: 1.5rem; }
+.input-group { margin-bottom: 1rem; }
+.input-group label { display: block; font-size: 0.82rem; color: var(--ink-bright); font-weight: 700; margin-bottom: 0.4rem; }
+.input-text { width: 100%; background: var(--bg3); border: 1px solid var(--rule); border-radius: var(--radius-sm); color: var(--ink-bright); font-family: var(--font-mono); font-size: 0.85rem; padding: 0.6rem 0.8rem; outline: none; transition: border-color 0.2s; }
+.input-text:focus { border-color: var(--accent); }
+.char-types { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.char-type { display: flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; color: var(--ink); cursor: pointer; padding: 0.3rem 0.65rem; border: 1px solid var(--rule); border-radius: var(--radius-sm); background: var(--bg3); transition: all 0.2s; user-select: none; }
+.char-type:hover { border-color: var(--accent); }
+.char-type.checked { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
+.char-type .checkbox { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid var(--muted); display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 10px; font-weight: 700; }
+.char-type.checked .checkbox { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.char-type.checked .checkbox::after { content: '\2713'; }
+
+.pipeline { display: flex; flex-direction: column; gap: 0.5rem; }
+.pipeline-step { display: flex; align-items: flex-start; gap: 0.8rem; padding: 0.8rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--rule); background: var(--bg3); transition: all 0.4s; opacity: 0.5; }
+.pipeline-step.active { opacity: 1; border-color: var(--accent4); background: rgba(210, 153, 34, 0.08); box-shadow: 0 0 12px rgba(210, 153, 34, 0.15); }
+.pipeline-step.done { opacity: 1; border-color: var(--accent3); background: rgba(63, 185, 80, 0.06); }
+.pipeline-step-icon { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; border: 2px solid var(--rule); background: var(--bg); color: var(--muted); flex-shrink: 0; transition: all 0.3s; }
+.pipeline-step.active .pipeline-step-icon { border-color: var(--accent4); color: var(--accent4); animation: pulse 1s ease-in-out infinite; }
+.pipeline-step.done .pipeline-step-icon { border-color: var(--accent3); background: var(--accent3); color: var(--bg); }
+.pipeline-step-content { flex: 1; min-width: 0; }
+.pipeline-step-title { font-size: 0.85rem; font-weight: 700; color: var(--ink-bright); margin-bottom: 0.15rem; }
+.pipeline-step-desc { font-size: 0.72rem; color: var(--muted); }
+.pipeline-step-result { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent3); margin-top: 0.35rem; word-break: break-all; display: none; }
+.pipeline-step.done .pipeline-step-result { display: block; }
+.pipe-hash-block { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.pipe-hash-full { font-family: var(--font-mono); font-size: 0.82rem; color: var(--accent3); background: var(--bg3); border: 1px solid var(--rule); border-radius: var(--radius-sm); padding: 0.75rem 1rem; word-break: break-all; line-height: 1.8; white-space: pre-wrap; overflow-x: auto; }
+.btn-copy-small { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; padding: 0.35rem 0.8rem; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--accent3); background: rgba(63, 185, 80, 0.1); color: var(--accent3); transition: all 0.2s; align-self: flex-start; }
+.btn-copy-small:hover { background: var(--accent3); color: var(--bg); }
+.btn-copy-small.copied { background: var(--accent3); color: var(--bg); }
+
+.btn-encrypt { width: 100%; font-family: var(--font-heading); font-size: 1rem; font-weight: 500; padding: 0.8rem 2rem; border-radius: var(--radius-sm); cursor: pointer; border: none; background: linear-gradient(135deg, var(--accent4), var(--accent)); color: var(--bg); transition: all 0.3s; margin-top: 1rem; letter-spacing: 0.05em; }
+.btn-encrypt:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(88, 166, 255, 0.3); }
+.btn-encrypt:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.speed-multiplier { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; padding: 0.75rem 1rem; background: var(--bg3); border: 1px solid var(--rule); border-radius: var(--radius-sm); }
+.speed-multiplier .sm-label { font-size: 0.8rem; color: var(--ink-bright); font-weight: 700; white-space: nowrap; }
+.speed-multiplier input[type="range"] { flex: 1; }
+.speed-multiplier .sm-value { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; color: var(--accent); background: var(--accent-glow); padding: 0.2rem 0.6rem; border-radius: 4px; min-width: 48px; text-align: center; }
+
+.btn { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; padding: 0.5rem 1rem; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--rule); background: var(--bg3); color: var(--ink); transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.4rem; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+.mermaid-container { background: var(--bg2); border: 1px solid var(--rule); border-radius: var(--radius); padding: 1.5rem; margin: 1.5rem 0; overflow-x: auto; }
+.mermaid { display: flex; justify-content: center; }
+
+.table-wrap { overflow-x: auto; max-height: 600px; overflow-y: auto; margin: 1.5rem 0; border: 1px solid var(--rule); border-radius: var(--radius); }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th { background: var(--bg3); color: var(--ink-bright); text-align: left; padding: 0.75rem 1rem; border-bottom: 1px solid var(--rule); font-weight: 700; position: sticky; top: 0; }
+td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--rule); color: var(--ink); }
+tr:hover td { background: rgba(88, 166, 255, 0.04); }
+
+.final-diagram { background: var(--bg2); border: 1px solid var(--rule); border-radius: var(--radius); padding: 2rem; margin: 1.5rem 0; text-align: center; }
+.final-hash-row { display: flex; gap: 0.5rem; align-items: stretch; justify-content: center; flex-wrap: wrap; }
+.final-hash { display: inline-block; font-family: var(--font-mono); font-size: 0.9rem; color: var(--accent3); background: rgba(63, 185, 80, 0.08); border: 1px solid var(--accent3); border-radius: var(--radius-sm); padding: 0.75rem 1.5rem; word-break: break-all; max-width: 100%; }
+.btn-copy { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; padding: 0.75rem 1.2rem; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--accent3); background: rgba(63, 185, 80, 0.1); color: var(--accent3); transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+.btn-copy:hover { background: var(--accent3); color: var(--bg); }
+.btn-copy.copied { background: var(--accent3); color: var(--bg); }
+
+.chart-figure { margin: 2rem 0; }
+.chart-figure figcaption { font-size: 0.9rem; font-weight: 600; color: var(--ink-bright); margin-bottom: 0.75rem; }
+
+.state-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin: 1.5rem 0; }
+.state-card { background: var(--bg2); border: 1px solid var(--rule); border-radius: var(--radius-sm); padding: 1rem; text-align: center; }
+.state-card .sc-label { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
+.state-card .sc-value { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; color: var(--accent3); word-break: break-all; }
+.state-card .sc-init { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; }
+
+.round-tabs { display: flex; gap: 0.5rem; margin: 1.5rem 0; flex-wrap: wrap; }
+.round-tab { padding: 0.5rem 1.2rem; border-radius: var(--radius-sm); border: 1px solid var(--rule); background: var(--bg3); color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
+.round-tab:hover { border-color: var(--accent); color: var(--accent); }
+.round-tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.round-content { display: none; }
+.round-content.active { display: block; }
+.round-detail { background: var(--bg2); border: 1px solid var(--rule); border-radius: var(--radius); padding: 1.5rem; }
+.round-detail h3 { margin-top: 0; color: var(--accent); font-size: 1rem; }
+.round-formula { font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink-bright); background: var(--bg3); border: 1px solid var(--rule); border-radius: var(--radius-sm); padding: 1rem; margin: 1rem 0; line-height: 2; }
+.round-formula .var-a { color: var(--accent); }
+.round-formula .var-b { color: var(--accent2); }
+.round-formula .var-c { color: var(--accent3); }
+.round-formula .var-d { color: var(--accent4); }
+.round-formula .var-f { color: var(--accent5); }
+
+.step-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin: 1rem 0; }
+.step-cell { background: var(--bg3); border: 1px solid var(--rule); border-radius: var(--radius-sm); padding: 0.5rem; text-align: center; font-family: var(--font-mono); font-size: 0.7rem; transition: all 0.3s; }
+.step-cell .sc-num { color: var(--muted); font-size: 0.6rem; }
+.step-cell .sc-op { color: var(--accent4); font-weight: 700; }
+.step-cell.active { border-color: var(--accent4); background: rgba(210, 153, 34, 0.1); }
+.step-cell.done { border-color: var(--accent3); }
+
+.padding-vis { background: var(--bg2); border: 1px solid var(--rule); border-radius: var(--radius); padding: 1.5rem; margin: 1.5rem 0; }
+.block-row { display: flex; gap: 2px; margin: 0.5rem 0; font-family: var(--font-mono); font-size: 0.65rem; }
+.block-segment { padding: 0.3rem 0.5rem; border-radius: 3px; text-align: center; min-width: 30px; display: flex; align-items: center; justify-content: center; }
+.seg-msg { background: rgba(88, 166, 255, 0.2); border: 1px solid var(--accent); color: var(--accent); }
+.seg-pad1 { background: rgba(210, 153, 34, 0.2); border: 1px solid var(--accent4); color: var(--accent4); }
+.seg-pad0 { background: rgba(48, 54, 61, 0.3); border: 1px solid var(--rule); color: var(--muted); }
+.seg-len { background: rgba(247, 120, 186, 0.2); border: 1px solid var(--accent2); color: var(--accent2); }
+
+footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--rule); }
+footer .sources h2 { font-size: 1.1rem; border: none; padding: 0; margin: 0 0 1rem 0; }
+footer .sources ol { padding-left: 1.2rem; font-size: 0.85rem; color: var(--muted); }
+footer .sources li { margin-bottom: 0.5rem; overflow-wrap: break-word; word-break: break-all; }
+footer .sources .src-title { color: var(--ink); word-break: normal; }
+footer .sources .src-url { display: block; margin-top: 0.15rem; font-size: 0.82rem; color: var(--accent); word-break: break-all; }
+sup a { color: var(--accent); text-decoration: none; font-size: 0.75em; font-weight: 600; }
+sup a:hover { text-decoration: underline; }
+
+@media (max-width: 768px) {
+h1 { font-size: 2.5rem; } .hero h1 { font-size: 2.8rem; }
+.encrypt-panel { grid-template-columns: 1fr; }
+.card-grid.cols-3 { grid-template-columns: 1fr; }
+.card-grid.cols-2 { grid-template-columns: 1fr; }
+.state-grid { grid-template-columns: 1fr 1fr; }
+.step-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<article class="page">
+
+<!-- === Hero === -->
+<header class="hero">
+<div class="hero-bg" id="heroBg"></div>
+<div class="hero-content">
+<span class="hero-badge">RFC 1321 | Ronald Rivest | 1992</span>
+<h1>MD5</h1>
+<p class="hero-subtitle">消息摘要算法第五版 —— 经典 128 位密码散列函数的可视化深度解析</p>
+<div class="hero-meta">
+<div class="hero-meta-item">输出: <span>128 bits (16 bytes)</span></div>
+<div class="hero-meta-item">块大小: <span>512 bits</span></div>
+<div class="hero-meta-item">轮数: <span>4 轮 × 16 步 = 64 步</span></div>
+<div class="hero-meta-item">结构: <span>Merkle-Damgard</span></div>
+</div>
+</div>
+</header>
+
+<!-- === Section 1: Overview === -->
+<section id="overview">
+<h2><span class="num">01</span>什么是 MD5？</h2>
+<p>MD5（Message Digest Algorithm 5）是由<mark class="key">Ronald Rivest</mark> 于 1992 年设计的密码散列函数，将任意长度的输入数据压缩为 <mark class="key">128 位（16 字节）</mark>的固定长度哈希值。它基于 Merkle-Damgård 结构，通过 4 轮共 64 步非线性运算，确保输入的任何微小变化都会导致输出的巨大差异（雪崩效应）。</p>
+
+<div class="card-grid cols-3">
+<div class="card" style="border-top: 3px solid var(--accent3);">
+<h3 style="margin-top:0; font-size: 0.95rem; color: var(--accent3);">数据完整性校验</h3>
+<p style="font-size: 0.82rem;">MD5 广泛用于文件校验和、数据指纹，快速检测文件是否被篡改或损坏。</p>
+</div>
+<div class="card" style="border-top: 3px solid var(--accent4);">
+<h3 style="margin-top:0; font-size: 0.95rem; color: var(--accent4);">密码存储 (已不推荐)</h3>
+<p style="font-size: 0.82rem;">曾用于存储密码哈希，但因计算速度极快且存在碰撞攻击，已被 Argon2id/bcrypt 替代。</p>
+</div>
+<div class="card" style="border-top: 3px solid var(--accent2);">
+<h3 style="margin-top:0; font-size: 0.95rem; color: var(--accent2);">安全缺陷</h3>
+<p style="font-size: 0.82rem;">已发现多种碰撞攻击（2004 年王小云团队），不应用于安全敏感场景。</p>
+</div>
+</div>
+
+<div class="callout warn">
+<div class="callout-title">安全提示</div>
+MD5 已被证明存在<strong>碰撞攻击</strong>和<strong>原像攻击的进展</strong>，不应用于数字签名、SSL 证书或密码存储等安全场景。本页面仅作<strong>算法学习与可视化</strong>用途。
+</div>
+</section>
+
+<!-- === Section 2: Input & Encrypt === -->
+<section id="encrypt">
+<h2><span class="num">02</span>输入配置与加密</h2>
+<p>自定义输入消息，或随机生成，然后点击「开始加密」观察 MD5 从输入到最终哈希的完整流程。</p>
+
+<div class="encrypt-panel">
+<div class="input-panel">
+<div class="input-group">
+<label>输入消息 (Message)</label>
+<input type="text" class="input-text" id="msg-input" value="Hello, World!" placeholder="输入消息或点击随机生成">
+</div>
+
+<div class="input-group">
+<label>
+消息长度
+<span style="float:right; font-family:var(--font-mono); font-size:0.8rem; color:var(--accent); background:var(--accent-glow); padding:0.1rem 0.5rem; border-radius:3px;" id="msg-len-val">13</span>
+</label>
+<input type="range" id="msg-len" min="1" max="64" value="13" step="1">
+</div>
+
+<div class="input-group">
+<label>字符类型 <span style="font-weight:400; color:var(--muted); font-size:0.75rem;">(点击切换)</span></label>
+<div class="char-types" id="charTypes">
+<div class="char-type checked" data-charset="lower"><span class="checkbox"></span>小写字母 a-z</div>
+<div class="char-type checked" data-charset="upper"><span class="checkbox"></span>大写字母 A-Z</div>
+<div class="char-type checked" data-charset="numbers"><span class="checkbox"></span>数字 0-9</div>
+<div class="char-type" data-charset="symbols"><span class="checkbox"></span>特殊符号 !@#$</div>
+</div>
+</div>
+
+<div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+<button class="btn" id="btn-gen-msg" style="flex:1;">🎲 随机消息</button>
+</div>
+
+<div class="speed-multiplier">
+<span class="sm-label">倍速</span>
+<input type="range" id="encrypt-speed" min="1" max="10" value="1" step="1">
+<span class="sm-value" id="encrypt-speed-val">1x</span>
+</div>
+
+<button class="btn-encrypt" id="btn-encrypt">🔐 开始加密</button>
+</div>
+
+<div class="pipeline-panel">
+<h3 style="margin-top:0; font-size:1rem; color:var(--ink-bright); margin-bottom:1rem;">加密流程追踪</h3>
+<div class="pipeline" id="pipeline">
+<div class="pipeline-step" id="pipe-step-0">
+<div class="pipeline-step-icon">1</div>
+<div class="pipeline-step-content">
+<div class="pipeline-step-title">消息填充与分块</div>
+<div class="pipeline-step-desc">追加 1 位 + 0 填充至 448 mod 512，再追加 64 位长度</div>
+<div class="pipeline-step-result" id="pipe-result-0"></div>
+</div>
+</div>
+<div class="pipeline-step" id="pipe-step-1">
+<div class="pipeline-step-icon">2</div>
+<div class="pipeline-step-content">
+<div class="pipeline-step-title">初始化 MD 缓冲区</div>
+<div class="pipeline-step-desc">设置 A, B, C, D 四个 32 位寄存器初始值</div>
+<div class="pipeline-step-result" id="pipe-result-1"></div>
+</div>
+</div>
+<div class="pipeline-step" id="pipe-step-2">
+<div class="pipeline-step-icon">3</div>
+<div class="pipeline-step-content">
+<div class="pipeline-step-title">压缩函数 (4 轮 × 16 步)</div>
+<div class="pipeline-step-desc">F, G, H, I 四轮非线性运算，每轮 16 步混合</div>
+<div class="pipeline-step-result" id="pipe-result-2"></div>
+</div>
+</div>
+<div class="pipeline-step" id="pipe-step-3">
+<div class="pipeline-step-icon">4</div>
+<div class="pipeline-step-content">
+<div class="pipeline-step-title">最终化与输出</div>
+<div class="pipeline-step-desc">拼接 A, B, C, D 输出 128 位哈希</div>
+<div class="pipeline-step-result" id="pipe-result-3"></div>
+<div class="pipe-hash-block" id="pipe-hash-block" style="display:none;">
+<div class="pipe-hash-full" id="pipe-hash-full"></div>
+<button class="btn-copy-small" id="btn-copy-pipe">📋 复制哈希</button>
+</div>
+</div>
+</div>
+</div>
+<div style="margin-top:1rem; font-size:0.75rem; color:var(--muted); line-height:1.6;">
+<div id="pipe-hint">配置消息后点击「开始加密」，系统将自动逐步执行并滚动到对应区域。</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- === Section 3: Algorithm Flow === -->
+<section id="flow">
+<h2><span class="num">03</span>算法流程</h2>
+<p>MD5 的完整执行流程如下，从消息填充到最终 128 位哈希输出，共经过填充、初始化、压缩和输出四个阶段。</p>
+
+<div class="mermaid-container">
+<pre class="mermaid">
+flowchart TD
+    A["输入: 任意长度消息 M"] --> B["消息填充<br/>追加 1 位 '1'<br/>追加 0 直到长度 ≡ 448 mod 512<br/>追加 64 位原始长度 (小端)"]
+    B --> C["分块: 每 512 位 (64 字节) 一块"]
+    C --> D["初始化 MD 缓冲区<br/>A = 0x67452301<br/>B = 0xEFCDAB89<br/>C = 0x98BADCFE<br/>D = 0x10325476"]
+    D --> E{"处理每个 512 位块"}
+    E --> F["将块拆分为 16 个 32 位字 M[0..15]"]
+    F --> G["第 1 轮: F 函数 (16 步)<br/>F(b,c,d) = (b AND c) OR (NOT b AND d)"]
+    G --> H["第 2 轮: G 函数 (16 步)<br/>G(b,c,d) = (b AND d) OR (c AND NOT d)"]
+    H --> I["第 3 轮: H 函数 (16 步)<br/>H(b,c,d) = b XOR c XOR d"]
+    I --> J["第 4 轮: I 函数 (16 步)<br/>I(b,c,d) = c XOR (b OR NOT d)"]
+    J --> K["累加到 MD 缓冲区<br/>A += A', B += B', C += C', D += D'"]
+    K --> E
+    E --> L["输出: A || B || C || D<br/>(小端字节序拼接)"]
+    L --> M["128 位 (32 字符十六进制) 哈希"]
+</pre>
+</div>
+</section>
+
+<!-- === Section 4: Message Padding === -->
+<section id="padding">
+<h2><span class="num">04</span>消息填充</h2>
+<p>MD5 的第一步是将输入消息填充至 512 位的整数倍。填充规则：先追加一个 <mark class="key">1 位</mark>，再追加 <mark class="key">0 位</mark>直到长度 ≡ 448 (mod 512)，最后追加 <mark class="key">64 位</mark>原始消息长度（小端序）。</p>
+
+<div class="padding-vis">
+<h3 style="margin-top:0; font-size:0.95rem;">512 位数据块结构</h3>
+<div class="block-row" id="paddingRow">
+<div class="block-segment seg-msg">原始消息 (L bits)</div>
+<div class="block-segment seg-pad1">1</div>
+<div class="block-segment seg-pad0">000...0 (填充至 448 mod 512)</div>
+<div class="block-segment seg-len">长度 (64 bits, 小端序)</div>
+</div>
+<div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-top:1rem; font-size:0.75rem; color:var(--muted);">
+<div>🟦 原始消息</div>
+<div>🟧 1 位填充</div>
+<div>⬛ 0 位填充</div>
+<div>🟪 64 位长度</div>
+</div>
+<div id="paddingDetail" style="margin-top:1rem; font-family:var(--font-mono); font-size:0.78rem; color:var(--ink); background:var(--bg3); border:1px solid var(--rule); border-radius:var(--radius-sm); padding:1rem;">
+<div style="color:var(--muted); font-size:0.65rem; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.4rem;">填充详情</div>
+<div id="paddingDetailContent">加密后将显示具体填充值</div>
+</div>
+</div>
+</section>
+
+<!-- === Section 5: Initial State === -->
+<section id="init-state">
+<h2><span class="num">05</span>初始 MD 缓冲区</h2>
+<p>MD5 使用四个 32 位寄存器 A, B, C, D 作为初始状态，这些值来自正弦函数的特定常量。</p>
+
+<div class="state-grid">
+<div class="state-card">
+<div class="sc-label">寄存器 A</div>
+<div class="sc-value">0x67452301</div>
+<div class="sc-init">floor(2^32 × |sin(1)|)</div>
+</div>
+<div class="state-card">
+<div class="sc-label">寄存器 B</div>
+<div class="sc-value">0xEFCDAB89</div>
+<div class="sc-init">floor(2^32 × |sin(2)|)</div>
+</div>
+<div class="state-card">
+<div class="sc-label">寄存器 C</div>
+<div class="sc-value">0x98BADCFE</div>
+<div class="sc-init">floor(2^32 × |sin(3)|)</div>
+</div>
+<div class="state-card">
+<div class="sc-label">寄存器 D</div>
+<div class="sc-value">0x10325476</div>
+<div class="sc-init">floor(2^32 × |sin(4)|)</div>
+</div>
+</div>
+</section>
+
+<!-- === Section 6: Round Functions === -->
+<section id="rounds">
+<h2><span class="num">06</span>四轮非线性函数</h2>
+<p>MD5 的核心是 <mark class="key">4 轮变换</mark>，每轮使用不同的非线性函数（F, G, H, I），每轮包含 16 步操作，共 <mark class="key">64 步</mark>。每步操作都会混合 A, B, C, D 四个寄存器，引用消息字 M[i] 和常量 K[i]。</p>
+
+<div id="roundStatusBar" style="display:none; background: var(--bg2); border: 1px solid var(--accent4); border-radius: var(--radius); padding: 0.75rem 1.25rem; margin-bottom: 1rem; font-family: var(--font-mono); font-size: 0.82rem; color: var(--ink-bright);">
+<span style="color: var(--accent4);">▶ 正在执行: </span>
+<span id="roundStatusText">准备中...</span>
+<span style="float: right; color: var(--muted);" id="roundStatusProgress">0 / 64</span>
+</div>
+
+<div class="round-tabs">
+<div class="round-tab active" data-round="0">第 1 轮: F</div>
+<div class="round-tab" data-round="1">第 2 轮: G</div>
+<div class="round-tab" data-round="2">第 3 轮: H</div>
+<div class="round-tab" data-round="3">第 4 轮: I</div>
+</div>
+
+<div class="round-content active" data-round="0">
+<div class="round-detail">
+<h3>第 1 轮: F 函数 (步骤 0-15)</h3>
+<p style="font-size:0.85rem; color:var(--muted);">使用条件函数 F，对 B, C, D 进行按位逻辑运算。消息字按顺序 M[0..15] 引用。</p>
+<div class="round-formula">
+<span class="var-f">F</span>(<span class="var-b">b</span>, <span class="var-c">c</span>, <span class="var-d">d</span>) = (<span class="var-b">b</span> AND <span class="var-c">c</span>) OR (NOT <span class="var-b">b</span> AND <span class="var-d">d</span>)<br/><br/>
+每步操作:<br/>
+<span class="var-a">A</span> = <span class="var-b">B</span> + ((<span class="var-a">A</span> + <span class="var-f">F</span>(<span class="var-b">B</span>, <span class="var-c">C</span>, <span class="var-d">D</span>) + M[g] + K[i]) <<< s)<br/>
+<span style="color:var(--muted); font-size:0.75rem;">轮转: (A,B,C,D) → (D, new_A, B, C)</span>
+</div>
+<div class="step-grid" id="stepGrid0"></div>
+</div>
+</div>
+
+<div class="round-content" data-round="1">
+<div class="round-detail">
+<h3>第 2 轮: G 函数 (步骤 16-31)</h3>
+<p style="font-size:0.85rem; color:var(--muted);">使用选择函数 G，消息字索引按 (5i+1) mod 16 引用。</p>
+<div class="round-formula">
+<span class="var-f">G</span>(<span class="var-b">b</span>, <span class="var-c">c</span>, <span class="var-d">d</span>) = (<span class="var-b">b</span> AND <span class="var-d">d</span>) OR (<span class="var-c">c</span> AND NOT <span class="var-d">d</span>)<br/><br/>
+每步操作:<br/>
+<span class="var-a">A</span> = <span class="var-b">B</span> + ((<span class="var-a">A</span> + <span class="var-f">G</span>(<span class="var-b">B</span>, <span class="var-c">C</span>, <span class="var-d">D</span>) + M[g] + K[i]) <<< s)
+</div>
+<div class="step-grid" id="stepGrid1"></div>
+</div>
+</div>
+
+<div class="round-content" data-round="2">
+<div class="round-detail">
+<h3>第 3 轮: H 函数 (步骤 32-47)</h3>
+<p style="font-size:0.85rem; color:var(--muted);">使用奇偶函数 H，消息字索引按 (3i+5) mod 16 引用。</p>
+<div class="round-formula">
+<span class="var-f">H</span>(<span class="var-b">b</span>, <span class="var-c">c</span>, <span class="var-d">d</span>) = <span class="var-b">b</span> XOR <span class="var-c">c</span> XOR <span class="var-d">d</span><br/><br/>
+每步操作:<br/>
+<span class="var-a">A</span> = <span class="var-b">B</span> + ((<span class="var-a">A</span> + <span class="var-f">H</span>(<span class="var-b">B</span>, <span class="var-c">C</span>, <span class="var-d">D</span>) + M[g] + K[i]) <<< s)
+</div>
+<div class="step-grid" id="stepGrid2"></div>
+</div>
+</div>
+
+<div class="round-content" data-round="3">
+<div class="round-detail">
+<h3>第 4 轮: I 函数 (步骤 48-63)</h3>
+<p style="font-size:0.85rem; color:var(--muted);">使用逻辑函数 I，消息字索引按 (7i) mod 16 引用。</p>
+<div class="round-formula">
+<span class="var-f">I</span>(<span class="var-b">b</span>, <span class="var-c">c</span>, <span class="var-d">d</span>) = <span class="var-c">c</span> XOR (<span class="var-b">b</span> OR NOT <span class="var-d">d</span>)<br/><br/>
+每步操作:<br/>
+<span class="var-a">A</span> = <span class="var-b">B</span> + ((<span class="var-a">A</span> + <span class="var-f">I</span>(<span class="var-b">B</span>, <span class="var-c">C</span>, <span class="var-d">D</span>) + M[g] + K[i]) <<< s)
+</div>
+<div class="step-grid" id="stepGrid3"></div>
+</div>
+</div>
+
+<div class="callout">
+<div class="callout-title">常量 K 和移位 S</div>
+每步使用一个来自 <strong>floor(2^32 × |sin(i+1)|)</strong> 的常量 K[i]（共 64 个），以及一个循环左移位数 S[i]。这些常量确保了算法的非线性和雪崩效应。
+</div>
+</section>
+
+<!-- === Section 7: Finalization === -->
+<section id="finalization">
+<h2><span class="num">07</span>最终化与输出</h2>
+<p>所有数据块处理完成后，将四个寄存器 A, B, C, D 按小端字节序拼接，输出 <mark class="key">128 位（32 个十六进制字符）</mark>的最终哈希。</p>
+
+<div class="final-diagram">
+<div style="margin-bottom:1rem; color:var(--muted); font-size:0.85rem;">四个寄存器拼接输出:</div>
+<div class="state-grid" style="margin-bottom:1.5rem;">
+<div class="state-card">
+<div class="sc-label">A (小端序)</div>
+<div class="sc-value" id="finalA">—</div>
+</div>
+<div class="state-card">
+<div class="sc-label">B (小端序)</div>
+<div class="sc-value" id="finalB">—</div>
+</div>
+<div class="state-card">
+<div class="sc-label">C (小端序)</div>
+<div class="sc-value" id="finalC">—</div>
+</div>
+<div class="state-card">
+<div class="sc-label">D (小端序)</div>
+<div class="sc-value" id="finalD">—</div>
+</div>
+</div>
+<div style="color:var(--muted); font-size:0.85rem; margin-bottom:0.5rem;">A || B || C || D → 最终哈希:</div>
+<div class="final-hash-row">
+<div class="final-hash" id="finalHash">d41d8cd98f00b204e9800998ecf8427e</div>
+<button class="btn-copy" id="btn-copy-hash" title="复制哈希值">📋 复制</button>
+</div>
+<div style="margin-top:0.75rem; font-size:0.78rem; color:var(--muted);">最终输出: 128 位 = 16 字节 = 32 个十六进制字符</div>
+</div>
+</section>
+
+<!-- === Section 8: Security Analysis === -->
+<section id="security">
+<h2><span class="num">08</span>安全性分析</h2>
+<p>MD5 的安全性已严重退化。以下图表对比了 MD5 与现代哈希算法的安全性能。</p>
+
+<figure class="chart-figure">
+<figcaption>哈希算法安全维度对比 (雷达图)</figcaption>
+<div id="chart-radar" style="width:100%;min-height:420px"></div>
+</figure>
+
+<figure class="chart-figure">
+<figcaption>哈希算法速度对比 (百万次/秒)</figcaption>
+<div id="chart-speed" style="width:100%;min-height:380px"></div>
+</figure>
+
+<div class="card-grid cols-2" style="margin-top:2rem;">
+<div class="card">
+<h3 style="margin-top:0; font-size:0.95rem; color:var(--accent2);">碰撞攻击</h3>
+<p style="font-size:0.82rem;">2004 年王小云团队首次发布<strong>完整碰撞攻击</strong>，可在数小时内找到两个不同输入产生相同 MD5 值。后续改进已将碰撞时间缩短至秒级。</p>
+</div>
+<div class="card">
+<h3 style="margin-top:0; font-size:0.95rem; color:var(--accent4);">长度扩展攻击</h3>
+<p style="font-size:0.82rem;">由于 Merkle-Damgård 结构，攻击者可在不知道原始消息的情况下追加数据并计算合法哈希，导致 MD5 不适合用于消息认证。</p>
+</div>
+<div class="card">
+<h3 style="margin-top:0; font-size:0.95rem; color:var(--accent);">速度过快</h3>
+<p style="font-size:0.82rem;">MD5 设计为高速哈希，现代 GPU 每秒可计算数十亿次 MD5，使暴力破解密码变得极其廉价。</p>
+</div>
+<div class="card">
+<h3 style="margin-top:0; font-size:0.95rem; color:var(--accent3);">现代替代方案</h3>
+<p style="font-size:0.82rem;">密码存储推荐 <strong>Argon2id / bcrypt</strong>；通用哈希推荐 <strong>SHA-256 / SHA-3</strong>；消息认证推荐 <strong>HMAC-SHA256</strong>。</p>
+</div>
+</div>
+</section>
+
+<!-- === Footer === -->
+<footer>
+<div class="sources">
+<h2>参考资料</h2>
+<ol>
+<li id="cite-1">
+<span class="src-title">R. Rivest, "The MD5 Message-Digest Algorithm." RFC 1321, 1992.</span>
+<a class="src-url" href="https://datatracker.ietf.org/doc/rfc1321/" target="_blank" rel="noopener">https://datatracker.ietf.org/doc/rfc1321/</a>
+</li>
+<li id="cite-2">
+<span class="src-title">Xiaoyun Wang, Dengguo Feng, Xuejia Lai, Hongbo Yu, "Collisions for Hash Functions MD4, MD5, HAVAL-128 and RIPEMD." 2004.</span>
+<a class="src-url" href="https://eprint.iacr.org/2004/199" target="_blank" rel="noopener">https://eprint.iacr.org/2004/199</a>
+</li>
+<li id="cite-3">
+<span class="src-title">Marc Stevens, "HashClash: MD5 & SHA-1 Collision Research." TU Eindhoven.</span>
+<a class="src-url" href="https://github.com/cr-marcstevens/hashclash" target="_blank" rel="noopener">https://github.com/cr-marcstevens/hashclash</a>
+</li>
+<li id="cite-4">
+<span class="src-title">NIST, "Transitions: Recommendation for Transitioning the Use of Cryptographic Algorithms and Key Lengths." SP 800-131A.</span>
+<a class="src-url" href="https://csrc.nist.gov/publications/detail/sp/800-131a/rev-2/final" target="_blank" rel="noopener">https://csrc.nist.gov/publications/detail/sp/800-131a/rev-2/final</a>
+</li>
+</ol>
+</div>
+</footer>
+
+</article>
+
+<script>
+/* ===== MD5 Visualization — Inline JS ===== */
+(function () {
+'use strict';
+
+var C = {
+accent: '#58a6ff', accent2: '#f778ba', accent3: '#3fb950',
+accent4: '#d29922', accent5: '#bc8cff',
+ink: '#c9d1d9', inkBright: '#f0f6fc', muted: '#7d8590',
+bg: '#0a0e14', bg2: '#161b22', rule: '#30363d'
+};
+
+/* --- Hero background --- */
+function initHeroBg() {
+var heroBg = document.getElementById('heroBg');
+if (!heroBg) return;
+var chars = '0123456789abcdef';
+for (var i = 0; i < 14; i++) {
+var stream = document.createElement('div');
+stream.className = 'hex-stream';
+stream.style.left = (Math.random() * 100) + '%';
+stream.style.animationDuration = (10 + Math.random() * 15) + 's';
+stream.style.animationDelay = (Math.random() * 15) + 's';
+stream.style.fontSize = (0.7 + Math.random() * 0.5) + 'rem';
+stream.style.color = Math.random() > 0.5 ? C.accent : C.accent4;
+var text = '';
+for (var j = 0; j < 15; j++) {
+for (var k = 0; k < 2; k++) text += chars[Math.floor(Math.random() * 16)];
+text += '\n';
+}
+stream.textContent = text;
+heroBg.appendChild(stream);
+}
+}
+
+/* --- MD5 Algorithm (RFC 1321) --- */
+var S = [
+7,12,17,22, 7,12,17,22, 7,12,17,22, 7,12,17,22,
+5, 9,14,20, 5, 9,14,20, 5, 9,14,20, 5, 9,14,20,
+4,11,16,23, 4,11,16,23, 4,11,16,23, 4,11,16,23,
+6,10,15,21, 6,10,15,21, 6,10,15,21, 6,10,15,21
+];
+
+var K = [];
+for (var ki = 0; ki < 64; ki++) {
+K[ki] = Math.floor(Math.abs(Math.sin(ki + 1)) * 0x100000000);
+}
+
+function F(b, c, d) { return (b & c) | (~b & d); }
+function G(b, c, d) { return (b & d) | (c & ~d); }
+function H(b, c, d) { return b ^ c ^ d; }
+function I(b, c, d) { return c ^ (b | ~d); }
+
+function rotl(x, n) { return ((x << n) | (x >>> (32 - n))) >>> 0; }
+
+function getG(round, i) {
+if (round === 0) return i;
+if (round === 1) return (5 * i + 1) % 16;
+if (round === 2) return (3 * i + 5) % 16;
+return (7 * i) % 16;
+}
+
+function md5Compute(message) {
+var bytes = [];
+for (var i = 0; i < message.length; i++) {
+var code = message.charCodeAt(i);
+if (code < 128) bytes.push(code);
+else {
+var s = unescape(encodeURIComponent(message.charAt(i)));
+for (var j = 0; j < s.length; j++) bytes.push(s.charCodeAt(j));
+}
+}
+
+var origLen = bytes.length;
+var origBitLen = origLen * 8;
+
+bytes.push(0x80);
+while (bytes.length % 64 !== 56) bytes.push(0);
+bytes.push(origBitLen & 0xFF);
+bytes.push((origBitLen >>> 8) & 0xFF);
+bytes.push((origBitLen >>> 16) & 0xFF);
+bytes.push((origBitLen >>> 24) & 0xFF);
+bytes.push(0); bytes.push(0); bytes.push(0); bytes.push(0);
+
+var numBlocks = bytes.length / 64;
+
+var a0 = 0x67452301;
+var b0 = 0xEFCDAB89;
+var c0 = 0x98BADCFE;
+var d0 = 0x10325476;
+
+var allSteps = [];
+
+for (var blk = 0; blk < numBlocks; blk++) {
+var M = [];
+for (var w = 0; w < 16; w++) {
+var off = blk * 64 + w * 4;
+M[w] = (bytes[off] | (bytes[off + 1] << 8) | (bytes[off + 2] << 16) | (bytes[off + 3] << 24)) >>> 0;
+}
+
+var A = a0, B = b0, Cc = c0, D = d0;
+
+for (var round = 0; round < 4; round++) {
+for (var step = 0; step < 16; step++) {
+var globalStep = round * 16 + step;
+var g = getG(round, step);
+var fn, fnName;
+if (round === 0) { fn = F; fnName = 'F'; }
+else if (round === 1) { fn = G; fnName = 'G'; }
+else if (round === 2) { fn = H; fnName = 'H'; }
+else { fn = I; fnName = 'I'; }
+
+var temp = (A + fn(B, Cc, D) + M[g] + K[globalStep]) >>> 0;
+var newA = (B + rotl(temp, S[globalStep])) >>> 0;
+
+allSteps.push({
+round: round, step: globalStep, fnName: fnName,
+g: g, s: S[globalStep],
+A: A, B: B, C: Cc, D: D,
+Anew: newA, Bval: B, Cval: Cc, Dval: D,
+M: M[g], K: K[globalStep]
+});
+
+A = D; D = Cc; Cc = B; B = newA;
+}
+}
+
+a0 = (a0 + A) >>> 0;
+b0 = (b0 + B) >>> 0;
+c0 = (c0 + Cc) >>> 0;
+d0 = (d0 + D) >>> 0;
+}
+
+var hexA = toHexLE(a0);
+var hexB = toHexLE(b0);
+var hexC = toHexLE(c0);
+var hexD = toHexLE(d0);
+
+return {
+hash: hexA + hexB + hexC + hexD,
+A: a0, B: b0, C: c0, D: d0,
+hexA: hexA, hexB: hexB, hexC: hexC, hexD: hexD,
+steps: allSteps,
+numBlocks: numBlocks,
+origLen: origLen,
+paddedLen: bytes.length
+};
+}
+
+function toHexLE(val) {
+var b0 = val & 0xFF;
+var b1 = (val >>> 8) & 0xFF;
+var b2 = (val >>> 16) & 0xFF;
+var b3 = (val >>> 24) & 0xFF;
+return [b0, b1, b2, b3].map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+
+function toHex32(val) {
+var hex = val.toString(16).padStart(8, '0');
+return '0x' + hex;
+}
+
+/* --- Input / Encryption --- */
+var CHARSETS = {
+lower: 'abcdefghijklmnopqrstuvwxyz',
+upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+numbers: '0123456789',
+symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?'
+};
+
+function getSelectedCharsets() {
+var selected = [];
+document.querySelectorAll('.char-type.checked').forEach(function (el) {
+selected.push(el.dataset.charset);
+});
+return selected;
+}
+
+function generateMessage(length) {
+var selected = getSelectedCharsets();
+if (selected.length === 0) selected = ['lower'];
+var pool = '';
+selected.forEach(function (key) { pool += CHARSETS[key] || ''; });
+if (!pool) pool = CHARSETS.lower;
+var msg = '';
+for (var i = 0; i < length; i++) {
+msg += pool[Math.floor(Math.random() * pool.length)];
+}
+return msg;
+}
+
+var encryptRunning = false;
+var encryptSpeedMultiplier = 1;
+
+function getStepDelay(baseMs) {
+return Math.max(5, Math.floor(baseMs / encryptSpeedMultiplier));
+}
+
+function initEncrypt() {
+var msgLenEl = document.getElementById('msg-len');
+var msgLenVal = document.getElementById('msg-len-val');
+if (msgLenEl) {
+msgLenEl.addEventListener('input', function () {
+if (msgLenVal) msgLenVal.textContent = this.value;
+});
+}
+
+document.querySelectorAll('.char-type').forEach(function (el) {
+el.addEventListener('click', function () { this.classList.toggle('checked'); });
+});
+
+var btnGenMsg = document.getElementById('btn-gen-msg');
+if (btnGenMsg) {
+btnGenMsg.addEventListener('click', function () {
+var len = parseInt(msgLenEl ? msgLenEl.value : '13', 10);
+var msg = generateMessage(len);
+document.getElementById('msg-input').value = msg;
+if (msgLenVal) msgLenVal.textContent = len;
+});
+}
+
+var speedSlider = document.getElementById('encrypt-speed');
+var speedVal = document.getElementById('encrypt-speed-val');
+if (speedSlider) {
+speedSlider.addEventListener('input', function () {
+encryptSpeedMultiplier = parseInt(this.value, 10);
+if (speedVal) speedVal.textContent = encryptSpeedMultiplier + 'x';
+});
+}
+
+var btnEncrypt = document.getElementById('btn-encrypt');
+if (btnEncrypt) btnEncrypt.addEventListener('click', startEncryption);
+
+var btnCopy = document.getElementById('btn-copy-hash');
+if (btnCopy) btnCopy.addEventListener('click', function () { copyHash('finalHash', 'btn-copy-hash'); });
+
+var btnCopyPipe = document.getElementById('btn-copy-pipe');
+if (btnCopyPipe) btnCopyPipe.addEventListener('click', function () { copyHash('pipe-hash-full', 'btn-copy-pipe'); });
+}
+
+function copyHash(sourceId, btnId) {
+var el = document.getElementById(sourceId);
+if (!el) return;
+var text = el.textContent || '';
+var btn = document.getElementById(btnId);
+
+function showCopied() {
+if (!btn) return;
+var orig = btn.innerHTML;
+btn.classList.add('copied');
+btn.innerHTML = '\u2705 \u5df2\u590d\u5236';
+setTimeout(function () { btn.classList.remove('copied'); btn.innerHTML = orig; }, 2000);
+}
+
+if (navigator.clipboard && navigator.clipboard.writeText) {
+navigator.clipboard.writeText(text).then(showCopied).catch(function () { fallbackCopy(text, showCopied); });
+} else { fallbackCopy(text, showCopied); }
+}
+
+function fallbackCopy(text, onSuccess) {
+var ta = document.createElement('textarea');
+ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+document.body.appendChild(ta); ta.select();
+try { document.execCommand('copy'); if (onSuccess) onSuccess(); } catch (e) {}
+document.body.removeChild(ta);
+}
+
+function setPipelineStep(idx, state) {
+var el = document.getElementById('pipe-step-' + idx);
+if (!el) return;
+el.classList.remove('active', 'done');
+if (state) el.classList.add(state);
+}
+
+function setPipelineResult(idx, text) {
+var el = document.getElementById('pipe-result-' + idx);
+if (el) el.textContent = text;
+}
+
+function scrollToSection(id) {
+var el = document.getElementById(id);
+if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function startEncryption() {
+if (encryptRunning) return;
+var message = document.getElementById('msg-input').value || '';
+if (message.length === 0) {
+var hint = document.getElementById('pipe-hint');
+if (hint) { hint.textContent = '\u26a0 \u8bf7\u8f93\u5165\u6d88\u606f\u6216\u70b9\u51fb\u300c\u968f\u673a\u6d88\u606f\u300d\u751f\u6210'; hint.style.color = 'var(--accent4)'; }
+return;
+}
+
+encryptRunning = true;
+var btn = document.getElementById('btn-encrypt');
+if (btn) { btn.disabled = true; btn.textContent = '\u23f3 \u52a0\u5bc6\u4e2d...'; }
+
+for (var i = 0; i < 4; i++) { setPipelineStep(i, ''); setPipelineResult(i, ''); }
+var phb = document.getElementById('pipe-hash-block');
+if (phb) phb.style.display = 'none';
+
+var hint = document.getElementById('pipe-hint');
+if (hint) { hint.textContent = '\u6b63\u5728\u6267\u884c MD5 \u52a0\u5bc6\u6d41\u7a0b...'; hint.style.color = 'var(--accent4)'; }
+
+var result = md5Compute(message);
+
+setPipelineStep(0, 'active');
+scrollToSection('encrypt');
+
+var paddingInfo = '\u539f\u59cb\u957f\u5ea6: ' + result.origLen + ' bytes (' + (result.origLen * 8) + ' bits)\n' +
+'\u586b\u5145\u540e\u957f\u5ea6: ' + result.paddedLen + ' bytes\n' +
+'\u6570\u636e\u5757\u6570: ' + result.numBlocks + ' \u4e2a (512 \u4f4d/\u5757)';
+updatePaddingDetail(result, message);
+
+setTimeout(function () {
+setPipelineResult(0, paddingInfo);
+setPipelineStep(0, 'done');
+setPipelineStep(1, 'active');
+scrollToSection('init-state');
+
+setTimeout(function () {
+setPipelineResult(1, 'A=0x67452301, B=0xEFCDAB89, C=0x98BADCFE, D=0x10325476');
+setPipelineStep(1, 'done');
+setPipelineStep(2, 'active');
+scrollToSection('rounds');
+
+animateSteps(result, function () {
+setPipelineResult(2, '\u5b8c\u6210 4 \u8f6e\u00d716 \u6b65 = 64 \u6b65\u8fd0\u7b97\uff0c' + result.numBlocks + ' \u4e2a\u6570\u636e\u5757');
+setPipelineStep(2, 'done');
+setPipelineStep(3, 'active');
+scrollToSection('finalization');
+
+updateFinalDisplay(result);
+
+setTimeout(function () {
+var pipeHashBlock = document.getElementById('pipe-hash-block');
+var pipeHashFull = document.getElementById('pipe-hash-full');
+if (pipeHashBlock) pipeHashBlock.style.display = 'flex';
+if (pipeHashFull) {
+pipeHashFull.textContent = result.hash;
+}
+setPipelineResult(3, '\u54c8\u5e0c\u8f93\u51fa (128 \u4f4d / 16 \u5b57\u8282 / 32 \u4e2a\u5341\u516d\u8fdb\u5236\u5b57\u7b26):');
+setPipelineStep(3, 'done');
+
+if (btn) { btn.disabled = false; btn.textContent = '\ud83d\udd10 \u91cd\u65b0\u52a0\u5bc6'; }
+if (hint) { hint.textContent = '\u2705 \u52a0\u5bc6\u5b8c\u6210\uff01\u4ece\u6d88\u606f\u5230\u6700\u7ec8\u54c8\u5e0c\u7ecf\u8fc7 4 \u4e2a\u9636\u6bb5\u3002'; hint.style.color = 'var(--accent3)'; }
+encryptRunning = false;
+scrollToSection('encrypt');
+}, getStepDelay(2000));
+});
+}, getStepDelay(1800));
+}, getStepDelay(2000));
+}
+
+function updatePaddingDetail(result, message) {
+var el = document.getElementById('paddingDetailContent');
+if (!el) return;
+var html = '<div>\u539f\u59cb\u6d88\u606f: "' + message + '"</div>';
+html += '<div>\u539f\u59cb\u957f\u5ea6: ' + result.origLen + ' bytes = ' + (result.origLen * 8) + ' bits</div>';
+html += '<div>\u8ffd\u52a0 1 \u4f4d (0x80) + 0 \u586b\u5145\u81f3 ' + (result.paddedLen - 8) + ' bytes</div>';
+html += '<div>\u8ffd\u52a0 64 \u4f4d\u957f\u5ea6 (' + toHex32(result.origLen * 8) + ')</div>';
+html += '<div>\u586b\u5145\u540e\u603b\u957f\u5ea6: ' + result.paddedLen + ' bytes = ' + (result.paddedLen * 8) + ' bits</div>';
+html += '<div>\u6570\u636e\u5757\u6570: ' + result.numBlocks + ' \u4e2a 512 \u4f4d\u5757</div>';
+el.innerHTML = html;
+}
+
+function animateSteps(result, onComplete) {
+var stepIdx = 0;
+var totalSteps = result.steps.length;
+var prevCell = null;
+var prevRound = -1;
+
+var statusBar = document.getElementById('roundStatusBar');
+var statusText = document.getElementById('roundStatusText');
+var statusProg = document.getElementById('roundStatusProgress');
+if (statusBar) statusBar.style.display = 'block';
+
+function nextStep() {
+if (stepIdx >= totalSteps) {
+if (prevCell) prevCell.classList.remove('active');
+if (statusBar) statusBar.style.display = 'none';
+onComplete();
+return;
+}
+var step = result.steps[stepIdx];
+var round = step.round;
+var grid = document.getElementById('stepGrid' + round);
+
+if (round !== prevRound) {
+prevRound = round;
+var tabs = document.querySelectorAll('.round-tab');
+var contents = document.querySelectorAll('.round-content');
+tabs.forEach(function (t) { t.classList.remove('active'); });
+contents.forEach(function (c) { c.classList.remove('active'); });
+if (tabs[round]) tabs[round].classList.add('active');
+var target = document.querySelector('.round-content[data-round="' + round + '"]');
+if (target) target.classList.add('active');
+}
+
+if (prevCell) {
+prevCell.classList.remove('active');
+prevCell.classList.add('done');
+}
+
+if (grid && grid.children[step.step % 16]) {
+var cell = grid.children[step.step % 16];
+cell.classList.remove('done');
+cell.classList.add('active');
+prevCell = cell;
+}
+
+var roundNames = ['F (条件)', 'G (选择)', 'H (奇偶)', 'I (逻辑)'];
+if (statusText) {
+statusText.textContent = '第 ' + (round + 1) + ' 轮 ' + roundNames[round] +
+' — 步骤 ' + (step.step + 1) + '/64' +
+'  |  ' + step.fnName + '(B,C,D) + M[' + step.g + '] + K[' + step.step + '] <<< ' + step.s;
+}
+if (statusProg) {
+statusProg.textContent = (stepIdx + 1) + ' / ' + totalSteps;
+}
+
+stepIdx++;
+setTimeout(nextStep, getStepDelay(120));
+}
+nextStep();
+}
+
+function updateFinalDisplay(result) {
+setText('finalA', '0x' + result.A.toString(16).padStart(8, '0'));
+setText('finalB', '0x' + result.B.toString(16).padStart(8, '0'));
+setText('finalC', '0x' + result.C.toString(16).padStart(8, '0'));
+setText('finalD', '0x' + result.D.toString(16).padStart(8, '0'));
+setText('finalHash', result.hash);
+}
+
+/* --- Round tabs --- */
+function initRoundTabs() {
+document.querySelectorAll('.round-tab').forEach(function (tab) {
+tab.addEventListener('click', function () {
+var round = this.dataset.round;
+document.querySelectorAll('.round-tab').forEach(function (t) { t.classList.remove('active'); });
+this.classList.add('active');
+document.querySelectorAll('.round-content').forEach(function (c) { c.classList.remove('active'); });
+var target = document.querySelector('.round-content[data-round="' + round + '"]');
+if (target) target.classList.add('active');
+});
+});
+}
+
+/* --- Step grids --- */
+function initStepGrids() {
+for (var round = 0; round < 4; round++) {
+var grid = document.getElementById('stepGrid' + round);
+if (!grid) continue;
+grid.innerHTML = '';
+for (var i = 0; i < 16; i++) {
+var cell = document.createElement('div');
+cell.className = 'step-cell';
+var globalStep = round * 16 + i;
+var g = getG(round, i);
+cell.innerHTML =
+'<div class="sc-num">' + globalStep + '</div>' +
+'<div class="sc-op">' + ['F', 'G', 'H', 'I'][round] + '(' + g + ')</div>';
+grid.appendChild(cell);
+}
+}
+}
+
+function setText(id, text) {
+var el = document.getElementById(id);
+if (el) el.textContent = text;
+}
+
+/* --- ECharts --- */
+function initCharts() {
+if (typeof echarts === 'undefined') return;
+initRadarChart();
+initSpeedChart();
+window.addEventListener('resize', function () {
+document.querySelectorAll('[id^="chart-"]').forEach(function (el) {
+var inst = echarts.getInstanceByDom(el);
+if (inst) inst.resize();
+});
+});
+}
+
+function initRadarChart() {
+var el = document.getElementById('chart-radar');
+if (!el) return;
+var chart = echarts.init(el, null, { renderer: 'svg' });
+chart.setOption({
+title: { text: '哈希算法安全维度对比', left: 'center', top: 10, textStyle: { color: C.inkBright, fontSize: 14, fontFamily: 'Tektur' } },
+tooltip: { appendToBody: true },
+legend: { data: ['MD5', 'SHA-256', 'Argon2id'], bottom: 0, textStyle: { color: C.muted, fontSize: 11 }, itemWidth: 14, itemHeight: 8 },
+radar: {
+center: ['50%', '55%'], radius: '60%',
+indicator: [
+{ name: '抗碰撞', max: 100 },
+{ name: '抗原像', max: 100 },
+{ name: '抗长度扩展', max: 100 },
+{ name: '密码存储', max: 100 },
+{ name: '抗GPU破解', max: 100 },
+{ name: '标准化', max: 100 }
+],
+axisName: { color: C.ink, fontSize: 11, fontFamily: 'Work Sans' },
+splitLine: { lineStyle: { color: C.rule, width: 1 } },
+splitArea: { areaStyle: { color: ['rgba(22,27,34,0.3)', 'rgba(22,27,34,0.1)'] } },
+axisLine: { lineStyle: { color: C.rule } }
+},
+series: [{
+type: 'radar',
+emphasis: { lineStyle: { width: 3 } },
+data: [
+{ value: [10, 35, 10, 10, 10, 80], name: 'MD5', itemStyle: { color: C.accent4 }, lineStyle: { color: C.accent4, width: 2 }, areaStyle: { color: 'rgba(210,153,34,0.12)' } },
+{ value: [85, 80, 70, 50, 40, 95], name: 'SHA-256', itemStyle: { color: C.accent }, lineStyle: { color: C.accent, width: 2 }, areaStyle: { color: 'rgba(88,166,255,0.12)' } },
+{ value: [80, 85, 95, 95, 90, 90], name: 'Argon2id', itemStyle: { color: C.accent3 }, lineStyle: { color: C.accent3, width: 2 }, areaStyle: { color: 'rgba(63,185,80,0.12)' } }
+]
+}],
+animation: false
+});
+}
+
+function initSpeedChart() {
+var el = document.getElementById('chart-speed');
+if (!el) return;
+var chart = echarts.init(el, null, { renderer: 'svg' });
+chart.setOption({
+title: { text: '哈希算法吞吐速度对比 (越高越不安全用于密码存储)', left: 'center', top: 10, textStyle: { color: C.inkBright, fontSize: 14, fontFamily: 'Tektur' } },
+tooltip: { trigger: 'axis', appendToBody: true, formatter: function (p) { return p[0].name + ': ' + p[0].value.toLocaleString() + ' 百万次/秒'; } },
+grid: { left: 70, right: 30, top: 60, bottom: 40 },
+xAxis: { type: 'category', data: ['MD5', 'SHA-256', 'SHA-512', 'bcrypt', 'Argon2id'], axisLabel: { color: C.muted, fontSize: 11 }, axisLine: { lineStyle: { color: C.rule } } },
+yAxis: { type: 'log', name: '百万次/秒', nameTextStyle: { color: C.muted, fontSize: 11 }, axisLabel: { color: C.muted, fontSize: 10 }, splitLine: { lineStyle: { color: C.rule, type: 'dashed', opacity: 0.5 } }, axisLine: { lineStyle: { color: C.rule } } },
+series: [{
+type: 'bar', data: [
+{ value: 1500, itemStyle: { color: C.accent4 } },
+{ value: 500, itemStyle: { color: C.accent } },
+{ value: 200, itemStyle: { color: C.accent5 } },
+{ value: 0.05, itemStyle: { color: C.accent2 } },
+{ value: 0.01, itemStyle: { color: C.accent3 } }
+],
+barWidth: '45%',
+label: { show: true, position: 'top', color: C.ink, fontSize: 10, formatter: function (p) { return p.value >= 1 ? p.value + 'M' : p.value + 'K'; } }
+}],
+animation: false
+});
+}
+
+/* --- Init --- */
+function init() {
+if (typeof mermaid !== 'undefined') {
+try {
+mermaid.initialize({
+startOnLoad: false, theme: 'dark',
+themeVariables: {
+primaryColor: '#161b22', primaryTextColor: '#c9d1d9',
+primaryBorderColor: '#58a6ff', lineColor: '#7d8590',
+secondaryColor: '#1a2030', tertiaryColor: '#0a0e14', fontSize: '13px'
+},
+securityLevel: 'loose', flowchart: { curve: 'basis', useMaxWidth: true }
+});
+mermaid.run();
+} catch (e) {}
+}
+initHeroBg();
+initEncrypt();
+initRoundTabs();
+initStepGrids();
+initCharts();
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+})();
+</script>
+</body>
+</html>
