@@ -1,5 +1,6 @@
-package com.algoviz.audit;
+package com.algoviz.integration.es;
 
+import com.algoviz.audit.AuditLogEntry;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;

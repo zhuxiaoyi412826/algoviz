@@ -7,7 +7,7 @@ import com.algoviz.entity.User;
 import com.algoviz.service.EmailService;
 import com.algoviz.service.LoginService;
 import com.algoviz.service.UserService;
-import com.algoviz.utils.PasswordEncoderUtil;
+import com.algoviz.common.util.PasswordEncoderUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;

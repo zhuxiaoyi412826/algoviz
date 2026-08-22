@@ -1200,3 +1200,148 @@ ALTER TABLE oj_solution_comment
 -- ORDER BY is_featured DESC, like_count DESC, created_at DESC
 -- LIMIT 0, 10;
 -- 期望输出：key = idx_sol_problem_sort, Extra = Using where（没有 Using filesort / Using temporary）
+
+--12
+-- =====================================================================
+-- OJ 题解 + 评论 + 点赞 系统表
+-- 方案A：复用审核链路（AuditDetectService + DFA + Fluentd→ES→Redis）
+-- =====================================================================
+
+-- 1. 用户题解表
+DROP TABLE IF EXISTS `oj_solution`;
+CREATE TABLE `oj_solution` (
+    `id`               BIGINT         NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `problem_id`       BIGINT         NOT NULL COMMENT '题目ID',
+    `problem_title`    VARCHAR(200)   DEFAULT NULL COMMENT '题目标题冗余',
+    `user_id`          BIGINT         NOT NULL COMMENT '发布用户ID',
+    `username`         VARCHAR(100)   DEFAULT NULL COMMENT '用户名冗余',
+    `avatar`           VARCHAR(500)   DEFAULT NULL COMMENT '头像冗余',
+
+    `title`            VARCHAR(200)   NOT NULL COMMENT '题解标题',
+    `format`           VARCHAR(100)   DEFAULT NULL COMMENT '解题格式（双指针/DP/回溯等）',
+    `idea`             MEDIUMTEXT     COMMENT '思路',
+    `process`          MEDIUMTEXT     COMMENT '解题过程',
+    `complexity`       VARCHAR(500)   DEFAULT NULL COMMENT '复杂度分析',
+    `code_lang`        VARCHAR(50)    DEFAULT 'java' COMMENT '代码语言',
+    `code`             MEDIUMTEXT     COMMENT '题解代码',
+
+    `like_count`       INT            DEFAULT 0 COMMENT '点赞数',
+    `view_count`       INT            DEFAULT 0 COMMENT '观看数',
+    `comment_count`    INT            DEFAULT 0 COMMENT '评论数',
+
+    `is_passed`        TINYINT(1)     DEFAULT 0 COMMENT '是否已AC该题',
+    `is_featured`      TINYINT(1)     DEFAULT 0 COMMENT '精选置顶',
+
+    `audit_status`     VARCHAR(20)    DEFAULT 'none' COMMENT '审核状态 none/pending/blocked/passed/rejected',
+    `risk_level`       VARCHAR(10)    DEFAULT 'NONE' COMMENT '风险等级 NONE/LOW/MEDIUM/HIGH',
+    `detect_summary`   VARCHAR(1000)  DEFAULT NULL COMMENT '检测命中摘要',
+
+    `status`           VARCHAR(20)    DEFAULT 'PUBLISHED' COMMENT 'PUBLISHED/HIDDEN/DELETED',
+    `created_at`       DATETIME       DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`       DATETIME       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (`id`),
+    KEY `idx_solution_problem` (`problem_id`, `status`, `created_at` DESC),
+    KEY `idx_solution_user` (`user_id`, `created_at` DESC),
+    KEY `idx_solution_audit` (`audit_status`, `created_at` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='OJ用户题解表';
+
+-- 2. 题解评论表（多级评论 parent_id + root_id）
+DROP TABLE IF EXISTS `oj_solution_comment`;
+CREATE TABLE `oj_solution_comment` (
+    `id`               BIGINT         NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `solution_id`      BIGINT         NOT NULL COMMENT '题解ID',
+    `problem_id`       BIGINT         DEFAULT NULL COMMENT '题目ID冗余（后台按题目筛选）',
+    `user_id`          BIGINT         NOT NULL COMMENT '评论用户ID',
+    `username`         VARCHAR(100)   DEFAULT NULL COMMENT '用户名冗余',
+    `avatar`           VARCHAR(500)   DEFAULT NULL COMMENT '头像冗余',
+
+    `parent_id`        BIGINT         DEFAULT 0 COMMENT '父评论ID，0=顶层评论',
+    `root_id`          BIGINT         DEFAULT 0 COMMENT '顶层评论ID（子评论同属一个root）',
+    `reply_to_user_id`   BIGINT       DEFAULT NULL COMMENT '回复目标用户ID',
+    `reply_to_username`  VARCHAR(100) DEFAULT NULL COMMENT '回复目标用户名',
+
+    `content`          MEDIUMTEXT     NOT NULL COMMENT '评论正文',
+
+    `like_count`       INT            DEFAULT 0 COMMENT '点赞数',
+
+    `audit_status`     VARCHAR(20)    DEFAULT 'none' COMMENT '审核状态',
+    `risk_level`       VARCHAR(10)    DEFAULT 'NONE' COMMENT '风险等级',
+    `detect_summary`   VARCHAR(1000)  DEFAULT NULL COMMENT '检测命中摘要',
+
+    `status`           VARCHAR(20)    DEFAULT 'PUBLISHED' COMMENT 'PUBLISHED/HIDDEN/DELETED',
+    `created_at`       DATETIME       DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`       DATETIME       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (`id`),
+    KEY `idx_comment_solution` (`solution_id`, `root_id`, `created_at`),
+    KEY `idx_comment_problem` (`problem_id`),
+    KEY `idx_comment_user` (`user_id`),
+    KEY `idx_comment_audit` (`audit_status`, `created_at` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='OJ题解评论表';
+
+-- 3. 点赞去重表
+DROP TABLE IF EXISTS `oj_solution_like`;
+CREATE TABLE `oj_solution_like` (
+    `id`            BIGINT       NOT NULL AUTO_INCREMENT,
+    `user_id`       BIGINT       NOT NULL COMMENT '点赞用户ID',
+    `target_type`   VARCHAR(20)  NOT NULL COMMENT 'SOLUTION/COMMENT',
+    `target_id`     BIGINT       NOT NULL COMMENT '目标ID',
+    `created_at`    DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_target` (`user_id`, `target_type`, `target_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='OJ题解/评论点赞去重表';
+-- 13
+-- =============================================
+-- OJ 题目表索引优化脚本
+-- 用途：优化排序、分页、筛选查询性能
+-- =============================================
+
+-- 1. 添加索引：id (主键已自带，不需要额外添加)
+-- id 是主键，已经自动有索引
+
+-- 2. 添加索引：created_at (用于时间排序)
+-- 这个索引可以加速按创建时间排序的查询
+ALTER TABLE oj_problem ADD INDEX idx_created_at (created_at);
+
+-- 3. 添加索引：status (用于状态筛选)
+-- 这个索引可以加速按状态筛选的查询
+ALTER TABLE oj_problem ADD INDEX idx_status (status);
+
+-- 4. 添加索引：difficulty (用于难度筛选)
+-- 这个索引可以加速按难度筛选的查询
+ALTER TABLE oj_problem ADD INDEX idx_difficulty (difficulty);
+
+-- 5. 添加复合索引：status + id (用于状态筛选+ID排序)
+-- 这个索引可以加速 "WHERE status = 'ACTIVE' ORDER BY id" 的查询
+ALTER TABLE oj_problem ADD INDEX idx_status_id (status, id);
+
+-- 6. 添加复合索引：status + created_at (用于状态筛选+时间排序)
+-- 这个索引可以加速 "WHERE status = 'ACTIVE' ORDER BY created_at" 的查询
+ALTER TABLE oj_problem ADD INDEX idx_status_created_at (status, created_at);
+
+-- 7. 添加全文索引：title + tags (用于关键词搜索)
+-- 注意：全文索引需要 MySQL 5.6+ 且使用 InnoDB 引擎
+-- 如果你的 MySQL 版本不支持，可以跳过这一步
+ALTER TABLE oj_problem ADD FULLTEXT INDEX ft_title_tags (title, tags);
+
+-- 验证索引是否创建成功
+-- SHOW INDEX FROM oj_problem;
+
+-- 常用查询的索引使用建议：
+-- 
+-- 查询场景：                           推荐索引：
+-- ---------------------------------------------
+-- 按 ID 排序分页                       PRIMARY KEY (id)
+-- 按 created_at 排序分页               idx_created_at
+-- 按 status 筛选 + 按 ID 排序           idx_status_id
+-- 按 status 筛选 + 按 created_at 排序   idx_status_created_at
+-- 按 difficulty 筛选                    idx_difficulty
+-- 按 title/tags 搜索                   ft_title_tags
+-- 复合查询（筛选+排序）                  对应复合索引
+
+-- 性能测试 SQL：
+-- EXPLAIN SELECT * FROM oj_problem WHERE status = 'ACTIVE' ORDER BY id LIMIT 20 OFFSET 0;
+-- EXPLAIN SELECT * FROM oj_problem WHERE status = 'ACTIVE' ORDER BY created_at LIMIT 20 OFFSET 0;
+-- EXPLAIN SELECT * FROM oj_problem ORDER BY id LIMIT 20 OFFSET 0;
+-- EXPLAIN SELECT * FROM oj_problem ORDER BY created_at LIMIT 20 OFFSET 0;

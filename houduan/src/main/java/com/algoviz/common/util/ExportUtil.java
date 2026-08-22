@@ -1,4 +1,4 @@
-package com.algoviz.util;
+package com.algoviz.common.util;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -11,15 +11,15 @@ public class ExportUtil {
     public static byte[] exportToExcel(List<String> headers, List<List<Object>> data) throws IOException {
         try (Workbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-            
+
             Sheet sheet = workbook.createSheet("Data");
-            
+
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.size(); i++) {
                 Cell cell = headerRow.createCell(i);
                 cell.setCellValue(headers.get(i));
             }
-            
+
             for (int rowIndex = 0; rowIndex < data.size(); rowIndex++) {
                 Row row = sheet.createRow(rowIndex + 1);
                 List<Object> rowData = data.get(rowIndex);
@@ -35,11 +35,11 @@ public class ExportUtil {
                     }
                 }
             }
-            
+
             for (int i = 0; i < headers.size(); i++) {
                 sheet.autoSizeColumn(i);
             }
-            
+
             workbook.write(outputStream);
             return outputStream.toByteArray();
         }
@@ -47,9 +47,9 @@ public class ExportUtil {
 
     public static byte[] exportToCsv(List<String> headers, List<List<Object>> data) throws IOException {
         StringBuilder sb = new StringBuilder();
-        
+
         sb.append(String.join(",", headers)).append("\n");
-        
+
         for (List<Object> rowData : data) {
             StringBuilder row = new StringBuilder();
             for (int i = 0; i < rowData.size(); i++) {
@@ -65,23 +65,23 @@ public class ExportUtil {
             }
             sb.append(row).append("\n");
         }
-        
+
         return sb.toString().getBytes("UTF-8");
     }
 
     public static byte[] exportToJson(List<String> headers, List<List<Object>> data) throws IOException {
         StringBuilder sb = new StringBuilder();
         sb.append("[");
-        
+
         for (int rowIndex = 0; rowIndex < data.size(); rowIndex++) {
             if (rowIndex > 0) sb.append(",");
             sb.append("{");
-            
+
             List<Object> rowData = data.get(rowIndex);
             for (int colIndex = 0; colIndex < headers.size(); colIndex++) {
                 if (colIndex > 0) sb.append(",");
                 sb.append("\"").append(headers.get(colIndex)).append("\":");
-                
+
                 Object value = rowData.get(colIndex);
                 if (value == null) {
                     sb.append("null");
@@ -91,10 +91,10 @@ public class ExportUtil {
                     sb.append("\"").append(escapeJson(value.toString())).append("\"");
                 }
             }
-            
+
             sb.append("}");
         }
-        
+
         sb.append("]");
         return sb.toString().getBytes("UTF-8");
     }

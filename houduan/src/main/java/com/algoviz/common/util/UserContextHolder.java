@@ -1,4 +1,4 @@
-package com.algoviz.utils;
+package com.algoviz.common.util;
 
 /**
  * 简易用户上下文占位（兼容：无登录态时返回 null）

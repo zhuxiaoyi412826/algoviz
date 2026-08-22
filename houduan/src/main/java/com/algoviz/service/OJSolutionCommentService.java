@@ -13,7 +13,7 @@ import com.algoviz.entity.OJSolutionLike;
 import com.algoviz.mapper.OJSolutionCommentMapper;
 import com.algoviz.mapper.OJSolutionLikeMapper;
 import com.algoviz.mapper.OJSolutionMapper;
-import com.algoviz.util.DebugLogger;
+import com.algoviz.common.util.DebugLogger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

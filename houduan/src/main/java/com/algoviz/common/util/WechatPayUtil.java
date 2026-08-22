@@ -1,4 +1,4 @@
-package com.algoviz.util;
+package com.algoviz.common.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -165,7 +165,7 @@ public class WechatPayUtil {
 
         // 构建签名
         logger.info("开始构建签名...");
-        String signature = buildSignature("POST", "/v3/pay/transactions/native", 
+        String signature = buildSignature("POST", "/v3/pay/transactions/native",
                                          body, nonceStr, timestamp, privateKey);
         logger.info("签名成功，签名长度: {} 字符", signature.length());
 

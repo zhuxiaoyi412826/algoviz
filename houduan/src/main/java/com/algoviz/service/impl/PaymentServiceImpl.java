@@ -8,7 +8,7 @@ import com.algoviz.entity.Product;
 import com.algoviz.mapper.OrderMapper;
 import com.algoviz.mapper.ProductMapper;
 import com.algoviz.service.PaymentService;
-import com.algoviz.util.WechatPayUtil;
+import com.algoviz.common.util.WechatPayUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

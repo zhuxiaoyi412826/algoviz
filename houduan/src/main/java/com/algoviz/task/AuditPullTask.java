@@ -1,5 +1,7 @@
-package com.algoviz.audit;
+package com.algoviz.task;
 
+import com.algoviz.audit.AuditLogEntry;
+import com.algoviz.integration.es.EsAuditClient;
 import com.algoviz.mapper.ContentAuditRecordMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

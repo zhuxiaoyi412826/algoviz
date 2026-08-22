@@ -3,7 +3,7 @@ package com.algoviz.controller;
 import com.algoviz.dto.ApiResponse;
 import com.algoviz.entity.FileStorage;
 import com.algoviz.mapper.FileStorageMapper;
-import com.algoviz.util.FileUploadUtil;
+import com.algoviz.common.util.FileUploadUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;

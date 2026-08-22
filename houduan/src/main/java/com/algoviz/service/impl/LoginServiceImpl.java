@@ -5,7 +5,7 @@ import com.algoviz.dto.LoginResponse;
 import com.algoviz.entity.User;
 import com.algoviz.service.LoginService;
 import com.algoviz.service.UserService;
-import com.algoviz.utils.PasswordEncoderUtil;
+import com.algoviz.common.util.PasswordEncoderUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

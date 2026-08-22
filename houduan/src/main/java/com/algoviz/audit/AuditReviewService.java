@@ -1,5 +1,7 @@
 package com.algoviz.audit;
 
+import com.algoviz.integration.es.EsAuditClient;
+import com.algoviz.task.AuditPullTask;
 import com.algoviz.dto.interview.PageResult;
 import com.algoviz.entity.ContentAuditRecord;
 import com.algoviz.mapper.ContentAuditRecordMapper;

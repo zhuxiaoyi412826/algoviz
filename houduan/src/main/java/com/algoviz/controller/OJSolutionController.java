@@ -8,7 +8,7 @@ import com.algoviz.mapper.OJSolutionMapper;
 import com.algoviz.mapper.UserMapper;
 import com.algoviz.service.OJSolutionCommentService;
 import com.algoviz.service.OJSolutionService;
-import com.algoviz.util.DebugLogger;
+import com.algoviz.common.util.DebugLogger;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

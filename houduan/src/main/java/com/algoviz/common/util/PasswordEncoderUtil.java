@@ -1,4 +1,4 @@
-package com.algoviz.utils;
+package com.algoviz.common.util;
 
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator;
 import org.bouncycastle.crypto.params.Argon2Parameters;

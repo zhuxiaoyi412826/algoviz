@@ -9,7 +9,7 @@ import com.algoviz.entity.rbac.SysUser;
 import com.algoviz.mapper.LoginLogMapper;
 import com.algoviz.mapper.rbac.SysRoleMapper;
 import com.algoviz.mapper.rbac.SysUserMapper;
-import com.algoviz.utils.PasswordEncoderUtil;
+import com.algoviz.common.util.PasswordEncoderUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;

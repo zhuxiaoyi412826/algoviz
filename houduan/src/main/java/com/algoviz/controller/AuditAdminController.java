@@ -1,6 +1,7 @@
 package com.algoviz.controller;
 
 import com.algoviz.audit.*;
+import com.algoviz.task.AuditPullTask;
 import com.algoviz.dto.interview.InterviewResponse;
 import com.algoviz.dto.interview.PageResult;
 import com.algoviz.entity.ContentAuditRecord;
@@ -33,7 +34,7 @@ public class AuditAdminController {
 
     private static String adminId() {
         try {
-            Object u = com.algoviz.utils.UserContextHolder.get();
+            Object u = com.algoviz.common.util.UserContextHolder.get();
             if (u != null) {
                 Object v = u.getClass().getMethod("getId").invoke(u);
                 if (v != null) return v.toString();

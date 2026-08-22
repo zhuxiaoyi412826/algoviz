@@ -1,4 +1,4 @@
-package com.algoviz.client;
+package com.algoviz.integration.es;
 
 import com.algoviz.dto.vector.*;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -88,4 +88,3 @@ public interface VectorSearchClient {
     @GetMapping("/api/v1/es/test-analyzer")
     Map<String, Object> esTestAnalyzer(@RequestParam(value = "text", defaultValue = "动态规划入门二叉树遍历") String text);
 }
-

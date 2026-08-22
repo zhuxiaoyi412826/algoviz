@@ -1,4 +1,4 @@
-package com.algoviz.util;
+package com.algoviz.common.util;
 
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
@@ -45,9 +45,9 @@ public class FileUploadUtil {
 
         String newFileName = UUID.randomUUID().toString() + extension;
         Path targetPath = Paths.get(UPLOAD_DIR, newFileName);
-        
+
         Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-        
+
         return targetPath.toString();
     }
 

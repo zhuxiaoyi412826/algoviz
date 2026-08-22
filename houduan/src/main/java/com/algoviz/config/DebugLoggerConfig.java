@@ -1,6 +1,6 @@
 package com.algoviz.config;
 
-import com.algoviz.util.DebugLogger;
+import com.algoviz.common.util.DebugLogger;
 import jakarta.annotation.PreDestroy;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;

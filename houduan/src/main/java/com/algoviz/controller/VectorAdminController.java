@@ -1,6 +1,6 @@
 package com.algoviz.controller;
 
-import com.algoviz.client.VectorSearchClient;
+import com.algoviz.integration.es.VectorSearchClient;
 import com.algoviz.dto.interview.InterviewResponse;
 import com.algoviz.dto.vector.VectorCollectionInfo;
 import com.algoviz.dto.vector.VectorPageResult;

@@ -31,7 +31,7 @@ public class InterviewUserController {
 
     private static Long resolveUserId() {
         try {
-            Object u = com.algoviz.utils.UserContextHolder.get();
+            Object u = com.algoviz.common.util.UserContextHolder.get();
             if (u != null) {
                 java.lang.reflect.Method m = u.getClass().getMethod("getId");
                 Object v = m.invoke(u);

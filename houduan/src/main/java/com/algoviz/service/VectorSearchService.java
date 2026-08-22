@@ -5,7 +5,7 @@ import com.algoviz.dto.interview.PageResult;
 import com.algoviz.dto.vector.*;
 import com.algoviz.entity.InterviewProblem;
 import com.algoviz.mapper.InterviewProblemMapper;
-import com.algoviz.client.VectorSearchClient;
+import com.algoviz.integration.es.VectorSearchClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
