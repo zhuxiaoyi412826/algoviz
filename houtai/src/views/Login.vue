@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
@@ -11,6 +11,7 @@ const userStore = useUserStore()
 
 const formRef = ref()
 const loading = ref(false)
+const canvasRef = ref<HTMLCanvasElement | null>(null)
 
 const formData = reactive({
   username: '',
@@ -22,6 +23,196 @@ const rules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
+// ==================== 水波动画 ====================
+let animationId: number | null = null
+let ctx: CanvasRenderingContext2D | null = null
+let width = 0
+let height = 0
+const ripples: Array<{
+  x: number
+  y: number
+  radius: number
+  maxRadius: number
+  alpha: number
+  velocity: number
+}> = []
+
+const mousePos = { x: 0, y: 0, active: false }
+
+const initCanvas = () => {
+  const canvas = canvasRef.value
+  if (!canvas) return
+
+  ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const resize = () => {
+    width = canvas.width = window.innerWidth
+    height = canvas.height = window.innerHeight
+  }
+  resize()
+  window.addEventListener('resize', resize)
+
+  window.addEventListener('mousemove', (e) => {
+    mousePos.x = e.clientX
+    mousePos.y = e.clientY
+    mousePos.active = true
+    // 鼠标移动时产生小涟漪
+    if (Math.random() < 0.15) {
+      createRipple(e.clientX, e.clientY, 20 + Math.random() * 30)
+    }
+  })
+
+  window.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 0) {
+      const t = e.touches[0]
+      mousePos.x = t.clientX
+      mousePos.y = t.clientY
+      mousePos.active = true
+      if (Math.random() < 0.2) {
+        createRipple(t.clientX, t.clientY, 20 + Math.random() * 30)
+      }
+    }
+  })
+
+  window.addEventListener('click', (e) => {
+    createRipple(e.clientX, e.clientY, 80)
+  })
+
+  animate()
+}
+
+const createRipple = (x: number, y: number, maxRadius: number) => {
+  ripples.push({
+    x,
+    y,
+    radius: 0,
+    maxRadius,
+    alpha: 0.6,
+    velocity: 1.5 + Math.random() * 2
+  })
+  // 限制涟漪数量
+  if (ripples.length > 60) ripples.shift()
+}
+
+const animate = () => {
+  if (!ctx) return
+  ctx.clearRect(0, 0, width, height)
+
+  // 绘制背景渐变
+  const gradient = ctx.createRadialGradient(
+    width / 2, height / 2, 0,
+    width / 2, height / 2, Math.max(width, height) / 1.2
+  )
+  gradient.addColorStop(0, 'rgba(102, 126, 234, 0.05)')
+  gradient.addColorStop(0.5, 'rgba(118, 75, 162, 0.03)')
+  gradient.addColorStop(1, 'rgba(25, 30, 80, 0)')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, width, height)
+
+  // 鼠标位置的光晕
+  if (mousePos.active) {
+    const glow = ctx.createRadialGradient(
+      mousePos.x, mousePos.y, 0,
+      mousePos.x, mousePos.y, 150
+    )
+    glow.addColorStop(0, 'rgba(100, 180, 255, 0.12)')
+    glow.addColorStop(0.5, 'rgba(100, 180, 255, 0.05)')
+    glow.addColorStop(1, 'rgba(100, 180, 255, 0)')
+    ctx.fillStyle = glow
+    ctx.beginPath()
+    ctx.arc(mousePos.x, mousePos.y, 150, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // 更新和绘制涟漪
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const r = ripples[i]
+    r.radius += r.velocity
+    r.alpha *= 0.96
+
+    if (r.radius >= r.maxRadius || r.alpha < 0.01) {
+      ripples.splice(i, 1)
+      continue
+    }
+
+    // 外层涟漪
+    ctx.beginPath()
+    ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2)
+    ctx.strokeStyle = `rgba(150, 200, 255, ${r.alpha})`
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+    // 内层涟漪（小一圈）
+    if (r.radius > 10) {
+      ctx.beginPath()
+      ctx.arc(r.x, r.y, r.radius * 0.7, 0, Math.PI * 2)
+      ctx.strokeStyle = `rgba(200, 230, 255, ${r.alpha * 0.5})`
+      ctx.lineWidth = 1
+      ctx.stroke()
+    }
+
+    // 中心点
+    if (r.radius < 15) {
+      ctx.beginPath()
+      ctx.arc(r.x, r.y, 3, 0, Math.PI * 2)
+      ctx.fillStyle = `rgba(255, 255, 255, ${r.alpha})`
+      ctx.fill()
+    }
+  }
+
+  // 绘制背景粒子点（网格点效果）
+  drawGridDots()
+
+  animationId = requestAnimationFrame(animate)
+}
+
+const drawGridDots = () => {
+  if (!ctx) return
+  const spacing = 60
+  const time = Date.now() * 0.001
+
+  for (let x = spacing; x < width; x += spacing) {
+    for (let y = spacing; y < height; y += spacing) {
+      // 计算点到鼠标的距离
+      const dx = x - mousePos.x
+      const dy = y - mousePos.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const maxDist = 200
+
+      if (dist < maxDist) {
+        // 鼠标附近的点会发亮并产生涟漪效果
+        const influence = 1 - dist / maxDist
+        const wave = Math.sin(time * 3 - dist * 0.05) * 0.5 + 0.5
+        const alpha = influence * wave * 0.6
+        const size = 1 + influence * 2 + wave
+
+        ctx.beginPath()
+        ctx.arc(x, y, size, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(180, 220, 255, ${alpha})`
+        ctx.fill()
+      } else {
+        // 远处的点保持微弱
+        ctx.beginPath()
+        ctx.arc(x, y, 1, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(150, 180, 220, 0.08)'
+        ctx.fill()
+      }
+    }
+  }
+}
+
+onMounted(() => {
+  initCanvas()
+})
+
+onUnmounted(() => {
+  if (animationId) {
+    cancelAnimationFrame(animationId)
+  }
+})
+
+// ==================== 登录逻辑 ====================
 const handleLogin = async () => {
   if (!formRef.value) return
 
@@ -35,7 +226,6 @@ const handleLogin = async () => {
         password: formData.password
       })
 
-      // 后端返回格式: { code: 200, data: { token, tokenName, userInfo, roles, permissions, menus, loginId } }
       const payload = data?.data || data
       const token = payload?.token
       const userInfo = payload?.userInfo
@@ -49,7 +239,6 @@ const handleLogin = async () => {
 
       userStore.setToken(token)
       if (userInfo) {
-        // 适配前端 User 类型：将 sysUser 字段转为前端期望的格式
         const rawStatus = userInfo.status
         const statusValue: 'active' | 'disabled' =
           rawStatus === 1 || rawStatus === 'active' || rawStatus === 'enabled'
@@ -78,7 +267,6 @@ const handleLogin = async () => {
       ElMessage.success('登录成功')
       router.push('/')
     } catch (error: any) {
-      // axios 拦截器已处理 401/403 等错误
       const msg = error?.response?.data?.message || error?.message || '登录失败，请检查用户名和密码'
       ElMessage.error(msg)
     } finally {
@@ -90,6 +278,7 @@ const handleLogin = async () => {
 
 <template>
   <div class="login-container">
+    <canvas ref="canvasRef" class="wave-canvas" />
     <div class="login-box">
       <div class="login-header">
         <h1>算法可视化平台</h1>
@@ -142,40 +331,140 @@ const handleLogin = async () => {
         <span>默认账号: algovize / algovize123</span>
       </div>
     </div>
+    <div class="bg-orbs">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
 .login-container {
+  position: relative;
   min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1a1f4e 0%, #2d1f5e 40%, #4a1952 70%, #1a1f4e 100%);
+  overflow: hidden;
+}
+
+.wave-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.bg-orbs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.5;
+  animation: float 8s ease-in-out infinite;
+}
+
+.orb-1 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(100, 150, 255, 0.6), transparent 70%);
+  top: -100px;
+  left: -100px;
+  animation-delay: 0s;
+}
+
+.orb-2 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(200, 100, 255, 0.5), transparent 70%);
+  bottom: -80px;
+  right: -80px;
+  animation-delay: -3s;
+}
+
+.orb-3 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(100, 200, 200, 0.4), transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation-delay: -5s;
+  animation-duration: 12s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -40px) scale(1.05);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
 }
 
 .login-box {
-  width: 400px;
-  padding: 40px;
-  background-color: #fff;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  position: absolute;
+  left: 66.67vw;
+  top: 50vh;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  width: 420px;
+  padding: 48px 40px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation: fadeInUp 0.8s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 30px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
 }
 
 .login-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 36px;
 
   h1 {
-    font-size: 28px;
-    font-weight: 600;
-    color: var(--color-text-primary);
+    font-size: 30px;
+    font-weight: 700;
+    color: #fff;
     margin-bottom: 8px;
+    text-shadow: 0 2px 20px rgba(100, 150, 255, 0.4);
+    letter-spacing: 2px;
   }
 
   p {
     font-size: 14px;
-    color: var(--color-text-secondary);
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 8px;
+    margin: 0;
   }
 }
 
@@ -186,19 +475,63 @@ const handleLogin = async () => {
 
   :deep(.el-input__wrapper) {
     padding: 4px 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    box-shadow: none;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    &.is-focus {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(100, 180, 255, 0.6);
+      box-shadow: 0 0 20px rgba(100, 180, 255, 0.2);
+    }
+  }
+
+  :deep(.el-input__inner) {
+    color: #fff;
+
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+  }
+
+  :deep(.el-input__prefix .el-icon) {
+    color: rgba(255, 255, 255, 0.5);
   }
 }
 
 .login-btn {
   width: 100%;
   font-size: 16px;
-  letter-spacing: 4px;
+  letter-spacing: 6px;
+  height: 48px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 }
 
 .login-footer {
   text-align: center;
   font-size: 12px;
-  color: var(--color-text-secondary);
-  margin-top: 16px;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 20px;
+  letter-spacing: 1px;
 }
 </style>
