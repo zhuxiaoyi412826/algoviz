@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { canAccessRoute } from '@/config/rbac-permissions'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -26,6 +28,12 @@ const routes: RouteRecordRaw[] = [
         redirect: '/system/admin',
         meta: { title: '系统管理', icon: 'Setting' },
         children: [
+          {
+            path: 'profile',
+            name: 'Profile',
+            component: () => import('@/views/system/Profile.vue'),
+            meta: { title: '个人中心', hidden: true }
+          },
           {
             path: 'admin',
             name: 'AdminManagement',
@@ -334,16 +342,60 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+// 标记是否已完成首次 session 校验
+let sessionValidated = false
+
+router.beforeEach(async (to, from, next) => {
   const title = to.meta.title as string
   if (title) {
     document.title = `${title} - 算法可视化平台管理后台`
   }
+
   const token = localStorage.getItem('token')
+
+  // 未登录 → 跳登录页
   if (to.path !== '/login' && !token) {
     next({ path: '/login', replace: true })
     return
   }
+
+  // 已在登录页且已登录 → 跳首页
+  if (to.path === '/login' && token) {
+    next({ path: '/', replace: true })
+    return
+  }
+
+  // 首次进入（刷新页面）时校验 session 是否仍然有效
+  if (token && !sessionValidated && to.path !== '/login') {
+    sessionValidated = true
+    try {
+      const { default: request } = await import('@/api/request')
+      await request.get('/admin/info')
+      // session 有效，继续
+    } catch {
+      // session 已过期或 token 无效 → 清除登录态，跳转登录页
+      localStorage.removeItem('token')
+      localStorage.removeItem('userInfo')
+      localStorage.removeItem('roles')
+      localStorage.removeItem('permissions')
+      ElMessage.warning('登录已过期，请重新登录')
+      next({ path: '/login', replace: true })
+      return
+    }
+  }
+
+  // 页面级权限校验：根据角色判断是否可以访问该路由
+  if (token && to.path !== '/login') {
+    // 从 localStorage 读取角色信息（store 可能还未初始化）
+    const rolesStr = localStorage.getItem('roles') || '[]'
+    const roles: string[] = JSON.parse(rolesStr)
+    if (roles.length > 0 && !canAccessRoute(roles, to.path)) {
+      ElMessage.warning('您没有权限访问该页面')
+      next({ path: '/dashboard', replace: true })
+      return
+    }
+  }
+
   next()
 })
 

@@ -137,28 +137,36 @@ public class AdminAuthController {
 
     /**
      * 根据当前 Sa-Token Token 获取管理员信息
+     * 如果未登录或 token 无效，返回 401 错误（前端据此跳转登录页）
      */
     @GetMapping("/admin/info")
     public ApiResponse<Map<String, Object>> getAdminInfo() {
-        long userId = StpUtil.getLoginIdAsLong();
-        SysUser user = sysUserMapper.findById(userId);
-        if (user == null) {
-            return ApiResponse.error(401, "登录状态已过期");
+        try {
+            if (!StpUtil.isLogin()) {
+                return ApiResponse.error(401, "登录状态已过期，请重新登录");
+            }
+            long userId = StpUtil.getLoginIdAsLong();
+            SysUser user = sysUserMapper.findById(userId);
+            if (user == null) {
+                return ApiResponse.error(401, "用户不存在，请重新登录");
+            }
+            user.setPassword(null);
+
+            List<String> roles = sysUserMapper.findRoleCodesByUserId(userId);
+            List<String> perms = userId == 1L ? List.of("*") : sysUserMapper.findPermissionCodesByUserId(userId);
+            List<?> menus = userId == 1L
+                    ? sysRoleMapper.findAllMenus()
+                    : sysRoleMapper.findMenusByUserId(userId);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("userInfo", user);
+            result.put("roles", roles);
+            result.put("permissions", perms);
+            result.put("menus", menus);
+            return ApiResponse.success(result);
+        } catch (Exception e) {
+            return ApiResponse.error(401, "登录状态已过期，请重新登录");
         }
-        user.setPassword(null);
-
-        List<String> roles = sysUserMapper.findRoleCodesByUserId(userId);
-        List<String> perms = userId == 1L ? List.of("*") : sysUserMapper.findPermissionCodesByUserId(userId);
-        List<?> menus = userId == 1L
-                ? sysRoleMapper.findAllMenus()
-                : sysRoleMapper.findMenusByUserId(userId);
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("userInfo", user);
-        result.put("roles", roles);
-        result.put("permissions", perms);
-        result.put("menus", menus);
-        return ApiResponse.success(result);
     }
 
     @PostMapping("/admin/logout")

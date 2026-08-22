@@ -119,12 +119,6 @@
             <version>1.37.0</version>
         </dependency>
 
-        <!-- Sa-Token + Spring AOP 注解鉴权（@SaCheckPermission 等） -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
-        </dependency>
-
         <!-- Spring Security Crypto（BCryptPasswordEncoder，用于普通管理员密码） -->
         <dependency>
             <groupId>org.springframework.security</groupId>

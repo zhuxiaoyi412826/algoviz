@@ -2,9 +2,12 @@
 import { computed, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import * as icons from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
+import { getRoleAccess, canAccessRoute } from '@/config/rbac-permissions'
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 
 const layoutState = inject<any>('layoutState')
 const sidebarCollapsed = computed(() => layoutState.sidebarCollapsed.value)
@@ -14,108 +17,164 @@ const getIcon = (iconName: string) => {
   return (icons as any)[iconName] || icons.Odometer
 }
 
-const menuList = [
+// ==================== 完整菜单定义（带 menuGroup 标记） ====================
+interface MenuItem {
+  path: string
+  name: string
+  meta: { title: string; icon?: string }
+  menuGroup?: string  // 权限分组
+  children?: MenuItem[]
+}
+
+const fullMenuList: MenuItem[] = [
   {
     path: '/dashboard',
     name: 'Dashboard',
-    meta: { title: '首页', icon: 'Odometer' }
+    meta: { title: '首页', icon: 'Odometer' },
+    menuGroup: 'dashboard'
   },
   {
     path: '/system',
     name: 'System',
     meta: { title: '系统管理', icon: 'Setting' },
+    menuGroup: 'system',
     children: [
-      { path: '/system/admin', name: 'AdminManagement', meta: { title: '管理员账户' } },
-      { path: '/system/login-log', name: 'LoginLog', meta: { title: '登录日志' } },
-      { path: '/system/operation-log', name: 'OperationLog', meta: { title: '操作日志' } },
-      { path: '/system/system-config', name: 'SystemConfig', meta: { title: '系统配置' } },
-      { path: '/system/security', name: 'Security', meta: { title: '安全设置' } }
+      { path: '/system/admin', name: 'AdminManagement', meta: { title: '管理员账户' }, menuGroup: 'system' },
+      { path: '/system/login-log', name: 'LoginLog', meta: { title: '登录日志' }, menuGroup: 'system' },
+      { path: '/system/operation-log', name: 'OperationLog', meta: { title: '操作日志' }, menuGroup: 'system' },
+      { path: '/system/system-config', name: 'SystemConfig', meta: { title: '系统配置' }, menuGroup: 'system' },
+      { path: '/system/security', name: 'Security', meta: { title: '安全设置' }, menuGroup: 'system' },
+      { path: '/system/audit-log', name: 'AuditLog', meta: { title: '审计日志' }, menuGroup: 'audit-log' }
     ]
   },
   {
     path: '/content',
     name: 'Content',
     meta: { title: '内容管理', icon: 'Document' },
+    menuGroup: 'content',
     children: [
-      { path: '/content/datastructure', name: 'DataStructure', meta: { title: '数据结构可视化' } },
-      { path: '/content/algorithm', name: 'Algorithm', meta: { title: '算法可视化' } },
-      { path: '/content/animation-config', name: 'AnimationConfig', meta: { title: '动画参数配置' } },
-      { path: '/content/problem', name: 'Problem', meta: { title: 'OJ题目管理' } },
-      { path: '/content/interview-problem', name: 'InterviewProblem', meta: { title: '面试题目管理' } },
-      { path: '/content/testcase', name: 'TestCase', meta: { title: '测试用例管理' } },
-      { path: '/content/judge-config', name: 'JudgeConfig', meta: { title: '判题规则配置' } },
-      { path: '/content/ai-prompt', name: 'AIPrompt', meta: { title: 'AI快捷提示词' } },
-      { path: '/content/ai-config', name: 'AIConfig', meta: { title: 'AI接口配置' } },
-      { path: '/content/vector-manage', name: 'VectorManage', meta: { title: '向量数据库' } },
-      { path: '/content/chromadb-monitor', name: 'ChromaDBMonitor', meta: { title: 'ChromaDB实时检测' } },
-      { path: '/content/es-manage', name: 'EsManage', meta: { title: 'ES分词索引' } }
+      { path: '/content/datastructure', name: 'DataStructure', meta: { title: '数据结构可视化' }, menuGroup: 'content' },
+      { path: '/content/algorithm', name: 'Algorithm', meta: { title: '算法可视化' }, menuGroup: 'content' },
+      { path: '/content/animation-config', name: 'AnimationConfig', meta: { title: '动画参数配置' }, menuGroup: 'content' },
+      { path: '/content/problem', name: 'Problem', meta: { title: 'OJ题目管理' }, menuGroup: 'content' },
+      { path: '/content/interview-problem', name: 'InterviewProblem', meta: { title: '面试题目管理' }, menuGroup: 'content' },
+      { path: '/content/testcase', name: 'TestCase', meta: { title: '测试用例管理' }, menuGroup: 'content' },
+      { path: '/content/judge-config', name: 'JudgeConfig', meta: { title: '判题规则配置' }, menuGroup: 'content' },
+      { path: '/content/ai-prompt', name: 'AIPrompt', meta: { title: 'AI快捷提示词' }, menuGroup: 'content' },
+      { path: '/content/ai-config', name: 'AIConfig', meta: { title: 'AI接口配置' }, menuGroup: 'content' },
+      { path: '/content/vector-manage', name: 'VectorManage', meta: { title: '向量数据库' }, menuGroup: 'content' },
+      { path: '/content/chromadb-monitor', name: 'ChromaDBMonitor', meta: { title: 'ChromaDB实时检测' }, menuGroup: 'content' },
+      { path: '/content/es-manage', name: 'EsManage', meta: { title: 'ES分词索引' }, menuGroup: 'content' }
     ]
   },
   {
     path: '/audit',
     name: 'Audit',
     meta: { title: '内容审核', icon: 'Lock' },
+    menuGroup: 'audit',
     children: [
-      { path: '/audit/sensitive-words', name: 'SensitiveWords', meta: { title: '关键词屏蔽' } },
-      { path: '/audit/review', name: 'AuditReview', meta: { title: '人工审核' } },
-      { path: '/audit/solution-review', name: 'SolutionReview', meta: { title: '题解审核' } }
-    ]
-  },
-  {
-    path: '/order',
-    name: 'Order',
-    meta: { title: '订单管理', icon: 'ShoppingCart' },
-    children: [
-      { path: '/order/list', name: 'OrderList', meta: { title: '订单列表' } },
-      { path: '/order/coin-dashboard', name: 'CoinDashboard', meta: { title: '硬币收入看板' } },
-      { path: '/order/coin-products', name: 'CoinProductManage', meta: { title: '硬币商品管理' } },
-      { path: '/order/coin-purchase', name: 'CoinPurchase', meta: { title: '硬币购买记录' } }
-    ]
-  },
-  {
-    path: '/user',
-    name: 'User',
-    meta: { title: '用户管理', icon: 'User' },
-    children: [
-      { path: '/user/list', name: 'UserList', meta: { title: '用户列表' } },
-      { path: '/user/login-record', name: 'UserLoginRecord', meta: { title: '登录记录' } },
-      { path: '/user/behavior', name: 'UserBehavior', meta: { title: '行为数据' } }
-    ]
-  },
-  {
-    path: '/statistics',
-    name: 'Statistics',
-    meta: { title: '数据统计', icon: 'DataAnalysis' },
-    children: [
-      { path: '/statistics/dashboard', name: 'StatisticsDashboard', meta: { title: '核心指标' } },
-      { path: '/statistics/oj-analysis', name: 'OJAnalysis', meta: { title: 'OJ运营分析' } },
-      { path: '/statistics/visualization-analysis', name: 'VisualizationAnalysis', meta: { title: '可视化分析' } },
-      { path: '/statistics/export', name: 'DataExport', meta: { title: '数据导出' } }
+      { path: '/audit/sensitive-words', name: 'SensitiveWords', meta: { title: '关键词屏蔽' }, menuGroup: 'audit' },
+      { path: '/audit/review', name: 'AuditReview', meta: { title: '人工审核' }, menuGroup: 'audit' },
+      { path: '/audit/solution-review', name: 'SolutionReview', meta: { title: '题解审核' }, menuGroup: 'audit' }
     ]
   },
   {
     path: '/operation',
     name: 'Operation',
-    meta: { title: '运维监控', icon: 'Monitor' },
+    meta: { title: '日志平台', icon: 'Monitor' },
+    menuGroup: 'log',
     children: [
-      { path: '/operation/monitor', name: 'ServiceMonitor', meta: { title: '服务状态' } },
-      { path: '/operation/resource', name: 'ResourceMonitor', meta: { title: '资源占用' } },
-      { path: '/operation/alarm', name: 'Alarm', meta: { title: '异常告警' } },
-      { path: '/operation/log', name: 'LogManage', meta: { title: '日志管理' } }
+      { path: '/operation/monitor', name: 'ServiceMonitor', meta: { title: '服务状态' }, menuGroup: 'operation' },
+      { path: '/operation/resource', name: 'ResourceMonitor', meta: { title: '资源占用' }, menuGroup: 'operation' },
+      { path: '/operation/alarm', name: 'Alarm', meta: { title: '异常告警' }, menuGroup: 'operation' },
+      { path: '/operation/log', name: 'LogManage', meta: { title: '日志管理' }, menuGroup: 'log' }
+    ]
+  },
+  {
+    path: '/statistics',
+    name: 'Statistics',
+    meta: { title: '数据报表', icon: 'DataAnalysis' },
+    menuGroup: 'statistics',
+    children: [
+      { path: '/statistics/dashboard', name: 'StatisticsDashboard', meta: { title: '核心指标' }, menuGroup: 'statistics' },
+      { path: '/statistics/oj-analysis', name: 'OJAnalysis', meta: { title: 'OJ运营分析' }, menuGroup: 'statistics' },
+      { path: '/statistics/visualization-analysis', name: 'VisualizationAnalysis', meta: { title: '可视化分析' }, menuGroup: 'statistics' },
+      { path: '/statistics/export', name: 'DataExport', meta: { title: '数据导出' }, menuGroup: 'statistics' }
+    ]
+  },
+  {
+    path: '/order',
+    name: 'Order',
+    meta: { title: '订单财务', icon: 'ShoppingCart' },
+    menuGroup: 'order',
+    children: [
+      { path: '/order/list', name: 'OrderList', meta: { title: '订单列表' }, menuGroup: 'order' },
+      { path: '/order/coin-dashboard', name: 'CoinDashboard', meta: { title: '硬币收入看板' }, menuGroup: 'order' },
+      { path: '/order/coin-products', name: 'CoinProductManage', meta: { title: '硬币商品管理' }, menuGroup: 'order' },
+      { path: '/order/coin-purchase', name: 'CoinPurchase', meta: { title: '硬币购买记录' }, menuGroup: 'order' }
+    ]
+  },
+  {
+    path: '/operation-center',
+    name: 'OperationCenter',
+    meta: { title: '运营中心', icon: 'Operation' },
+    menuGroup: 'operation',
+    children: [
+      { path: '/operation-center/monitor', name: 'OpServiceMonitor', meta: { title: '服务状态' }, menuGroup: 'operation' },
+      { path: '/operation-center/resource', name: 'OpResourceMonitor', meta: { title: '资源占用' }, menuGroup: 'operation' },
+      { path: '/operation-center/alarm', name: 'OpAlarm', meta: { title: '异常告警' }, menuGroup: 'operation' }
     ]
   },
   {
     path: '/extension',
     name: 'Extension',
-    meta: { title: '扩展功能', icon: 'Extension' },
+    meta: { title: '客服工单', icon: 'Service' },
+    menuGroup: 'customer',
     children: [
-      { path: '/extension/announcement', name: 'Announcement', meta: { title: '公告管理' } },
-      { path: '/extension/feedback', name: 'Feedback', meta: { title: '反馈管理' } },
-      { path: '/extension/backup', name: 'Backup', meta: { title: '数据备份' } },
-      { path: '/extension/third-party', name: 'ThirdParty', meta: { title: '第三方集成' } }
+      { path: '/extension/announcement', name: 'Announcement', meta: { title: '公告管理' }, menuGroup: 'customer' },
+      { path: '/extension/feedback', name: 'Feedback', meta: { title: '反馈管理' }, menuGroup: 'customer' },
+      { path: '/extension/backup', name: 'Backup', meta: { title: '数据备份' }, menuGroup: 'customer' },
+      { path: '/extension/third-party', name: 'ThirdParty', meta: { title: '第三方集成' }, menuGroup: 'customer' }
     ]
   }
 ]
+
+// ==================== 根据角色过滤菜单 ====================
+const menuList = computed(() => {
+  const roles = userStore.roles
+  if (!roles || roles.length === 0) {
+    // 未获取角色信息时，仅显示首页
+    return [fullMenuList[0]]
+  }
+
+  return fullMenuList.filter(item => {
+    const group = item.menuGroup || ''
+    const access = getRoleAccess(roles, group)
+
+    if (access === 'none') return false
+
+    // 过滤子菜单
+    if (item.children && item.children.length > 0) {
+      item.children = item.children.filter(child => {
+        const childGroup = child.menuGroup || group
+        const childAccess = getRoleAccess(roles, childGroup)
+
+        if (childAccess === 'none') return false
+        if (childAccess === 'full') return true
+
+        // partial → 检查是否在允许的子菜单列表中
+        return canAccessRoute(roles, child.path)
+      })
+
+      // 如果所有子菜单都被过滤掉了，且父菜单不是 full 权限，则隐藏父菜单
+      if (item.children.length === 0 && access !== 'full') {
+        return false
+      }
+    }
+
+    return true
+  })
+})
 
 const activeIndex = computed(() => route.path)
 
@@ -142,9 +201,9 @@ const handleSelect = (index: string) => {
       @select="handleSelect"
     >
       <template v-for="item in menuList" :key="item.path">
-        <el-sub-menu v-if="item.children" :index="item.path">
+        <el-sub-menu v-if="item.children && item.children.length > 0" :index="item.path">
           <template #title>
-            <el-icon><component :is="getIcon(item.meta.icon)" /></el-icon>
+            <el-icon><component :is="getIcon(item.meta.icon || 'Odometer')" /></el-icon>
             <span>{{ item.meta.title }}</span>
           </template>
           <el-menu-item
@@ -156,7 +215,7 @@ const handleSelect = (index: string) => {
           </el-menu-item>
         </el-sub-menu>
         <el-menu-item v-else :index="item.path">
-          <el-icon><component :is="getIcon(item.meta.icon)" /></el-icon>
+          <el-icon><component :is="getIcon(item.meta.icon || 'Odometer')" /></el-icon>
           <span>{{ item.meta.title }}</span>
         </el-menu-item>
       </template>
