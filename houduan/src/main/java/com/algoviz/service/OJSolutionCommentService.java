@@ -92,6 +92,29 @@ public class OJSolutionCommentService {
         // 设置 root_id：顶层评论 root_id=自身（insert 后回填），子评论 root_id=父评论的 root_id
         if (c.getParentId() == null || c.getParentId() == 0) {
             c.setParentId(0L);
+            c.setRootId(null);          // insert 后回填
+            c.setReplyToUserId(null);
+            c.setReplyToUsername(null);
+        } else {
+            // 回复任意层级评论（二级、三级、……N级）：
+            //   - parent_id = 前端传的被回复评论 id（不要强制改成 root_id 的子）
+            //   - root_id   = 父评论所属的顶层评论 id（根不变）
+            //   - replyToUserId / replyToUsername = 被回复评论的作者（以数据库为准，避免前端伪造）
+            OJSolutionComment parent = commentMapper.selectById(c.getParentId());
+            if (parent == null) {
+                return new PublishResult(false, "回复的目标评论不存在",
+                        null, null, null);
+            }
+            c.setRootId(parent.getRootId() != null ? parent.getRootId() : parent.getId());
+            c.setReplyToUserId(parent.getUserId());
+            c.setReplyToUsername(parent.getUsername());
+            // solutionId 兜底：防止前端传错
+            if (c.getSolutionId() == null && parent.getSolutionId() != null) {
+                c.setSolutionId(parent.getSolutionId());
+            }
+            if (c.getProblemId() == null && parent.getProblemId() != null) {
+                c.setProblemId(parent.getProblemId());
+            }
         }
         c.setLikeCount(0);
         c.setAuditStatus(d.getAuditStatus());
@@ -162,13 +185,49 @@ public class OJSolutionCommentService {
         return PageResult.of(list, total, page, pageSize);
     }
 
-    /** 子评论列表 */
+    /** 子评论列表（扁平列表，兼容旧前端） */
     public PageResult<OJSolutionComment> listReplies(Long rootId, int page, int pageSize) {
         int total = commentMapper.countReplies(rootId);
         List<OJSolutionComment> list = commentMapper.selectReplies(rootId,
                 (page - 1) * pageSize, pageSize);
         list.forEach(c -> c.setMaskContent(cachedMaskContent(c.getContent())));
         return PageResult.of(list, total, page, pageSize);
+    }
+
+    /**
+     * 某顶层评论下完整子评论树（支持二级 / 三级 / N 级嵌套）。
+     * 设计：
+     *   1) 一次 SQL 把 root_id 下所有 parent!=0 的评论拉出来（索引支持）
+     *   2) HashMap<parentId, children> 分组 + 两层遍历在内存组装嵌套 children
+     *   3) 只返回挂载在 root_id 直接或间接 parent=顶层评论id 下的节点
+     *   4) 所有节点都应用 DFA 屏蔽（cachedMaskContent LRU 命中）
+     */
+    public List<OJSolutionComment> listRepliesTree(Long rootId) {
+        List<OJSolutionComment> all = commentMapper.selectAllRepliesByRootId(rootId);
+        if (all == null || all.isEmpty()) return java.util.Collections.emptyList();
+
+        // 先跑一遍 DFA 屏蔽（统一写 maskContent）
+        all.forEach(c -> c.setMaskContent(cachedMaskContent(c.getContent())));
+
+        // 1. 按 parentId 分桶
+        Map<Long, List<OJSolutionComment>> byParent = new HashMap<>(Math.max(all.size() / 2 + 1, 8));
+        for (OJSolutionComment c : all) {
+            Long pid = c.getParentId() == null ? 0L : c.getParentId();
+            byParent.computeIfAbsent(pid, k -> new ArrayList<>(4)).add(c);
+        }
+
+        // 2. 递归挂载 children（从 rootId 的直接孩子开始）
+        return attachChildren(rootId, byParent);
+    }
+
+    /** 递归构建 children：返回 parentId 下所有子节点（并把孙节点挂到每个子节点的 children 上） */
+    private List<OJSolutionComment> attachChildren(Long parentId, Map<Long, List<OJSolutionComment>> byParent) {
+        List<OJSolutionComment> kids = byParent.get(parentId);
+        if (kids == null || kids.isEmpty()) return java.util.Collections.emptyList();
+        for (OJSolutionComment kid : kids) {
+            kid.setChildren(attachChildren(kid.getId(), byParent));
+        }
+        return kids;
     }
 
     // ==================== 点赞 ====================

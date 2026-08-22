@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -139,7 +140,7 @@ public class OJSolutionController {
         return result;
     }
 
-    @Operation(summary = "子评论列表")
+    @Operation(summary = "子评论列表（扁平，兼容旧版）")
     @GetMapping("/comments/{rootId}/replies")
     public Map<String, Object> listReplies(@PathVariable Long rootId,
                                             @RequestParam(defaultValue = "1") int page,
@@ -148,6 +149,16 @@ public class OJSolutionController {
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
         result.put("data", r);
+        return result;
+    }
+
+    @Operation(summary = "子评论完整树（支持二级/三级/N级嵌套，children 数组递归包含）")
+    @GetMapping("/comments/{rootId}/replies/tree")
+    public Map<String, Object> listRepliesTree(@PathVariable Long rootId) {
+        List<OJSolutionComment> tree = commentService.listRepliesTree(rootId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("data", tree);
         return result;
     }
 

@@ -82,6 +82,16 @@
         GROUP BY root_id
     </select>
 
+    <!-- 某顶层评论下全部子评论（任意层级扁平列表，ORDER BY 父级在前/同级按时间 ASC，便于构树） -->
+    <select id="selectAllRepliesByRootId" resultMap="CommentMap">
+        SELECT <include refid="cols"/> FROM oj_solution_comment
+        WHERE root_id = #{rootId}
+          AND parent_id != 0
+          AND status = 'PUBLISHED'
+          AND audit_status != 'blocked'
+        ORDER BY created_at ASC
+    </select>
+
     <!-- 后台分页 -->
     <select id="selectByPage" resultMap="CommentMap">
         SELECT <include refid="cols"/> FROM oj_solution_comment

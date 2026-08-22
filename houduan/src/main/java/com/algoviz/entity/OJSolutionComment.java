@@ -57,4 +57,6 @@ public class OJSolutionComment {
     private transient Boolean liked;
     @Schema(description = "子评论数")
     private transient Integer replyCount;
+    @Schema(description = "嵌套子评论（树形渲染用）")
+    private transient java.util.List<OJSolutionComment> children;
 }

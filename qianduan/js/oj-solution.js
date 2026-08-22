@@ -225,7 +225,7 @@
         setTimeout(() => loadList(np.id), 200);
     }
 
-    // ==================== 评论 ====================
+    // ==================== 评论（支持二级/三级/N级嵌套回复） ====================
 
     let commentPage = 1;
     const commentPageSize = 20;
@@ -256,7 +256,7 @@
                     <button id="ojCommentSubmitBtn" style="padding:8px 16px;background:#667eea;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">发布</button>
                 </div>`;
 
-            // 评论列表
+            // 顶层评论列表（每个评论有占位容器 ojReplies_ 用来放子评论树）
             if (list.length === 0) {
                 html += '<div style="color:#6a6a6a;font-size:13px;text-align:center;padding:20px;">暂无评论，快来抢沙发！</div>';
             } else {
@@ -265,7 +265,7 @@
 
             area.innerHTML = html;
 
-            // 绑定发布评论
+            // 绑定发布顶层评论
             const submitBtn = document.getElementById('ojCommentSubmitBtn');
             if (submitBtn) {
                 submitBtn.addEventListener('click', async () => {
@@ -282,7 +282,6 @@
                     if (r.success) {
                         input.value = '';
                         await fetchComments(solutionId, problemId, commentPage);
-                        // 更新详情页评论数
                         const cmtCountEl = document.querySelector('.oj-sol-detail-comment-count');
                         if (cmtCountEl) cmtCountEl.textContent = (parseInt(cmtCountEl.textContent) || 0) + 1;
                     } else {
@@ -291,49 +290,33 @@
                 });
             }
 
-            // 绑定子评论展开和回复
-            list.forEach(c => {
-                const el = area.querySelector(`[data-comment-id="${c.id}"]`);
-                if (!el) return;
-                const expandBtn = el.querySelector('.oj-cmt-expand');
-                if (expandBtn) {
-                    expandBtn.addEventListener('click', () => loadReplies(c.id, solutionId));
-                }
-                const replyBtn = el.querySelector('.oj-cmt-reply');
-                if (replyBtn) {
-                    replyBtn.addEventListener('click', () => showReplyForm(c.id, solutionId, problemId, c.username));
-                }
-                const likeBtn = el.querySelector('.oj-cmt-like');
-                if (likeBtn) {
-                    likeBtn.addEventListener('click', async () => {
-                        const r2 = await apiPost(`${API_BASE}/solutions/comments/${c.id}/like`);
-                        if (r2.success) {
-                            likeBtn.textContent = `👍 ${r2.liked ? (c.likeCount || 0) + 1 : Math.max(0, (c.likeCount || 0) - 1)}`;
-                        }
-                    });
-                }
-            });
+            // 事件委托：点赞 / 展开子评论 / 回复（统一在容器上，跨层级生效）
+            bindCommentAreaEvents(area, solutionId, problemId, list);
 
         } catch (e) {
             area.innerHTML = `<div style="color:#f56c6c;">评论加载失败: ${e.message}</div>`;
         }
     }
 
+    /** 顶层评论卡片（子评论树占位符 + 每层卡片样式保持一致） */
     function renderComment(c, solutionId) {
         const replyCount = c.replyCount || 0;
         const expandBtn = replyCount > 0
-            ? `<span class="oj-cmt-expand" style="cursor:pointer;color:#667eea;font-size:12px;">展开 ${replyCount} 条回复 ▼</span>`
+            ? `<span class="oj-cmt-expand" data-root-id="${c.id}" style="cursor:pointer;color:#667eea;font-size:12px;">展开 ${replyCount} 条回复 ▼</span>`
             : '';
         return `
-            <div data-comment-id="${c.id}" style="padding:10px 0;border-bottom:1px solid #2d2d2d;">
+            <div data-comment-id="${c.id}" data-username="${esc(c.username || '匿名')}"
+                 style="padding:10px 0;border-bottom:1px solid #2d2d2d;">
                 <div style="display:flex;align-items:flex-start;gap:8px;">
                     <div style="flex:1;">
                         <div style="font-size:13px;font-weight:600;color:#d4d4d4;">${esc(c.username || '匿名')}</div>
                         <div style="font-size:13px;color:#a0a0a0;margin:4px 0;">${esc(c.maskContent || c.content || '')}</div>
                         <div style="display:flex;gap:12px;align-items:center;">
                             <span style="font-size:12px;color:#858585;">${fmtTime(c.createdAt)}</span>
-                            <span class="oj-cmt-like" style="cursor:pointer;font-size:12px;color:#858585;">👍 ${c.likeCount || 0}</span>
-                            <span class="oj-cmt-reply" style="cursor:pointer;font-size:12px;color:#858585;">回复</span>
+                            <span class="oj-cmt-like" data-like-id="${c.id}" data-like-count="${c.likeCount || 0}"
+                                  style="cursor:pointer;font-size:12px;color:#858585;">👍 ${c.likeCount || 0}</span>
+                            <span class="oj-cmt-reply" data-reply-id="${c.id}" data-reply-user="${esc(c.username || '匿名')}" data-root-id="${c.id}"
+                                  style="cursor:pointer;font-size:12px;color:#858585;">回复</span>
                             ${expandBtn}
                         </div>
                     </div>
@@ -343,27 +326,111 @@
             </div>`;
     }
 
-    async function loadReplies(rootId, solutionId) {
+    /**
+     * 递归渲染嵌套子评论树（children 数组）。
+     * 生成的 HTML：
+     *   - 每个节点卡片都带 data-comment-id / data-username
+     *   - 每级评论带「回复 / 点赞」按钮（事件委托到顶层容器）
+     *   - 显示「回复 @xxx :」前缀（当 replyToUsername 非空）
+     */
+    function renderCommentTree(list) {
+        if (!list || list.length === 0) return '';
+        return list.map(c => {
+            const childrenHtml = (c.children && c.children.length > 0)
+                ? `<div style="margin-left:20px;margin-top:6px;">${renderCommentTree(c.children)}</div>`
+                : '';
+            const replyPrefix = c.replyToUsername
+                ? `<span style="color:#858585;font-weight:normal;">回复 <span style="color:#667eea;">@${esc(c.replyToUsername)}</span> :</span>`
+                : '';
+            // 计算这一层节点属于哪个顶层 root：优先用 c.rootId；root 其实一直不变，但展开回复框传 rootId 是为了再展开时不会错（因为 submit 后端用 parent 查 root）
+            return `
+                <div data-comment-id="${c.id}" data-username="${esc(c.username || '匿名')}"
+                     style="padding:8px 0;border-bottom:1px dashed #2a2a2a;">
+                    <div style="font-size:13px;font-weight:600;color:#d4d4d4;">${esc(c.username || '匿名')} ${replyPrefix}</div>
+                    <div style="font-size:13px;color:#a0a0a0;margin:4px 0;">${esc(c.maskContent || c.content || '')}</div>
+                    <div style="display:flex;gap:12px;align-items:center;">
+                        <span style="font-size:12px;color:#858585;">${fmtTime(c.createdAt)}</span>
+                        <span class="oj-cmt-like" data-like-id="${c.id}" data-like-count="${c.likeCount || 0}"
+                              style="cursor:pointer;font-size:12px;color:#858585;">👍 ${c.likeCount || 0}</span>
+                        <span class="oj-cmt-reply" data-reply-id="${c.id}" data-reply-user="${esc(c.username || '匿名')}"
+                              style="cursor:pointer;font-size:12px;color:#858585;">回复</span>
+                    </div>
+                    ${childrenHtml}
+                    <div id="ojReplyForm_${c.id}"></div>
+                </div>`;
+        }).join('');
+    }
+
+    /** 事件委托：点赞 / 展开回复 / 打开回复框（递归子节点也会命中） */
+    function bindCommentAreaEvents(area, solutionId, problemId, topLevelList) {
+        // 点赞
+        area.addEventListener('click', async (e) => {
+            const likeBtn = e.target.closest('.oj-cmt-like');
+            if (likeBtn) {
+                const id = likeBtn.getAttribute('data-like-id');
+                const cur = parseInt(likeBtn.getAttribute('data-like-count') || '0');
+                if (!id) return;
+                try {
+                    const r2 = await apiPost(`${API_BASE}/solutions/comments/${id}/like`);
+                    if (r2.success) {
+                        const next = r2.liked ? cur + 1 : Math.max(0, cur - 1);
+                        likeBtn.textContent = `👍 ${next}`;
+                        likeBtn.setAttribute('data-like-count', next);
+                    }
+                } catch (err) { console.warn(err); }
+                return;
+            }
+
+            // 展开某顶层评论下的完整子树
+            const expandBtn = e.target.closest('.oj-cmt-expand');
+            if (expandBtn) {
+                const rootId = expandBtn.getAttribute('data-root-id');
+                if (!rootId) return;
+                const box = document.getElementById(`ojReplies_${rootId}`);
+                if (!box) return;
+                if (box.innerHTML) {
+                    // 已加载：折叠
+                    box.innerHTML = '';
+                    expandBtn.textContent = expandBtn.textContent.replace(/▲$/, '▼').replace('收起', '展开');
+                } else {
+                    await loadRepliesTree(rootId);
+                    expandBtn.textContent = expandBtn.textContent.replace('展开', '收起').replace('▼', '▲');
+                }
+                return;
+            }
+
+            // 回复（顶层评论或嵌套里的子评论都可命中）
+            const replyBtn = e.target.closest('.oj-cmt-reply');
+            if (replyBtn) {
+                const replyId = replyBtn.getAttribute('data-reply-id');
+                const replyUser = replyBtn.getAttribute('data-reply-user');
+                if (!replyId) return;
+                showReplyForm(replyId, solutionId, problemId, replyUser);
+            }
+        });
+    }
+
+    /** 加载某顶层评论下的完整嵌套回复树（二级、三级...N级）并渲染到 ojReplies_rootId */
+    async function loadRepliesTree(rootId) {
         const box = document.getElementById(`ojReplies_${rootId}`);
         if (!box) return;
-        if (box.innerHTML) { box.innerHTML = ''; return; }
         try {
-            const r = await apiGet(`${API_BASE}/solutions/comments/${rootId}/replies?page=1&pageSize=100`);
-            const data = r.data || r;
-            const list = data.list || [];
-            box.innerHTML = list.map(c => `
-                <div style="padding:8px 0;border-bottom:1px solid #1a1a1a;">
-                    <div style="font-size:13px;font-weight:600;color:#d4d4d4;">${esc(c.username)} <span style="color:#858585;font-weight:normal;">回复 ${esc(c.replyToUsername || '')}</span></div>
-                    <div style="font-size:13px;color:#a0a0a0;margin:4px 0;">${esc(c.maskContent || c.content)}</div>
-                    <div style="display:flex;gap:12px;">
-                        <span style="font-size:12px;color:#858585;">${fmtTime(c.createdAt)}</span>
-                    </div>
-                </div>`).join('');
+            const r = await apiGet(`${API_BASE}/solutions/comments/${rootId}/replies/tree`);
+            const tree = (r && (r.data || r)) || [];
+            if (!tree || tree.length === 0) {
+                box.innerHTML = '<div style="color:#6a6a6a;font-size:12px;">暂无回复</div>';
+                return;
+            }
+            box.innerHTML = renderCommentTree(tree);
         } catch (e) {
             box.innerHTML = '<div style="color:#f56c6c;font-size:12px;">加载回复失败</div>';
         }
     }
 
+    /**
+     * 显示/隐藏 回复输入框（对任意层级评论）。
+     * 提交时只需传 parentId（= 被回复评论 id），后端会根据父评论自动填 rootId / replyToUserId。
+     */
     function showReplyForm(commentId, solutionId, problemId, replyToUsername) {
         const form = document.getElementById(`ojReplyForm_${commentId}`);
         if (!form) return;
@@ -371,12 +438,13 @@
         form.innerHTML = `
             <div style="display:flex;gap:8px;margin-top:8px;">
                 <input type="text" placeholder="回复 ${esc(replyToUsername)}..." style="flex:1;padding:6px 10px;background:#1e1e1e;border:1px solid #3c3c3c;border-radius:4px;color:#d4d4d4;font-size:12px;outline:none;" />
-                <button style="padding:6px 12px;background:#667eea;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">回复</button>
-                <button style="padding:6px 12px;background:#3c3c3c;color:#d4d4d4;border:none;border-radius:4px;cursor:pointer;font-size:12px;">取消</button>
+                <button class="oj-reply-submit" style="padding:6px 12px;background:#667eea;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">回复</button>
+                <button class="oj-reply-cancel" style="padding:6px 12px;background:#3c3c3c;color:#d4d4d4;border:none;border-radius:4px;cursor:pointer;font-size:12px;">取消</button>
             </div>`;
         const input = form.querySelector('input');
-        const submitBtn = form.querySelectorAll('button')[0];
-        const cancelBtn = form.querySelectorAll('button')[1];
+        const submitBtn = form.querySelector('.oj-reply-submit');
+        const cancelBtn = form.querySelector('.oj-reply-cancel');
+        cancelBtn.addEventListener('click', () => form.innerHTML = '');
         submitBtn.addEventListener('click', async () => {
             const text = input.value.trim();
             if (!text) return;
@@ -386,13 +454,35 @@
                 problemId: problemId,
                 username: u.username,
                 avatar: u.avatar,
-                parentId: commentId,
-                replyToUsername: replyToUsername
+                parentId: parseInt(commentId, 10)
             });
             if (r.success) {
-                await loadReplies(commentId, solutionId);
-                await loadReplies(commentId, solutionId);
                 form.innerHTML = '';
+                // 回复成功：
+                //   若回复的是顶层评论（ojReplies_xxx 存在），刷新树；
+                //   若回复的是嵌套子评论，找到最近的顶层 root 重新加载那棵树；
+                //   找不到顶层就整体刷新评论列表兜底。
+                let ok = false;
+                if (document.getElementById(`ojReplies_${commentId}`)) {
+                    await loadRepliesTree(commentId);
+                    ok = true;
+                } else {
+                    // 找到嵌套所在的最近顶层：上溯 DOM 中第一个带 [data-root-id] 或第一个 #ojReplies_xxx 的容器
+                    const area = document.getElementById('ojCommentArea');
+                    const thisNode = area ? area.querySelector(`[data-comment-id="${commentId}"]`) : null;
+                    if (area && thisNode) {
+                        const expanded = area.querySelectorAll('[id^="ojReplies_"]');
+                        for (const box of expanded) {
+                            if (box.innerHTML && box.querySelector(`[data-comment-id="${commentId}"]`)) {
+                                const rootId = box.id.replace('ojReplies_', '');
+                                await loadRepliesTree(rootId);
+                                ok = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!ok) await fetchComments(solutionId, problemId, commentPage);
                 // 更新详情页评论数
                 const cmtCountEl = document.querySelector('.oj-sol-detail-comment-count');
                 if (cmtCountEl) cmtCountEl.textContent = (parseInt(cmtCountEl.textContent) || 0) + 1;
@@ -400,7 +490,6 @@
                 alert(r.message || '回复失败');
             }
         });
-        cancelBtn.addEventListener('click', () => form.innerHTML = '');
     }
 
     // ==================== 发布/编辑题解 ====================

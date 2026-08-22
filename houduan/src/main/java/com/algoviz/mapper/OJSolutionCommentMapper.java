@@ -31,6 +31,12 @@ public interface OJSolutionCommentMapper {
      */
     List<IdCount> countRepliesByRootIds(@Param("rootIds") List<Long> rootIds);
 
+    /**
+     * 查询某个顶层评论下的所有子评论（任意层级，不做 LIMIT）。
+     * 返回扁平列表，由 Service 层在内存中组装成嵌套 children 树。
+     */
+    List<OJSolutionComment> selectAllRepliesByRootId(@Param("rootId") Long rootId);
+
     /** 后台：分页查询所有评论 */
     List<OJSolutionComment> selectByPage(@Param("keyword") String keyword,
                                          @Param("auditStatus") String auditStatus,
