@@ -40,6 +40,11 @@ public class AuditPullTask {
      */
     @Scheduled(fixedDelayString = "${audit.pull-interval-ms:60000}", initialDelay = 20000)
     public void pull() {
+        // 检查 ES 是否可用，不可用时静默跳过
+        if (!esClient.available()) {
+            log.debug("[audit] ES 不可用，跳过本轮拉取");
+            return;
+        }
         try {
             String summary = doPull();
             if (!summary.isEmpty()) {

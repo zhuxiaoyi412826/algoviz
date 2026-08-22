@@ -417,8 +417,13 @@
         window.toggleTheme = toggleTheme;
         window.logout = logout;
         
-        var saved = localStorage.getItem('algoviz-theme') || 'light';
-        setTheme(saved);
+        function initTheme() {
+            var saved = localStorage.getItem('algoviz-theme') || 'light';
+            setTheme(saved);
+        }
+        window.initTheme = initTheme;
+        
+        initTheme();
         
         var btn = document.getElementById('themeToggle');
         if (btn) {

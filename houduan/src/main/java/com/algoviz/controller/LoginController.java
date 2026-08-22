@@ -4,8 +4,10 @@ import com.algoviz.config.AuthInterceptor;
 import com.algoviz.dto.LoginRequest;
 import com.algoviz.dto.LoginResponse;
 import com.algoviz.entity.User;
+import com.algoviz.service.EmailService;
 import com.algoviz.service.LoginService;
 import com.algoviz.service.UserService;
+import com.algoviz.utils.PasswordEncoderUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
@@ -34,6 +36,9 @@ public class LoginController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private EmailService emailService;
+
     @PostMapping
     @Operation(summary = "登录", description = "通过验证码登录（兼容老版本接口）")
     public LoginResponse login(@RequestBody LoginRequest request) {
@@ -45,50 +50,200 @@ public class LoginController {
     public LoginResponse loginByAccount(@RequestBody LoginRequest request,
                                         HttpServletRequest httpRequest,
                                         HttpServletResponse response) {
-        LoginResponse loginResponse = loginService.loginByAccount(request.getUsername(), request.getPassword());
+        LoginResponse loginResponse;
+
+        if (request.getCaptcha() != null && !request.getCaptcha().isEmpty()) {
+            if (!CaptchaController.verifyCaptchaInSession(request.getCaptcha(), httpRequest)) {
+                loginResponse = new LoginResponse();
+                loginResponse.setSuccess(false);
+                loginResponse.setMessage("验证码错误或已过期");
+                return loginResponse;
+            }
+        }
+
+        loginResponse = loginService.loginByAccount(request.getUsername(), request.getPassword());
         if (loginResponse.isSuccess() && loginResponse.getUserInfo() != null) {
             Integer userId = loginResponse.getUserInfo().getId();
             User user = userService.findById(userId);
             if (user != null) {
-                // 1. 重要数据写入 Session
                 if (user.getLastLoginAt() == null) {
                     user.setLastLoginAt(LocalDateTime.now());
                 }
                 HttpSession session = httpRequest.getSession(true);
                 session.setAttribute(AuthInterceptor.SESSION_USER, user);
-                logger.info("账号密码登录成功，Session已创建，用户: {}", user.getUsername());
 
-                // 2. Cookie 下发 4 天有效期
                 AuthInterceptor.setCookie(response,
                         AuthInterceptor.COOKIE_USER_ID,
                         String.valueOf(userId),
                         AuthInterceptor.COOKIE_MAX_AGE_DAYS_4);
-                logger.info("账号密码登录成功，Cookie已下发（4天有效期），userId: {}", userId);
 
-                // 3. cmd 控制台卡片
                 System.out.println();
                 System.out.println("╔══════════════════════════════════════════════════════════╗");
                 System.out.println("║            🔑  账号密码登录成功                          ║");
                 System.out.println("╠══════════════════════════════════════════════════════════╣");
                 System.out.println("║  用户ID     : " + padRight(String.valueOf(user.getId()), 41) + "║");
                 System.out.println("║  用户名     : " + padRight(user.getUsername(), 41) + "║");
-                System.out.println("║  昵称       : " + padRight(user.getNickname(), 41) + "║");
                 System.out.println("║  邮箱       : " + padRight(user.getEmail(), 41) + "║");
                 System.out.println("║  登录时间   : " + padRight(LocalDateTime.now().toString(), 41) + "║");
-                System.out.println("║  Cookie有效 : 4 天（自动免登录）                         ║");
-                System.out.println("║  强制过期   : 14 天后需重新验证账号                      ║");
-                System.out.println("╠══════════════════════════════════════════════════════════╣");
-                System.out.println("║  👉 即将打开用户个人中心界面...                          ║");
                 System.out.println("╚══════════════════════════════════════════════════════════╝");
                 System.out.println();
 
-                // 4. 返回个人界面跳转路径
                 loginResponse.setRedirectUrl("/user/profile?id=" + userId);
             }
-        } else {
-            logger.warn("账号密码登录失败: {} - {}", request.getUsername(), loginResponse.getMessage());
         }
         return loginResponse;
+    }
+
+    @PostMapping("/send-email-code")
+    @Operation(summary = "发送邮箱验证码", description = "发送邮箱验证码到指定邮箱，需要先通过图形验证码校验")
+    public Map<String, Object> sendEmailCode(@RequestBody Map<String, String> body,
+                                              HttpServletRequest httpRequest) {
+        Map<String, Object> result = new HashMap<>();
+        String email = body.get("email");
+        String captcha = body.get("captcha");
+
+        if (email == null || email.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "请输入邮箱");
+            return result;
+        }
+
+        if (!email.matches("^[\\w.-]+@[\\w.-]+\\.\\w+$")) {
+            result.put("success", false);
+            result.put("message", "邮箱格式不正确");
+            return result;
+        }
+
+        if (captcha == null || captcha.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "请输入图形验证码");
+            return result;
+        }
+
+        if (!CaptchaController.verifyCaptchaInSession(captcha, httpRequest)) {
+            result.put("success", false);
+            result.put("message", "图形验证码错误或已过期");
+            return result;
+        }
+
+        long remaining = emailService.getSendIntervalRemaining(email);
+        if (remaining > 0) {
+            result.put("success", false);
+            result.put("message", "请" + (remaining / 1000) + "秒后再发送");
+            return result;
+        }
+
+        boolean sent = emailService.sendVerificationCode(email.trim());
+        if (sent) {
+            result.put("success", true);
+            result.put("message", "验证码已发送到邮箱");
+        } else {
+            result.put("success", false);
+            result.put("message", "发送失败，请稍后重试");
+        }
+
+        return result;
+    }
+
+    @PostMapping("/email-code")
+    @Operation(summary = "邮箱验证码登录", description = "通过邮箱验证码登录，新用户自动注册")
+    public LoginResponse loginByEmailCode(@RequestBody Map<String, String> body,
+                                           HttpServletRequest httpRequest,
+                                           HttpServletResponse response) {
+        LoginResponse loginResponse = new LoginResponse();
+        String email = body.get("email");
+        String code = body.get("code");
+
+        if (email == null || email.trim().isEmpty()) {
+            loginResponse.setSuccess(false);
+            loginResponse.setMessage("请输入邮箱");
+            return loginResponse;
+        }
+
+        if (code == null || code.trim().isEmpty()) {
+            loginResponse.setSuccess(false);
+            loginResponse.setMessage("请输入验证码");
+            return loginResponse;
+        }
+
+        if (!emailService.verifyCode(email.trim(), code.trim())) {
+            loginResponse.setSuccess(false);
+            loginResponse.setMessage("验证码错误或已过期");
+            return loginResponse;
+        }
+
+        User user = userService.findByEmail(email.trim());
+
+        if (user == null) {
+            // 新用户自动注册，用户名为 邮箱-01, 邮箱-02, ...
+            String baseUsername = email.trim().split("@")[0];
+            String username = generateUniqueUsername(baseUsername);
+
+            user = new User();
+            user.setUsername(username);
+            user.setEmail(email.trim());
+            user.setPassword(PasswordEncoderUtil.md5Encode("email_auto_register"));
+            user.setNickname(username);
+            user.setStatus(1);
+            user.setLoginStatus("offline");
+            user.setCoins(100);
+            user.setCreatedAt(LocalDateTime.now());
+            user.setUpdatedAt(LocalDateTime.now());
+
+            user = userService.createUser(user);
+            logger.info("邮箱登录自动注册新用户: {} -> {}", email, username);
+
+            System.out.println();
+            System.out.println("╔══════════════════════════════════════════════════════════╗");
+            System.out.println("║        📧  邮箱验证码登录 - 新用户自动注册              ║");
+            System.out.println("╠══════════════════════════════════════════════════════════╣");
+            System.out.println("║  用户名     : " + padRight(username, 41) + "║");
+            System.out.println("║  邮箱       : " + padRight(email, 41) + "║");
+            System.out.println("╚══════════════════════════════════════════════════════════╝");
+            System.out.println();
+        } else {
+            if (user.getStatus() != null && user.getStatus() == 0) {
+                loginResponse.setSuccess(false);
+                loginResponse.setMessage("账号已被禁用，请联系管理员");
+                return loginResponse;
+            }
+        }
+
+        if (user.getLastLoginAt() == null) {
+            user.setLastLoginAt(LocalDateTime.now());
+        }
+        HttpSession session = httpRequest.getSession(true);
+        session.setAttribute(AuthInterceptor.SESSION_USER, user);
+
+        AuthInterceptor.setCookie(response,
+                AuthInterceptor.COOKIE_USER_ID,
+                String.valueOf(user.getId()),
+                AuthInterceptor.COOKIE_MAX_AGE_DAYS_4);
+
+        loginResponse.setSuccess(true);
+        loginResponse.setMessage("登录成功");
+        loginResponse.setToken("email_code_token_" + System.currentTimeMillis());
+
+        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();
+        userInfo.setId(user.getId());
+        userInfo.setUsername(user.getUsername());
+        userInfo.setEmail(user.getEmail());
+        userInfo.setAge(user.getAge());
+        userInfo.setNickname(user.getNickname());
+        loginResponse.setUserInfo(userInfo);
+        loginResponse.setRedirectUrl("/user/profile?id=" + user.getId());
+
+        return loginResponse;
+    }
+
+    private String generateUniqueUsername(String base) {
+        int counter = 1;
+        String username;
+        do {
+            username = base + "-" + String.format("%02d", counter);
+            counter++;
+        } while (userService.findByUsername(username) != null);
+        return username;
     }
 
     @GetMapping("/verification-code")
@@ -98,63 +253,152 @@ public class LoginController {
     }
 
     @GetMapping("/check-status")
-    @Operation(summary = "检查登录状态", description = "轮询检查验证码是否被微信扫码确认；登录成功会下发4天Cookie并建立Session")
+    @Operation(summary = "检查登录状态", description = "轮询检查验证码是否被微信扫码确认")
     public LoginResponse checkStatus(@RequestParam String code,
                                      HttpServletRequest request,
                                      HttpServletResponse response) {
         LoginResponse loginResponse = loginService.checkLoginStatus(code);
         if (loginResponse.isSuccess() && loginResponse.getUserInfo() != null) {
             Integer userId = loginResponse.getUserInfo().getId();
-            // 1. 重要数据写入 Session（服务端保存）
             User user = userService.findById(userId);
             if (user != null) {
-                // 确保 lastLoginAt 已更新（登录时Service已调用updateLastLogin）
                 if (user.getLastLoginAt() == null) {
                     user.setLastLoginAt(LocalDateTime.now());
                 }
                 HttpSession session = request.getSession(true);
                 session.setAttribute(AuthInterceptor.SESSION_USER, user);
-                logger.info("登录成功，Session已创建，用户: {}", user.getUsername());
 
-                // 2. 不重要凭证写入 Cookie，4 天有效期（浏览器自动过期）
                 AuthInterceptor.setCookie(response,
                         AuthInterceptor.COOKIE_USER_ID,
                         String.valueOf(userId),
                         AuthInterceptor.COOKIE_MAX_AGE_DAYS_4);
-                logger.info("登录成功，Cookie已下发（4天有效期），userId: {}", userId);
 
-                // 3. cmd 控制台醒目的登录成功消息
-                System.out.println();
-                System.out.println("╔══════════════════════════════════════════════════════════╗");
-                System.out.println("║            🎉  微信公众号用户登录成功  🎉                ║");
-                System.out.println("╠══════════════════════════════════════════════════════════╣");
-                System.out.println("║  用户ID     : " + padRight(String.valueOf(user.getId()), 41) + "║");
-                System.out.println("║  用户名     : " + padRight(user.getUsername(), 41) + "║");
-                System.out.println("║  昵称       : " + padRight(user.getNickname(), 41) + "║");
-                System.out.println("║  邮箱       : " + padRight(user.getEmail(), 41) + "║");
-                System.out.println("║  登录时间   : " + padRight(LocalDateTime.now().toString(), 41) + "║");
-                System.out.println("║  Cookie有效 : 4 天（自动免登录）                         ║");
-                System.out.println("║  强制过期   : 14 天后需重新验证账号                      ║");
-                System.out.println("╠══════════════════════════════════════════════════════════╣");
-                System.out.println("║  👉 即将打开用户个人中心界面...                          ║");
-                System.out.println("╚══════════════════════════════════════════════════════════╝");
-                System.out.println();
-
-                // 4. 返回个人界面跳转路径（前端据此打开用户界面）
                 loginResponse.setRedirectUrl("/user/profile?id=" + userId);
-            }
-        } else if (!loginResponse.isSuccess()) {
-            // 登录未就绪/失败，打印细节（非错误级别，正常轮询）
-            if (!"等待扫码".equals(loginResponse.getMessage())) {
-                logger.debug("check-status 结果: {} - {}", loginResponse.isSuccess(), loginResponse.getMessage());
             }
         }
         return loginResponse;
     }
 
-    /**
-     * 右侧填充空格，用于控制台表格对齐
-     */
+    @PostMapping("/email")
+    @Operation(summary = "邮箱密码登录", description = "通过邮箱和密码登录")
+    public LoginResponse loginByEmail(@RequestBody LoginRequest request,
+                                      HttpServletRequest httpRequest,
+                                      HttpServletResponse response) {
+        LoginResponse loginResponse;
+
+        if (request.getCaptcha() != null && !request.getCaptcha().isEmpty()) {
+            if (!CaptchaController.verifyCaptchaInSession(request.getCaptcha(), httpRequest)) {
+                loginResponse = new LoginResponse();
+                loginResponse.setSuccess(false);
+                loginResponse.setMessage("验证码错误或已过期");
+                return loginResponse;
+            }
+        }
+
+        loginResponse = loginService.loginByEmail(request.getEmail(), request.getPassword());
+        if (loginResponse.isSuccess() && loginResponse.getUserInfo() != null) {
+            Integer userId = loginResponse.getUserInfo().getId();
+            User user = userService.findById(userId);
+            if (user != null) {
+                if (user.getLastLoginAt() == null) {
+                    user.setLastLoginAt(LocalDateTime.now());
+                }
+                HttpSession session = httpRequest.getSession(true);
+                session.setAttribute(AuthInterceptor.SESSION_USER, user);
+
+                AuthInterceptor.setCookie(response,
+                        AuthInterceptor.COOKIE_USER_ID,
+                        String.valueOf(userId),
+                        AuthInterceptor.COOKIE_MAX_AGE_DAYS_4);
+
+                loginResponse.setRedirectUrl("/user/profile?id=" + userId);
+            }
+        }
+        return loginResponse;
+    }
+
+    @PostMapping("/register")
+    @Operation(summary = "用户注册", description = "通过用户名、邮箱、密码注册新用户")
+    public Map<String, Object> register(@RequestBody Map<String, String> body,
+                                        HttpServletRequest httpRequest) {
+        Map<String, Object> result = new HashMap<>();
+        String username = body.get("username");
+        String email = body.get("email");
+        String password = body.get("password");
+        String captcha = body.get("captcha");
+
+        if (username == null || username.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "请输入用户名");
+            return result;
+        }
+        if (email == null || email.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "请输入邮箱");
+            return result;
+        }
+        if (password == null || password.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "请输入密码");
+            return result;
+        }
+        if (password.length() < 6) {
+            result.put("success", false);
+            result.put("message", "密码长度至少6位");
+            return result;
+        }
+        if (captcha == null || captcha.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "请输入验证码");
+            return result;
+        }
+
+        if (!CaptchaController.verifyCaptchaInSession(captcha, httpRequest)) {
+            result.put("success", false);
+            result.put("message", "验证码错误或已过期");
+            return result;
+        }
+
+        User existingUser = userService.findByUsername(username);
+        if (existingUser != null) {
+            result.put("success", false);
+            result.put("message", "用户名已存在");
+            return result;
+        }
+
+        User existingEmail = userService.findByEmail(email);
+        if (existingEmail != null) {
+            result.put("success", false);
+            result.put("message", "邮箱已被注册");
+            return result;
+        }
+
+        try {
+            User newUser = new User();
+            newUser.setUsername(username.trim());
+            newUser.setEmail(email.trim());
+            newUser.setPassword(PasswordEncoderUtil.md5Encode(password));
+            newUser.setNickname(username.trim());
+            newUser.setStatus(1);
+            newUser.setLoginStatus("offline");
+            newUser.setCoins(100);
+            newUser.setCreatedAt(LocalDateTime.now());
+            newUser.setUpdatedAt(LocalDateTime.now());
+
+            userService.createUser(newUser);
+
+            logger.info("新用户注册成功: {}, {}", username, email);
+            result.put("success", true);
+            result.put("message", "注册成功，请登录");
+        } catch (Exception e) {
+            logger.error("注册失败", e);
+            result.put("success", false);
+            result.put("message", "注册失败，请稍后重试");
+        }
+
+        return result;
+    }
+
     private static String padRight(String str, int len) {
         if (str == null) str = "";
         if (str.length() >= len) return str;
@@ -164,34 +408,14 @@ public class LoginController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "登出", description = "清除Cookie和Session，返回登录页")
+    @Operation(summary = "登出", description = "清除Cookie和Session")
     public Map<String, Object> logout(HttpServletRequest request, HttpServletResponse response) {
         Map<String, Object> result = new HashMap<>();
-        String logoutUsername = "匿名";
-        // 清除 Session
         HttpSession session = request.getSession(false);
         if (session != null) {
-            Object user = session.getAttribute(AuthInterceptor.SESSION_USER);
-            if (user instanceof User) {
-                logoutUsername = ((User) user).getUsername();
-                logger.info("用户登出: {}", logoutUsername);
-            }
             session.invalidate();
         }
-        // 清除 Cookie
         AuthInterceptor.removeCookie(response, AuthInterceptor.COOKIE_USER_ID);
-
-        // cmd 控制台醒目的登出消息
-        System.out.println();
-        System.out.println("┌──────────────────────────────────────────────────────────┐");
-        System.out.println("│            🚪  用户已登出                                 │");
-        System.out.println("├──────────────────────────────────────────────────────────┤");
-        System.out.println("│  用户名     : " + padRight(logoutUsername, 42) + "│");
-        System.out.println("│  时间       : " + padRight(LocalDateTime.now().toString(), 42) + "│");
-        System.out.println("│  Session / Cookie 已清除                                 │");
-        System.out.println("└──────────────────────────────────────────────────────────┘");
-        System.out.println();
-
         result.put("success", true);
         result.put("message", "登出成功");
         return result;
@@ -207,7 +431,6 @@ public class LoginController {
             user = (User) session.getAttribute(AuthInterceptor.SESSION_USER);
         }
         if (user == null) {
-            // 拦截器已处理自动登录，能到这里说明已校验通过
             String uid = AuthInterceptor.getCookieValue(request, AuthInterceptor.COOKIE_USER_ID);
             if (uid != null) {
                 user = userService.findById(Integer.parseInt(uid));
@@ -220,9 +443,6 @@ public class LoginController {
             userInfo.put("username", user.getUsername());
             userInfo.put("email", user.getEmail());
             userInfo.put("nickname", user.getNickname());
-            userInfo.put("age", user.getAge());
-            userInfo.put("avatarUrl", user.getAvatarUrl());
-            userInfo.put("lastLoginAt", user.getLastLoginAt());
             result.put("data", userInfo);
         } else {
             result.put("success", false);

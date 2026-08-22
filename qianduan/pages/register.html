@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - AlgoViz</title>
+    <link rel="icon" type="image/png" href="../images/tubiao.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            overflow: hidden;
+            background: #f5f7fa;
+            background-image:
+                radial-gradient(ellipse at 20% 80%, rgba(255, 235, 190, 0.6) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(200, 220, 255, 0.4) 0%, transparent 50%),
+                linear-gradient(180deg, #fcfcfe 0%, #e4e8ef 100%);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(255, 220, 140, 0.3) 0%, transparent 45%);
+            pointer-events: none;
+        }
+
+        /* 左侧装饰 */
+        .decoration {
+            position: fixed;
+            left: 5%;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .decoration-icon {
+            font-size: 120px;
+            opacity: 0.3;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        /* 注册表单 */
+        .register-container {
+            position: fixed;
+            left: 66.67vw;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 460px;
+            padding: 44px 40px 30px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow:
+                0 8px 40px rgba(100, 120, 180, 0.15),
+                0 2px 15px rgba(255, 220, 150, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.95);
+            z-index: 20;
+        }
+
+        .register-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .register-desc {
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 28px;
+            color: #8899aa;
+        }
+
+        .form-group { margin-bottom: 16px; text-align: left; }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #556677;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #dde4eb;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.6);
+            color: #333;
+        }
+        .form-input::placeholder { color: #aabbcc; }
+        .form-input:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        .captcha-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .captcha-row .form-input { flex: 1; }
+
+        .captcha-img {
+            height: 44px;
+            border-radius: 10px;
+            cursor: pointer;
+            border: 1px solid #dde4eb;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .captcha-img:hover { opacity: 0.85; }
+
+        .password-strength {
+            height: 4px;
+            border-radius: 2px;
+            margin-top: 8px;
+            background: #e8ecf1;
+            overflow: hidden;
+        }
+        .password-strength-bar {
+            height: 100%;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+            width: 0;
+        }
+        .strength-weak { width: 33%; background: #e74c3c; }
+        .strength-medium { width: 66%; background: #f39c12; }
+        .strength-strong { width: 100%; background: #27ae60; }
+
+        .register-error { color: #e74c3c; font-size: 13px; margin-top: 8px; min-height: 18px; }
+        .register-success { color: #27ae60; font-size: 13px; margin-top: 8px; min-height: 18px; }
+
+        .register-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 12px;
+            letter-spacing: 3px;
+        }
+        .register-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); }
+        .register-btn:active { transform: translateY(0); }
+        .register-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .form-footer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid #e8ecf1;
+            gap: 6px;
+        }
+        .form-footer .link-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #667eea;
+            transition: all 0.2s ease;
+            padding: 0;
+        }
+        .form-footer .link-btn:hover { color: #5a5fc0; }
+        .form-footer .text { font-size: 13px; color: #8899aa; }
+
+        @media (max-width: 900px) {
+            .register-container { left: 50vw; width: 90%; max-width: 400px; padding: 30px 24px; }
+            .decoration { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="decoration">
+        <div class="decoration-icon">📊</div>
+    </div>
+
+    <div class="register-container">
+        <h1 class="register-title">注册 AlgoViz</h1>
+        <p class="register-desc">创建账号，开启你的算法之旅</p>
+
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="regUsername" class="form-input" placeholder="4-20位字符" autocomplete="username">
+        </div>
+        <div class="form-group">
+            <label>邮箱</label>
+            <input type="email" id="regEmail" class="form-input" placeholder="your@email.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+            <label>密码</label>
+            <input type="password" id="regPassword" class="form-input" placeholder="至少6位" autocomplete="new-password" oninput="checkStrength(this.value)">
+            <div class="password-strength"><div class="password-strength-bar" id="strengthBar"></div></div>
+        </div>
+        <div class="form-group">
+            <label>验证码</label>
+            <div class="captcha-row">
+                <input type="text" id="regCaptcha" class="form-input" placeholder="请输入验证码" maxlength="4" autocomplete="off">
+                <img id="regCaptchaImg" class="captcha-img" src="" alt="验证码" onclick="refreshCaptcha()" title="点击刷新">
+            </div>
+        </div>
+        <div class="register-error" id="regError"></div>
+        <div class="register-success" id="regSuccess"></div>
+        <button class="register-btn" id="regBtn" onclick="doRegister()">注 册</button>
+
+        <div class="form-footer">
+            <span class="text">已有账号？</span>
+            <button class="link-btn" onclick="goLogin()">立即登录 →</button>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        function getApiBaseUrl() {
+            var protocol = window.location.protocol;
+            var host = window.location.hostname || 'dsaol.asia';
+            if (protocol === 'https:') return 'https://' + host + ':3000';
+            return 'http://' + host + ':80';
+        }
+        var API_BASE_URL = getApiBaseUrl();
+
+        function refreshCaptcha() {
+            fetch(API_BASE_URL + '/api/captcha/generate', {
+                method: 'GET', credentials: 'include'
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    document.getElementById('regCaptchaImg').src = data.image;
+                }
+            })
+            .catch(function(err) { console.error('获取验证码失败:', err); });
+        }
+
+        function checkStrength(pwd) {
+            var bar = document.getElementById('strengthBar');
+            bar.className = 'password-strength-bar';
+            if (!pwd) return;
+            if (pwd.length < 6) { bar.classList.add('strength-weak'); return; }
+            if (pwd.length >= 10 && /[A-Z]/.test(pwd) && /[0-9]/.test(pwd)) {
+                bar.classList.add('strength-strong');
+            } else if (pwd.length >= 8 || /[0-9]/.test(pwd)) {
+                bar.classList.add('strength-medium');
+            } else {
+                bar.classList.add('strength-weak');
+            }
+        }
+
+        async function doRegister() {
+            var username = document.getElementById('regUsername').value.trim();
+            var email = document.getElementById('regEmail').value.trim();
+            var password = document.getElementById('regPassword').value.trim();
+            var captcha = document.getElementById('regCaptcha').value.trim();
+            var errorEl = document.getElementById('regError');
+            var successEl = document.getElementById('regSuccess');
+            errorEl.textContent = '';
+            successEl.textContent = '';
+
+            if (!username) { errorEl.textContent = '请输入用户名'; return; }
+            if (username.length < 4 || username.length > 20) { errorEl.textContent = '用户名长度需在4-20位'; return; }
+            if (!email) { errorEl.textContent = '请输入邮箱'; return; }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errorEl.textContent = '邮箱格式不正确'; return; }
+            if (!password) { errorEl.textContent = '请输入密码'; return; }
+            if (password.length < 6) { errorEl.textContent = '密码至少6位'; return; }
+            if (!captcha) { errorEl.textContent = '请输入验证码'; return; }
+
+            var btn = document.getElementById('regBtn');
+            var originalText = btn.textContent;
+            btn.textContent = '注册中...';
+            btn.disabled = true;
+
+            try {
+                var res = await fetch(API_BASE_URL + '/api/login/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ username: username, email: email, password: password, captcha: captcha })
+                });
+                var result = await res.json();
+                if (result.success) {
+                    successEl.textContent = '注册成功！即将跳转登录页...';
+                    setTimeout(function() {
+                        window.location.href = 'login.html';
+                    }, 1500);
+                } else {
+                    errorEl.textContent = result.message || '注册失败';
+                    refreshCaptcha();
+                }
+            } catch (e) {
+                errorEl.textContent = '网络错误，请稍后重试';
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function goLogin() {
+            window.location.href = 'login.html';
+        }
+
+        document.getElementById('regPassword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') doRegister();
+        });
+        document.getElementById('regUsername').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') doRegister();
+        });
+        document.getElementById('regEmail').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') doRegister();
+        });
+        document.getElementById('regCaptcha').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') doRegister();
+        });
+
+        window.doRegister = doRegister;
+        window.refreshCaptcha = refreshCaptcha;
+        window.goLogin = goLogin;
+        window.checkStrength = checkStrength;
+
+        refreshCaptcha();
+    })();
+    </script>
+</body>
+</html>

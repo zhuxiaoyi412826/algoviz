@@ -14,4 +14,8 @@ public class LoginRequest {
     private String username;
     @Schema(description = "密码（账号密码登录时使用）")
     private String password;
+    @Schema(description = "邮箱（邮箱登录时使用）")
+    private String email;
+    @Schema(description = "人机验证码")
+    private String captcha;
 }

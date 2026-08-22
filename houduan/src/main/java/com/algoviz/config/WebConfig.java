@@ -34,8 +34,14 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/api/**")
                 // 公开接口：登录流程本身、验证码获取、登出等不拦截
                 .excludePathPatterns(
+                        "/api/captcha",
+                        "/api/captcha/**",
                         "/api/login",
                         "/api/login/account",
+                        "/api/login/email",
+                        "/api/login/email-code",
+                        "/api/login/send-email-code",
+                        "/api/login/register",
                         "/api/login/verification-code",
                         "/api/login/check-status",
                         "/api/login/logout",

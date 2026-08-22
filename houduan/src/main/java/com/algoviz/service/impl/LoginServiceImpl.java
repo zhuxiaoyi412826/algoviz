@@ -5,6 +5,7 @@ import com.algoviz.dto.LoginResponse;
 import com.algoviz.entity.User;
 import com.algoviz.service.LoginService;
 import com.algoviz.service.UserService;
+import com.algoviz.utils.PasswordEncoderUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -132,11 +133,15 @@ public class LoginServiceImpl implements LoginService {
             return response;
         }
 
-        // 校验密码
-        if (!password.equals(user.getPassword())) {
-            response.setSuccess(false);
-            response.setMessage("密码错误");
-            return response;
+        // 校验密码（MD5加密比对）
+        String inputMd5 = PasswordEncoderUtil.md5Encode(password);
+        if (!inputMd5.equals(user.getPassword())) {
+            // 兼容旧的明文密码
+            if (!password.equals(user.getPassword())) {
+                response.setSuccess(false);
+                response.setMessage("密码错误");
+                return response;
+            }
         }
 
         // 检查用户状态
@@ -151,6 +156,62 @@ public class LoginServiceImpl implements LoginService {
 
         // 生成token
         String token = "account_token_" + System.currentTimeMillis();
+
+        response.setSuccess(true);
+        response.setMessage("登录成功");
+        response.setToken(token);
+
+        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();
+        userInfo.setId(user.getId());
+        userInfo.setUsername(user.getUsername());
+        userInfo.setEmail(user.getEmail());
+        userInfo.setAge(user.getAge());
+        userInfo.setNickname(user.getNickname());
+        response.setUserInfo(userInfo);
+
+        return response;
+    }
+
+    @Override
+    public LoginResponse loginByEmail(String email, String password) {
+        LoginResponse response = new LoginResponse();
+
+        if (email == null || email.trim().isEmpty()) {
+            response.setSuccess(false);
+            response.setMessage("邮箱不能为空");
+            return response;
+        }
+        if (password == null || password.trim().isEmpty()) {
+            response.setSuccess(false);
+            response.setMessage("密码不能为空");
+            return response;
+        }
+
+        User user = userService.findByEmail(email.trim());
+        if (user == null) {
+            response.setSuccess(false);
+            response.setMessage("邮箱未注册");
+            return response;
+        }
+
+        String inputMd5 = PasswordEncoderUtil.md5Encode(password);
+        if (!inputMd5.equals(user.getPassword())) {
+            if (!password.equals(user.getPassword())) {
+                response.setSuccess(false);
+                response.setMessage("密码错误");
+                return response;
+            }
+        }
+
+        if (user.getStatus() != null && user.getStatus() == 0) {
+            response.setSuccess(false);
+            response.setMessage("账号已被禁用，请联系管理员");
+            return response;
+        }
+
+        userService.updateLastLogin(user.getId());
+
+        String token = "email_token_" + System.currentTimeMillis();
 
         response.setSuccess(true);
         response.setMessage("登录成功");
