@@ -1,6 +1,7 @@
 package com.algoviz.service;
 
 import com.algoviz.dto.interview.InterviewResponse;
+import com.algoviz.dto.interview.PageResult;
 import com.algoviz.dto.vector.*;
 import com.algoviz.entity.InterviewProblem;
 import com.algoviz.mapper.InterviewProblemMapper;
@@ -503,8 +504,36 @@ public class VectorSearchService {
 
     /**
      * ES 分词搜索（前台用户使用）
+     * —— 题目 ID / 题目编号（如 MS004）优先走 MySQL 精确/前缀匹配，避免 ES 分词对纯数字不稳定
      */
     public InterviewResponse<List<InterviewProblem>> esSearch(String query, int topK, String difficulty) {
+        // 快速路径：纯数字 = 题目 id；或形如 MS001 / JZ023 的编号前缀 = problem_no 搜索
+        if (query != null && !query.trim().isEmpty()) {
+            String q = query.trim();
+            boolean isIdOnly = q.matches("\\d+");
+            boolean isProblemNoStyle = q.matches("^[A-Za-z]{0,8}\\d{1,8}$") || q.matches(".*\\d.*");
+            if (isIdOnly || (isProblemNoStyle && q.length() <= 16)) {
+                try {
+                    List<InterviewProblem> hits;
+                    if (isIdOnly) {
+                        Long id = Long.parseLong(q);
+                        InterviewProblem p = problemMapper.selectByIdActive(id);
+                        hits = p != null ? List.of(p) : List.of();
+                        if (!hits.isEmpty()) {
+                            return InterviewResponse.ok("按题目ID精确搜索", hits);
+                        }
+                    }
+                    // problem_no / 标题 / 标签 兜底 LIKE（含 id 精确）
+                    int pageSize = Math.max(20, topK);
+                    List<InterviewProblem> list = problemMapper.selectFrontSearch(q, 0, pageSize);
+                    if (list != null && !list.isEmpty()) {
+                        return InterviewResponse.ok(isIdOnly ? "ID 未命中，按模糊匹配搜索" : "按题目编号/关键词搜索", list);
+                    }
+                } catch (Exception ex) {
+                    log.warn("[ES 搜索] id/problem_no 快速路径异常，继续走 ES: {}", ex.getMessage());
+                }
+            }
+        }
         try {
             ESSearchRequest req = new ESSearchRequest();
             req.setQuery(query);
