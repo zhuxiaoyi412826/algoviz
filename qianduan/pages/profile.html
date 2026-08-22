@@ -362,6 +362,17 @@
 
     <script>
     (function() {
+        function getApiBaseUrl() {
+            var protocol = window.location.protocol;
+            var host = window.location.hostname || 'dsaol.asia';
+            if (protocol === 'https:') {
+                return 'https://' + host + ':3000';
+            } else {
+                return 'http://' + host + ':80';
+            }
+        }
+        window.getApiBaseUrl = getApiBaseUrl;
+        
         function setTheme(theme) {
             document.documentElement.setAttribute('data-theme', theme);
             localStorage.setItem('algoviz-theme', theme);
@@ -407,11 +418,53 @@
             }
         }
         
+        // 加载用户信息
+        async function loadUserInfo() {
+            var API_BASE_URL = window.getApiBaseUrl();
+            try {
+                var res = await fetch(API_BASE_URL + '/api/login/me', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                var result = await res.json();
+                if (result.success && result.data) {
+                    var user = result.data;
+                    document.getElementById('profileUsername').textContent = user.username || '-';
+                    document.getElementById('profileEmail').textContent = user.email || '-';
+                    document.getElementById('profileNickname').textContent = user.nickname || '-';
+                    document.getElementById('profileCoins').textContent = user.coins || 0;
+                    document.getElementById('profileCreatedAt').textContent = user.createdAt || '-';
+                    document.getElementById('profileLastLoginAt').textContent = user.lastLoginAt || '-';
+                    
+                    // 更新侧边栏头像显示
+                    if (user.username) {
+                        var avatarEl = document.querySelector('.profile-avatar');
+                        if (avatarEl) {
+                            avatarEl.textContent = user.username.charAt(0).toUpperCase();
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('加载用户信息失败:', e);
+            }
+        }
+        
         // 退出登录
         function logout() {
-            localStorage.removeItem('isLoggedIn');
-            localStorage.removeItem('userAvatar');
-            window.location.href = '../index.html';
+            // 调用后端退出登录接口
+            var API_BASE_URL = window.getApiBaseUrl();
+            fetch(API_BASE_URL + '/api/login/logout', {
+                method: 'POST',
+                credentials: 'include'
+            }).then(function() {
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('userAvatar');
+                window.location.href = '../index.html';
+            }).catch(function() {
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('userAvatar');
+                window.location.href = '../index.html';
+            });
         }
         
         window.toggleTheme = toggleTheme;
@@ -432,6 +485,83 @@
         
         // 检查登录状态
         checkLoginStatus();
+        
+        // 加载用户信息
+        loadUserInfo();
+        
+        // 修改密码
+        function changePassword() {
+            var oldPassword = document.getElementById('oldPassword').value;
+            var newPassword = document.getElementById('newPassword').value;
+            var confirmPassword = document.getElementById('confirmPassword').value;
+            var errorEl = document.getElementById('passwordError');
+            var btn = document.getElementById('submitPasswordBtn');
+            
+            errorEl.style.display = 'none';
+            errorEl.textContent = '';
+            
+            // 前端校验
+            if (!oldPassword) {
+                showError('请输入旧密码');
+                return false;
+            }
+            if (!newPassword) {
+                showError('请输入新密码');
+                return false;
+            }
+            if (!confirmPassword) {
+                showError('请确认新密码');
+                return false;
+            }
+            if (newPassword !== confirmPassword) {
+                showError('两次输入的密码不一致');
+                return false;
+            }
+            if (oldPassword === newPassword) {
+                showError('新密码不能与旧密码相同');
+                return false;
+            }
+            
+            btn.disabled = true;
+            btn.textContent = '提交中...';
+            
+            var API_BASE_URL = window.getApiBaseUrl();
+            fetch(API_BASE_URL + '/api/login/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    oldPassword: oldPassword,
+                    newPassword: newPassword,
+                    confirmPassword: confirmPassword
+                })
+            }).then(function(res) {
+                return res.json();
+            }).then(function(result) {
+                if (result.success) {
+                    alert('密码修改成功，请重新登录');
+                    window.location.href = 'login.html';
+                } else {
+                    showError(result.message || '修改失败');
+                    btn.disabled = false;
+                    btn.textContent = '确认修改';
+                }
+            }).catch(function(e) {
+                showError('网络错误，请稍后重试');
+                btn.disabled = false;
+                btn.textContent = '确认修改';
+            });
+            
+            return false;
+        }
+        
+        function showError(message) {
+            var errorEl = document.getElementById('passwordError');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+        
+        window.changePassword = changePassword;
         
         // 更新访问量显示
         updateVisitCount();
@@ -529,6 +659,12 @@
                                 </a>
                             </li>
                             <li class="profile-menu-item">
+                                <a href="#change-password" class="profile-menu-link" data-section="change-password">
+                                    <span class="profile-menu-icon">🔒</span>
+                                    <span>修改密码</span>
+                                </a>
+                            </li>
+                            <li class="profile-menu-item">
                                 <a href="#settings" class="profile-menu-link" data-section="settings">
                                     <span class="profile-menu-icon">⚙️</span>
                                     <span>设置</span>
@@ -546,23 +682,72 @@
                                 <div class="profile-info">
                                     <div class="profile-info-item">
                                         <span class="profile-info-label">用户名：</span>
-                                        <span class="profile-info-value">user123</span>
+                                        <span class="profile-info-value" id="profileUsername">加载中...</span>
                                     </div>
                                     <div class="profile-info-item">
                                         <span class="profile-info-label">邮箱：</span>
-                                        <span class="profile-info-value">user@example.com</span>
+                                        <span class="profile-info-value" id="profileEmail">加载中...</span>
+                                    </div>
+                                    <div class="profile-info-item">
+                                        <span class="profile-info-label">昵称：</span>
+                                        <span class="profile-info-value" id="profileNickname">-</span>
+                                    </div>
+                                    <div class="profile-info-item">
+                                        <span class="profile-info-label">硬币余额：</span>
+                                        <span class="profile-info-value" id="profileCoins">0</span>
                                     </div>
                                     <div class="profile-info-item">
                                         <span class="profile-info-label">注册时间：</span>
-                                        <span class="profile-info-value">2024-01-01</span>
+                                        <span class="profile-info-value" id="profileCreatedAt">-</span>
                                     </div>
                                     <div class="profile-info-item">
                                         <span class="profile-info-label">最后登录：</span>
-                                        <span class="profile-info-value">2024-04-21</span>
+                                        <span class="profile-info-value" id="profileLastLoginAt">-</span>
                                     </div>
                                     <div class="profile-info-item">
                                         <button class="logout-btn" onclick="logout()">退出登录</button>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 修改密码 -->
+                        <div id="change-password-section" class="profile-section-content" style="display: none;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                <h2 style="margin: 0;">修改密码</h2>
+                                <a href="forgot-password.html" style="color: #667eea; text-decoration: none; font-size: 0.9rem;">忘记密码？</a>
+                            </div>
+                            <div class="profile-card">
+                                <form id="changePasswordForm" onsubmit="return changePassword()">
+                                    <div class="form-group" style="margin-bottom: 1rem;">
+                                        <label class="form-label">旧密码</label>
+                                        <input type="password" id="oldPassword" class="form-input" placeholder="请输入旧密码" required>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 1rem;">
+                                        <label class="form-label">新密码</label>
+                                        <input type="password" id="newPassword" class="form-input" placeholder="请输入新密码（6-32位，含大小写字母、数字、特殊字符）" required>
+                                        <div class="password-strength" id="passwordStrength"></div>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 1rem;">
+                                        <label class="form-label">确认新密码</label>
+                                        <input type="password" id="confirmPassword" class="form-input" placeholder="请再次输入新密码" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-error" id="passwordError" style="color: #e74c3c; margin-bottom: 1rem; display: none;"></div>
+                                    </div>
+                                    <button type="submit" class="save-btn" id="submitPasswordBtn" style="padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 500;">
+                                        确认修改
+                                    </button>
+                                </form>
+                                <div class="password-tips" style="margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; font-size: 0.85rem; color: #666;">
+                                    <strong>密码要求：</strong>
+                                    <ul style="margin: 0.5rem 0 0 1rem; padding-left: 1rem;">
+                                        <li>长度 6-32 位</li>
+                                        <li>包含大小写字母</li>
+                                        <li>包含至少一个数字</li>
+                                        <li>包含至少一个特殊字符（如 !@#$%）</li>
+                                        <li>不能与旧密码相同</li>
+                                    </ul>
                                 </div>
                             </div>
                         </div>

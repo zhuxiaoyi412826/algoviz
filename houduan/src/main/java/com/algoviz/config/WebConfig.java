@@ -45,6 +45,11 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/login/verification-code",
                         "/api/login/check-status",
                         "/api/login/logout",
+                        // 密码重置（忘记密码、重置密码，不需要登录）
+                        "/api/password",
+                        "/api/password/**",
+                        // 测试接口
+                        "/api/password/test-generate-token",
                         // 硬币商品浏览（公开，购买需登录）
                         "/api/coin/products",
                         "/api/coin/products/**",

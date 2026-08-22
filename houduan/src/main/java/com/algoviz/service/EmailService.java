@@ -92,4 +92,21 @@ public class EmailService {
         Long remaining = redisTemplate.getExpire(sendLimitKey, TimeUnit.SECONDS);
         return remaining != null && remaining > 0 ? remaining : 0;
     }
+
+    public boolean sendNotificationEmail(String toEmail, String subject, String content) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject("【AlgoViz】" + subject);
+            message.setText(content);
+
+            mailSender.send(message);
+            logger.info("通知邮件已发送到: {}, 主题: {}", toEmail, subject);
+            return true;
+        } catch (Exception e) {
+            logger.error("发送通知邮件失败: {}", toEmail, e);
+            return false;
+        }
+    }
 }

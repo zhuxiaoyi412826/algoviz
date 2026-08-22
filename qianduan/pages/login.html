@@ -551,7 +551,7 @@
 
         <!-- 底部链接 -->
         <div class="form-footer">
-            <button class="link-btn" onclick="switchTab('account');">忘记密码？</button>
+            <button class="link-btn" onclick="goForgotPassword()">忘记密码？</button>
             <button class="link-btn" onclick="goRegister()">立即注册 →</button>
         </div>
     </div>
@@ -886,6 +886,11 @@
             window.location.href = 'register.html';
         }
 
+        // ============ 跳转忘记密码 ============
+        function goForgotPassword() {
+            window.location.href = 'forgot-password.html';
+        }
+
         // ============ 回车登录 ============
         document.getElementById('loginPassword').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') doAccountLogin();
@@ -914,6 +919,7 @@
         window.refreshCode = refreshCode;
         window.doLogin = doLogin;
         window.goRegister = goRegister;
+        window.goForgotPassword = goForgotPassword;
 
     })();
     </script>

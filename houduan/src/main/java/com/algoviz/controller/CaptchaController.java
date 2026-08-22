@@ -60,7 +60,10 @@ public class CaptchaController {
 
             result.put("success", true);
             result.put("image", "data:image/png;base64," + base64Image);
-            logger.debug("验证码已生成: {}", code);
+            // 开发模式：返回验证码代码方便测试
+            result.put("code", code);
+            System.out.println("[验证码] 已生成: " + code);
+            logger.info("验证码已生成: {}", code);
 
         } catch (IOException e) {
             logger.error("生成验证码失败", e);

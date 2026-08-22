@@ -186,7 +186,7 @@ public class LoginController {
             user.setNickname(username);
             user.setStatus(1);
             user.setLoginStatus("offline");
-            user.setCoins(100);
+            user.setCoins(1000);
             user.setCreatedAt(LocalDateTime.now());
             user.setUpdatedAt(LocalDateTime.now());
 
@@ -381,7 +381,7 @@ public class LoginController {
             newUser.setNickname(username.trim());
             newUser.setStatus(1);
             newUser.setLoginStatus("offline");
-            newUser.setCoins(100);
+            newUser.setCoins(1000);
             newUser.setCreatedAt(LocalDateTime.now());
             newUser.setUpdatedAt(LocalDateTime.now());
 
@@ -443,11 +443,153 @@ public class LoginController {
             userInfo.put("username", user.getUsername());
             userInfo.put("email", user.getEmail());
             userInfo.put("nickname", user.getNickname());
+            userInfo.put("age", user.getAge());
+            userInfo.put("gender", user.getGender());
+            userInfo.put("avatarUrl", user.getAvatarUrl());
+            userInfo.put("coins", user.getCoins() != null ? user.getCoins() : 0);
+            userInfo.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().toString().replace("T", " ").substring(0, 19) : null);
+            userInfo.put("lastLoginAt", user.getLastLoginAt() != null ? user.getLastLoginAt().toString().replace("T", " ").substring(0, 19) : null);
             result.put("data", userInfo);
         } else {
             result.put("success", false);
             result.put("message", "未登录");
         }
+        return result;
+    }
+
+    @PostMapping("/change-password")
+    @Operation(summary = "修改密码", description = "已登录用户修改密码")
+    public Map<String, Object> changePassword(@RequestBody Map<String, String> body,
+                                              HttpServletRequest request,
+                                              HttpServletResponse response) {
+        Map<String, Object> result = new HashMap<>();
+        String oldPassword = body.get("oldPassword");
+        String newPassword = body.get("newPassword");
+        String confirmPassword = body.get("confirmPassword");
+
+        // 1. 获取当前用户
+        HttpSession session = request.getSession(false);
+        User user = null;
+        if (session != null) {
+            user = (User) session.getAttribute(AuthInterceptor.SESSION_USER);
+        }
+        if (user == null) {
+            String uid = AuthInterceptor.getCookieValue(request, AuthInterceptor.COOKIE_USER_ID);
+            if (uid != null) {
+                user = userService.findById(Integer.parseInt(uid));
+            }
+        }
+        if (user == null) {
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+
+        // 2. 参数校验
+        if (oldPassword == null || oldPassword.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "请输入旧密码");
+            return result;
+        }
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "请输入新密码");
+            return result;
+        }
+        if (confirmPassword == null || confirmPassword.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "请确认新密码");
+            return result;
+        }
+
+        // 3. 校验旧密码
+        User dbUser = userService.findById(user.getId());
+        if (dbUser == null) {
+            result.put("success", false);
+            result.put("message", "用户不存在");
+            return result;
+        }
+        // 兼容 MD5 加密密码和明文密码（与登录逻辑保持一致）
+        boolean passwordValid = PasswordEncoderUtil.md5Matches(oldPassword, dbUser.getPassword());
+        if (!passwordValid) {
+            // 兼容旧的明文密码
+            passwordValid = oldPassword.equals(dbUser.getPassword());
+        }
+        if (!passwordValid) {
+            result.put("success", false);
+            result.put("message", "旧密码错误");
+            return result;
+        }
+
+        // 4. 校验新密码复杂度
+        if (newPassword.length() < 6 || newPassword.length() > 32) {
+            result.put("success", false);
+            result.put("message", "密码长度需在6-32位之间");
+            return result;
+        }
+        if (!newPassword.matches(".*[A-Z].*") || !newPassword.matches(".*[a-z].*")) {
+            result.put("success", false);
+            result.put("message", "密码需包含大小写字母");
+            return result;
+        }
+        if (!newPassword.matches(".*\\d.*")) {
+            result.put("success", false);
+            result.put("message", "密码需包含数字");
+            return result;
+        }
+        if (newPassword.matches(".*[A-Za-z0-9].*")) {
+            // 必须包含特殊字符
+        }
+        if (!newPassword.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) {
+            result.put("success", false);
+            result.put("message", "密码需包含特殊字符");
+            return result;
+        }
+
+        // 5. 校验两次密码一致
+        if (!newPassword.equals(confirmPassword)) {
+            result.put("success", false);
+            result.put("message", "两次输入的密码不一致");
+            return result;
+        }
+
+        // 6. 新旧密码不能相同
+        if (oldPassword.equals(newPassword)) {
+            result.put("success", false);
+            result.put("message", "新密码不能与旧密码相同");
+            return result;
+        }
+
+        // 7. 更新密码
+        String encodedPassword = PasswordEncoderUtil.md5Encode(newPassword);
+        userService.updatePassword(user.getId(), encodedPassword);
+
+        // 8. 发送通知邮件
+        if (dbUser.getEmail() != null) {
+            try {
+                String emailContent = "您的账号密码已修改成功。\n" +
+                        "修改时间：" + LocalDateTime.now().toString().replace("T", " ").substring(0, 19) + "\n" +
+                        "如非本人操作，请立即联系管理员冻结账号。";
+                emailService.sendNotificationEmail(dbUser.getEmail(), "密码修改通知", emailContent);
+            } catch (Exception e) {
+                logger.warn("发送密码修改通知邮件失败: {}", e.getMessage());
+            }
+        }
+
+        // 9. 销毁 session，强制重新登录
+        if (session != null) {
+            session.invalidate();
+        }
+        // 清除 Cookie
+        if (AuthInterceptor.COOKIE_USER_ID != null) {
+            jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie(AuthInterceptor.COOKIE_USER_ID, null);
+            cookie.setMaxAge(0);
+            cookie.setPath("/");
+            response.addCookie(cookie);
+        }
+
+        result.put("success", true);
+        result.put("message", "密码修改成功，请重新登录");
         return result;
     }
 }

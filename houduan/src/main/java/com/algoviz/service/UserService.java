@@ -22,4 +22,5 @@ public interface UserService {
     List<User> getUsersByConditions(String keyword, String gender, Integer status, String loginStatus, String order, int page, int pageSize);
     int getUsersCountByConditions(String keyword, String gender, Integer status, String loginStatus);
     void updateStatus(Integer id, Integer status);
+    int updatePassword(Integer id, String password);
 }

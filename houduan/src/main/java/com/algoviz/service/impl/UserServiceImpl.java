@@ -123,4 +123,9 @@ public class UserServiceImpl implements UserService {
     public void updateStatus(Integer id, Integer status) {
         userMapper.updateStatus(id, status);
     }
+
+    @Override
+    public int updatePassword(Integer id, String password) {
+        return userMapper.updatePassword(id, password);
+    }
 }
