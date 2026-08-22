@@ -116,11 +116,12 @@ public class OJSolutionService {
 
     // ==================== 查询（屏蔽版） ====================
 
-    /** 用户侧：题解列表（屏蔽版，不含 idea/process/code 全文，只给摘要） */
+    /** 用户侧：题解列表（精简版，无需DFA屏蔽，不查询大字段） */
     public PageResult<OJSolution> listPublished(Long problemId, int page, int pageSize) {
         int total = solutionMapper.countPublished(problemId);
-        List<OJSolution> list = solutionMapper.selectPublished(problemId, (page - 1) * pageSize, pageSize);
-        list.forEach(this::applyMask);
+        // 性能优化：走 selectPublishedBrief 只查列表需要的字段（跳过 idea/process/code MEDIUMTEXT）
+        // 列表页只显示标题、格式、点赞数等元信息，不需要全文也不需要 DFA 屏蔽
+        List<OJSolution> list = solutionMapper.selectPublishedBrief(problemId, (page - 1) * pageSize, pageSize);
         return PageResult.of(list, total, page, pageSize);
     }
 

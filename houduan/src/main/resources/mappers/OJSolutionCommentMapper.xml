@@ -70,6 +70,18 @@
           AND audit_status != 'blocked'
     </select>
 
+    <!-- 一次查询多个 root_id 的回复数（解决 N+1 问题） -->
+    <select id="countRepliesByRootIds" resultType="com.algoviz.dto.interview.IdCount">
+        SELECT root_id AS id, COUNT(*) AS cnt
+        FROM oj_solution_comment
+        WHERE root_id IN
+        <foreach collection="rootIds" item="rid" open="(" separator="," close=")">#{rid}</foreach>
+          AND parent_id != 0
+          AND status = 'PUBLISHED'
+          AND audit_status != 'blocked'
+        GROUP BY root_id
+    </select>
+
     <!-- 后台分页 -->
     <select id="selectByPage" resultMap="CommentMap">
         SELECT <include refid="cols"/> FROM oj_solution_comment

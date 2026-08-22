@@ -17,6 +17,183 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
         rel="stylesheet">
+    <style>
+        /* 主题切换按钮 - 太阳月亮动画 */
+        .oj-theme-toggle {
+            position: relative;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            transition: background 0.3s ease, transform 0.3s ease;
+            padding: 0;
+        }
+        .oj-theme-toggle:hover {
+            background: rgba(102, 126, 234, 0.12);
+            transform: rotate(15deg) scale(1.05);
+        }
+        .oj-theme-toggle:active {
+            transform: rotate(30deg) scale(0.95);
+        }
+
+        /* 太阳图标 - 亮色模式下显示 */
+        .theme-icon-sun {
+            position: absolute;
+            font-size: 18px;
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55),
+                        opacity 0.3s ease,
+                        filter 0.4s ease;
+        }
+        /* 太阳光芒 - 用伪元素制造 */
+        .theme-icon-sun::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 193, 7, 0.35) 0%, transparent 70%);
+            transition: transform 0.5s ease, opacity 0.5s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        [data-theme="light"] .theme-icon-sun {
+            transform: rotate(0deg) scale(1);
+            opacity: 1;
+        }
+        [data-theme="dark"] .theme-icon-sun {
+            transform: rotate(-180deg) scale(0);
+            opacity: 0;
+        }
+        [data-theme="light"] .theme-icon-sun::after {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+            animation: sunGlow 3s ease-in-out infinite;
+        }
+        @keyframes sunGlow {
+            0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+        }
+
+        /* 月亮图标 - 暗色模式下显示 */
+        .theme-icon-moon {
+            position: absolute;
+            font-size: 18px;
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55),
+                        opacity 0.3s ease,
+                        filter 0.4s ease;
+        }
+        [data-theme="dark"] .theme-icon-moon {
+            transform: rotate(0deg) scale(1);
+            opacity: 1;
+            filter: drop-shadow(0 0 6px rgba(165, 180, 252, 0.6));
+        }
+        [data-theme="light"] .theme-icon-moon {
+            transform: rotate(180deg) scale(0);
+            opacity: 0;
+        }
+
+        /* 按钮点击时星星粒子效果 */
+        .theme-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #fbbf24;
+            pointer-events: none;
+            opacity: 0;
+            animation: particleFly 0.7s ease-out forwards;
+        }
+        [data-theme="dark"] .theme-particle {
+            background: #a5b4fc;
+        }
+        @keyframes particleFly {
+            0% { opacity: 1; transform: translate(0, 0) scale(1); }
+            100% { opacity: 0; transform: var(--particle-end) scale(0); }
+        }
+
+        /* 亮色模式 CodeMirror 主题 - 柔和浅色 */
+        [data-theme="light"] .CodeMirror {
+            background: #f8fafc !important;
+            color: #1e293b !important;
+        }
+        [data-theme="light"] .CodeMirror-gutters {
+            background: #f1f5f9 !important;
+            border-right: 1px solid #e2e8f0 !important;
+        }
+        [data-theme="light"] .CodeMirror-linenumber {
+            color: #94a3b8 !important;
+        }
+        [data-theme="light"] .CodeMirror-selected {
+            background: rgba(99, 102, 241, 0.15) !important;
+        }
+        [data-theme="light"] .CodeMirror-cursor {
+            border-left-color: #1e293b !important;
+        }
+        [data-theme="light"] .cm-keyword { color: #7c3aed !important; }
+        [data-theme="light"] .cm-string { color: #059669 !important; }
+        [data-theme="light"] .cm-number { color: #dc2626 !important; }
+        [data-theme="light"] .cm-comment { color: #94a3b8 !important; font-style: italic; }
+        [data-theme="light"] .cm-variable { color: #1e293b !important; }
+        [data-theme="light"] .cm-def { color: #2563eb !important; }
+        [data-theme="light"] .cm-operator { color: #db2777 !important; }
+        [data-theme="light"] .CodeMirror-matchingbracket {
+            outline: 2px solid rgba(99, 102, 241, 0.4) !important;
+            color: inherit !important;
+        }
+
+        /* 亮色模式下 OJ 面板整体适配 */
+        [data-theme="light"] body {
+            background: #f5f7fa !important;
+            color: #0f172a !important;
+        }
+        [data-theme="light"] .oj-top-bar,
+        [data-theme="light"] .oj-editor-header,
+        [data-theme="light"] .oj-fullscreen-header,
+        [data-theme="light"] .oj-fullscreen-footer,
+        [data-theme="light"] .oj-panel-header {
+            background: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            color: #0f172a !important;
+        }
+        [data-theme="light"] .oj-problem-desc,
+        [data-theme="light"] .oj-vertical-bottom,
+        [data-theme="light"] .oj-fullscreen-overlay,
+        [data-theme="light"] .oj-fullscreen-editor-container textarea {
+            background: #ffffff !important;
+            color: #0f172a !important;
+        }
+        [data-theme="light"] .oj-top-btn {
+            color: #0f172a !important;
+            background: #f1f5f9 !important;
+            border: 1px solid #e2e8f0 !important;
+        }
+        [data-theme="light"] .oj-top-btn:hover {
+            background: rgba(102, 126, 234, 0.12) !important;
+            border-color: #c7d2fe !important;
+        }
+        [data-theme="light"] .oj-problem-tab {
+            color: #475569 !important;
+            background: transparent !important;
+        }
+        [data-theme="light"] .oj-problem-tab.active {
+            color: #4f46e5 !important;
+            background: rgba(99, 102, 241, 0.1) !important;
+            border-bottom: 2px solid #4f46e5 !important;
+        }
+        [data-theme="light"] .oj-resize-handle,
+        [data-theme="light"] .oj-vertical-resize-handle {
+            background: #e2e8f0 !important;
+        }
+    </style>
 </head>
 
 <body onload="initTheme()">
@@ -47,6 +224,10 @@
 
         <!-- Right Section -->
         <div class="oj-top-right">
+            <button id="ojThemeToggle" class="oj-theme-toggle oj-top-btn" title="切换明暗主题">
+                <span class="theme-icon-sun">☀️</span>
+                <span class="theme-icon-moon">🌙</span>
+            </button>
             <button id="ojFormatBtn" class="oj-top-btn" title="格式化代码">
                 <span>🎨</span>
             </button>
@@ -142,20 +323,6 @@
                             <option value="go">Go</option>
                         </select>
                     </div>
-                    <div class="oj-editor-actions" style="display: flex; gap: 4px; margin-left: auto;">
-                        <button class="oj-top-btn" id="ojFormatBtn2" title="格式化">
-                            <span>🎨</span>
-                        </button>
-                        <button class="oj-top-btn" id="ojClearBtn2" title="清空">
-                            <span>🗑️</span>
-                        </button>
-                        <button class="oj-top-btn" id="ojCopyBtn2" title="复制">
-                            <span>📋</span>
-                        </button>
-                        <button class="oj-top-btn" id="ojFullscreenBtn2" title="全屏">
-                            <span>⛶</span>
-                        </button>
-                    </div>
                 </div>
 
                 <!-- Resizable Vertical Layout -->
@@ -217,6 +384,10 @@
                 </select>
             </div>
             <div class="oj-fullscreen-actions" style="display: flex; gap: 6px;">
+                <button id="ojFullscreenThemeToggle" class="oj-theme-toggle oj-top-btn" title="切换明暗主题">
+                    <span class="theme-icon-sun">☀️</span>
+                    <span class="theme-icon-moon">🌙</span>
+                </button>
                 <button class="oj-top-btn" id="ojFullscreenFormatBtn" title="格式化">
                     <span>🎨</span>
                 </button>
@@ -259,6 +430,89 @@
 
     <script src="../js/oj.js"></script>
     <script src="../js/oj-solution.js"></script>
+    <script>
+        (function () {
+            // ============== OJ 专用主题切换（含太阳/月亮动画 + 粒子效果） ==============
+            const THEME_KEY = 'algoviz-theme';
+
+            function applyOJTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                document.body.setAttribute('data-theme', theme);
+                localStorage.setItem(THEME_KEY, theme);
+                // 如果存在 CodeMirror 编辑器，刷新主题
+                if (typeof OJState !== 'undefined' && OJState.editor) {
+                    try { OJState.editor.refresh(); } catch(e){}
+                }
+                if (typeof OJState !== 'undefined' && OJState.fullscreenEditor) {
+                    try { OJState.fullscreenEditor.refresh(); } catch(e){}
+                }
+            }
+
+            // 创建星星粒子效果
+            function createParticles(btn) {
+                if (!btn) return;
+                const rect = btn.getBoundingClientRect();
+                const cx = rect.width / 2;
+                const cy = rect.height / 2;
+                const count = 8;
+                for (let i = 0; i < count; i++) {
+                    const p = document.createElement('span');
+                    p.className = 'theme-particle';
+                    const angle = (i / count) * Math.PI * 2;
+                    const dist = 20 + Math.random() * 15;
+                    const dx = Math.cos(angle) * dist;
+                    const dy = Math.sin(angle) * dist;
+                    p.style.setProperty('--particle-end', `translate(${dx}px, ${dy}px) rotate(${Math.random()*180}deg)`);
+                    p.style.left = (cx - 2) + 'px';
+                    p.style.top = (cy - 2) + 'px';
+                    btn.appendChild(p);
+                    setTimeout(() => p.remove(), 800);
+                }
+            }
+
+            function toggleOJTheme(e) {
+                const current = document.documentElement.getAttribute('data-theme') || 'dark';
+                const next = current === 'dark' ? 'light' : 'dark';
+                applyOJTheme(next);
+                const btn = e && e.currentTarget;
+                createParticles(btn);
+            }
+
+            // 绑定两个切换按钮（普通栏 & 全屏栏）
+            function bindThemeToggles() {
+                const btns = [
+                    document.getElementById('ojThemeToggle'),
+                    document.getElementById('ojFullscreenThemeToggle')
+                ];
+                btns.forEach(btn => {
+                    if (btn) {
+                        btn.addEventListener('click', toggleOJTheme);
+                    }
+                });
+            }
+
+            // 初始化主题（覆盖 main.js 行为，保证 OJ 页面立即生效）
+            (function initOJThemeNow() {
+                const saved = localStorage.getItem(THEME_KEY);
+                // OJ 默认深色主题，与代码编辑器搭配更好
+                const theme = saved || 'dark';
+                applyOJTheme(theme);
+            })();
+
+            // DOM 就绪后绑定按钮
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', bindThemeToggles);
+            } else {
+                bindThemeToggles();
+            }
+
+            // 兼容 main.js 的 initTheme
+            window.initOJTheme = function() {
+                const saved = localStorage.getItem(THEME_KEY) || 'dark';
+                applyOJTheme(saved);
+            };
+        })();
+    </script>
 </body>
 
 </html>

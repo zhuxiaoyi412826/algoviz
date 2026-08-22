@@ -38,7 +38,21 @@
         audit_status, risk_level, detect_summary, status, created_at, updated_at
     </sql>
 
-    <!-- 用户侧：已发布题解列表（排除 DELETED/HIDDEN/blocked） -->
+    <!-- 用户侧：已发布题解列表（排除 DELETED/HIDDEN/blocked）—— 只返回列表小字段，不拉取 MEDIUMTEXT 大字段 -->
+    <select id="selectPublishedBrief" resultMap="SolutionMap">
+        SELECT
+            id, problem_id, problem_title, user_id, username, avatar,
+            title, format, complexity, code_lang,
+            like_count, view_count, comment_count, is_passed, is_featured,
+            audit_status, risk_level, status, created_at, updated_at
+        FROM oj_solution
+        WHERE problem_id = #{problemId}
+          AND status = 'PUBLISHED'
+          AND audit_status != 'blocked'
+        ORDER BY is_featured DESC, like_count DESC, created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
     <select id="selectPublished" resultMap="SolutionMap">
         SELECT <include refid="cols"/> FROM oj_solution
         WHERE problem_id = #{problemId}

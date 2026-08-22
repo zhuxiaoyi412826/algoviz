@@ -6,6 +6,7 @@ import com.algoviz.audit.AuditLogService;
 import com.algoviz.audit.DfaTrie;
 import com.algoviz.audit.DetectResult;
 import com.algoviz.audit.SensitiveWordService;
+import com.algoviz.dto.interview.IdCount;
 import com.algoviz.dto.interview.PageResult;
 import com.algoviz.entity.OJSolutionComment;
 import com.algoviz.entity.OJSolutionLike;
@@ -18,7 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * OJ 题解评论服务：
@@ -37,6 +40,35 @@ public class OJSolutionCommentService {
     private final AuditDetectService auditDetectService;
     private final AuditLogService auditLogService;
     private final SensitiveWordService wordService;
+
+    // ==================== DFA 屏蔽缓存（避免对相同评论内容反复扫描） ====================
+    // LRU 风格：使用 ConcurrentHashMap，控制最多 2000 条；评论内容不会太长，几千条只占 MB 级别
+    private static final int MASK_CACHE_MAX = 2000;
+    private final Map<String, String> maskCache = new ConcurrentHashMap<>(256);
+    private final Object maskCacheLock = new Object();
+
+    private String cachedMaskContent(String text) {
+        if (text == null || text.isEmpty()) return text;
+        // 短文本直接用内容作 key；评论普遍很短，hash 无意义
+        String hit = maskCache.get(text);
+        if (hit != null) return hit;
+        String masked = doMaskContent(text);
+        // 放入缓存，超过阈值则清空一半（简单 LRU 替代方案）
+        if (maskCache.size() >= MASK_CACHE_MAX) {
+            synchronized (maskCacheLock) {
+                if (maskCache.size() >= MASK_CACHE_MAX) {
+                    Iterator<Map.Entry<String, String>> it = maskCache.entrySet().iterator();
+                    int drop = MASK_CACHE_MAX >> 1;
+                    while (it.hasNext() && drop-- > 0) {
+                        it.next();
+                        it.remove();
+                    }
+                }
+            }
+        }
+        maskCache.put(text, masked);
+        return masked;
+    }
 
     // ==================== 发布评论 ====================
 
@@ -89,15 +121,44 @@ public class OJSolutionCommentService {
 
     // ==================== 查询（屏蔽版） ====================
 
-    /** 顶层评论列表（分页） */
+    /**
+     * 顶层评论列表（分页）。
+     * 性能核心优化：
+     *  - 回复数 N+1 → 一次性批量 GROUP BY 查询（从 21 次 SQL 降到 3 次）
+     *  - DFA 屏蔽走本地缓存，相同评论内容不重复扫描 DFA Trie
+     */
     public PageResult<OJSolutionComment> listTopLevel(Long solutionId, int page, int pageSize) {
         int total = commentMapper.countTopLevel(solutionId);
         List<OJSolutionComment> list = commentMapper.selectTopLevel(solutionId,
                 (page - 1) * pageSize, pageSize);
-        list.forEach(c -> {
-            c.setMaskContent(maskContent(c.getContent()));
-            c.setReplyCount(commentMapper.countReplies(c.getId()));
-        });
+
+        // --- 批量查回复数：1 次 SQL 取代 pageSize 次 COUNT ---
+        if (!list.isEmpty()) {
+            List<Long> rootIds = list.stream()
+                    .map(OJSolutionComment::getId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            Map<Long, Integer> replyCountMap = new HashMap<>(rootIds.size());
+            try {
+                List<IdCount> idCounts = commentMapper.countRepliesByRootIds(rootIds);
+                if (idCounts != null) {
+                    for (IdCount ic : idCounts) {
+                        if (ic != null && ic.getId() != null) {
+                            replyCountMap.put(ic.getId(), ic.getCnt() == null ? 0 : ic.getCnt());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // 兜底：退化到逐行查询（避免批量方法异常时整页不可用）
+                log.warn("[oj-comment] 批量查询回复数失败，退化到 N+1: {}", e.getMessage());
+                list.forEach(c -> replyCountMap.put(c.getId(), commentMapper.countReplies(c.getId())));
+            }
+            list.forEach(c -> {
+                Integer rc = replyCountMap.get(c.getId());
+                c.setReplyCount(rc == null ? 0 : rc);
+                c.setMaskContent(cachedMaskContent(c.getContent())); // 缓存 DFA 扫描
+            });
+        }
         return PageResult.of(list, total, page, pageSize);
     }
 
@@ -106,7 +167,7 @@ public class OJSolutionCommentService {
         int total = commentMapper.countReplies(rootId);
         List<OJSolutionComment> list = commentMapper.selectReplies(rootId,
                 (page - 1) * pageSize, pageSize);
-        list.forEach(c -> c.setMaskContent(maskContent(c.getContent())));
+        list.forEach(c -> c.setMaskContent(cachedMaskContent(c.getContent())));
         return PageResult.of(list, total, page, pageSize);
     }
 
@@ -159,7 +220,8 @@ public class OJSolutionCommentService {
 
     // ==================== 屏蔽工具 ====================
 
-    private String maskContent(String text) {
+    /** 真正执行 DFA 扫描并做 *** 屏蔽（外层通过 cachedMaskContent + 内存缓存调用） */
+    private String doMaskContent(String text) {
         if (text == null || text.isEmpty()) return text;
         List<DfaTrie.Hit> hits = wordService.getTrie().matchAll(text);
         if (hits.isEmpty()) return text;

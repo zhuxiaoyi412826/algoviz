@@ -350,7 +350,7 @@ function initTabs() {
 // 初始化语言切换器
 function initLanguageSwitchers() {
     // 编辑器语言切换
-    document.getElementById('ojLangSelect').addEventListener('change', (e) => {
+    document.getElementById('ojLangSelect')?.addEventListener('change', (e) => {
         const lang = e.target.value;
         OJState.currentLanguage = lang;
 
@@ -359,27 +359,27 @@ function initLanguageSwitchers() {
 
         // 更新全屏语言选择
         const fsSelect = document.getElementById('ojFullscreenLangSelect');
-        if (fsSelect.value !== lang) fsSelect.value = lang;
+        if (fsSelect && fsSelect.value !== lang) fsSelect.value = lang;
 
         // 加载空模板
         OJState.editor.setValue(EMPTY_TEMPLATES[lang] || '');
     });
 
     // 解法标签页语言切换
-    document.getElementById('ojSolutionLangSelect').addEventListener('change', (e) => {
+    document.getElementById('ojSolutionLangSelect')?.addEventListener('change', (e) => {
         OJState.currentSolutionLang = e.target.value;
         renderSolutionContent();
     });
 
     // 全屏语言切换
-    document.getElementById('ojFullscreenLangSelect').addEventListener('change', (e) => {
+    document.getElementById('ojFullscreenLangSelect')?.addEventListener('change', (e) => {
         const lang = e.target.value;
         OJState.currentLanguage = lang;
         OJState.editor.setOption('mode', LANGUAGE_CONFIG[lang].mode);
         OJState.fullscreenEditor.setOption('mode', LANGUAGE_CONFIG[lang].mode);
         // 更新编辑器语言选择
         const mainSelect = document.getElementById('ojLangSelect');
-        if (mainSelect.value !== lang) mainSelect.value = lang;
+        if (mainSelect && mainSelect.value !== lang) mainSelect.value = lang;
 
         // 加载空模板
         OJState.editor.setValue(EMPTY_TEMPLATES[lang] || '');
@@ -553,55 +553,55 @@ function updateNavButtons() {
 // 初始化OJ控件
 function initOJControls() {
     // 返回题目列表
-    document.getElementById('ojBackToListBtn').addEventListener('click', () => {
+    document.getElementById('ojBackToListBtn')?.addEventListener('click', () => {
         window.location.href = 'oj-list.html';
     });
 
     // 上一题
-    document.getElementById('ojPrevBtn').addEventListener('click', () => {
+    document.getElementById('ojPrevBtn')?.addEventListener('click', () => {
         switchToProblem(-1);
     });
 
     // 下一题
-    document.getElementById('ojNextBtn').addEventListener('click', () => {
+    document.getElementById('ojNextBtn')?.addEventListener('click', () => {
         switchToProblem(1);
     });
 
     // 运行代码
-    document.getElementById('ojRunBtn').addEventListener('click', runCode);
-    document.getElementById('ojFullscreenRunBtn').addEventListener('click', () => {
+    document.getElementById('ojRunBtn')?.addEventListener('click', runCode);
+    document.getElementById('ojFullscreenRunBtn')?.addEventListener('click', () => {
         OJState.editor.setValue(OJState.fullscreenEditor.getValue());
         exitFullscreen();
         runCode();
     });
 
     // 提交代码
-    document.getElementById('ojSubmitBtn').addEventListener('click', submitCode);
-    document.getElementById('ojFullscreenSubmitBtn').addEventListener('click', () => {
+    document.getElementById('ojSubmitBtn')?.addEventListener('click', submitCode);
+    document.getElementById('ojFullscreenSubmitBtn')?.addEventListener('click', () => {
         OJState.editor.setValue(OJState.fullscreenEditor.getValue());
         exitFullscreen();
         submitCode();
     });
 
     // 格式化代码
-    document.getElementById('ojFormatBtn').addEventListener('click', formatCode);
-    document.getElementById('ojFormatBtn2').addEventListener('click', formatCode);
-    document.getElementById('ojFullscreenFormatBtn').addEventListener('click', () => formatCode(true));
+    document.getElementById('ojFormatBtn')?.addEventListener('click', formatCode);
+    document.getElementById('ojFormatBtn2')?.addEventListener('click', formatCode);
+    document.getElementById('ojFullscreenFormatBtn')?.addEventListener('click', () => formatCode(true));
 
     // 清空代码
-    document.getElementById('ojClearBtn').addEventListener('click', () => OJState.editor.setValue(''));
-    document.getElementById('ojClearBtn2').addEventListener('click', () => OJState.editor.setValue(''));
-    document.getElementById('ojFullscreenClearBtn').addEventListener('click', () => OJState.fullscreenEditor.setValue(''));
+    document.getElementById('ojClearBtn')?.addEventListener('click', () => OJState.editor.setValue(''));
+    document.getElementById('ojClearBtn2')?.addEventListener('click', () => OJState.editor.setValue(''));
+    document.getElementById('ojFullscreenClearBtn')?.addEventListener('click', () => OJState.fullscreenEditor.setValue(''));
 
     // 复制代码
-    document.getElementById('ojCopyBtn').addEventListener('click', copyCode);
-    document.getElementById('ojCopyBtn2').addEventListener('click', copyCode);
-    document.getElementById('ojFullscreenCopyBtn').addEventListener('click', copyFullscreenCode);
+    document.getElementById('ojCopyBtn')?.addEventListener('click', copyCode);
+    document.getElementById('ojCopyBtn2')?.addEventListener('click', copyCode);
+    document.getElementById('ojFullscreenCopyBtn')?.addEventListener('click', copyFullscreenCode);
 
     // 全屏
-    document.getElementById('ojFullscreenBtn').addEventListener('click', enterFullscreen);
-    document.getElementById('ojFullscreenBtn2').addEventListener('click', enterFullscreen);
-    document.getElementById('ojExitFullscreenBtn').addEventListener('click', exitFullscreen);
+    document.getElementById('ojFullscreenBtn')?.addEventListener('click', enterFullscreen);
+    document.getElementById('ojFullscreenBtn2')?.addEventListener('click', enterFullscreen);
+    document.getElementById('ojExitFullscreenBtn')?.addEventListener('click', exitFullscreen);
 }
 
 // 切换题目

@@ -9,10 +9,15 @@ import java.util.List;
 @Mapper
 public interface OJSolutionMapper {
 
-    /** 用户侧：分页查询已发布题解（排除审核驳回/已删除） */
+    /** 用户侧：分页查询已发布题解（排除审核驳回/已删除）—— 完整字段 */
     List<OJSolution> selectPublished(@Param("problemId") Long problemId,
                                      @Param("offset") int offset,
                                      @Param("limit") int limit);
+
+    /** 用户侧：分页查询已发布题解 —— 仅列表页需要的精简字段（排除 idea/process/code 大字段，大幅减少数据传输） */
+    List<OJSolution> selectPublishedBrief(@Param("problemId") Long problemId,
+                                          @Param("offset") int offset,
+                                          @Param("limit") int limit);
 
     int countPublished(@Param("problemId") Long problemId);
 

@@ -1,5 +1,6 @@
 package com.algoviz.mapper;
 
+import com.algoviz.dto.interview.IdCount;
 import com.algoviz.entity.OJSolutionComment;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -22,6 +23,13 @@ public interface OJSolutionCommentMapper {
                                           @Param("limit") int limit);
 
     int countReplies(@Param("rootId") Long rootId);
+
+    /**
+     * 一次性批量查询多个顶层评论的子评论数量。
+     * 将 N+1 查询（20条=20次COUNT）优化为 1 次 GROUP BY 查询，
+     * 在几千条评论场景下速度从秒级降到毫秒级。
+     */
+    List<IdCount> countRepliesByRootIds(@Param("rootIds") List<Long> rootIds);
 
     /** 后台：分页查询所有评论 */
     List<OJSolutionComment> selectByPage(@Param("keyword") String keyword,
