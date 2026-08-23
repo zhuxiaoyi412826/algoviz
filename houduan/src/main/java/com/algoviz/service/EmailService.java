@@ -1,5 +1,6 @@
 package com.algoviz.service;
 
+import com.algoviz.common.constant.SecurityConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,8 +18,9 @@ public class EmailService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
     private static final long CODE_EXPIRY_MINUTES = 5;
-    private static final String CODE_KEY_PREFIX = "algoviz:email:code:";
-    private static final String SEND_LIMIT_KEY_PREFIX = "algoviz:email:send:limit:";
+    // Redis key 前缀集中到 SecurityConstants 常量，避免散落
+    private static final String CODE_KEY_PREFIX = SecurityConstants.EMAIL_CODE_KEY;
+    private static final String SEND_LIMIT_KEY_PREFIX = SecurityConstants.EMAIL_SEND_LIMIT_KEY;
     private static final long SEND_LIMIT_SECONDS = 60;
 
     @Autowired

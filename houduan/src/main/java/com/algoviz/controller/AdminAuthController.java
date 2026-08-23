@@ -10,6 +10,7 @@ import com.algoviz.mapper.LoginLogMapper;
 import com.algoviz.mapper.rbac.SysRoleMapper;
 import com.algoviz.mapper.rbac.SysUserMapper;
 import com.algoviz.common.util.PasswordEncoderUtil;
+import com.algoviz.service.LoginLockService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,9 @@ public class AdminAuthController {
     @Autowired
     private LoginLogMapper loginLogMapper;
 
+    @Autowired
+    private LoginLockService loginLockService;
+
     /**
      * 后台管理员登录（Sa-Token）
      *  密码校验：
@@ -48,19 +52,53 @@ public class AdminAuthController {
                                                         HttpServletRequest httpRequest) {
         String ip = httpRequest.getRemoteAddr();
         String device = httpRequest.getHeader("User-Agent");
+        final String identifier = request.getUsername() == null ? "" : request.getUsername().trim();
 
-        SysUser user = sysUserMapper.findByUsername(request.getUsername());
+        // 1) 前置锁定检查（ADMIN scope）
+        LoginLockService.LockStatus ls = loginLockService.checkLock(LoginLockService.LoginLockType.ADMIN, identifier);
+        if (ls.locked) {
+            LoginLog failLog = new LoginLog();
+            failLog.setId(UUID.randomUUID().toString());
+            failLog.setUserId("locked");
+            failLog.setUsername(identifier);
+            failLog.setIp(ip);
+            failLog.setDevice(device);
+            failLog.setStatus("failed");
+            failLog.setFailReason("账号已锁定");
+            loginLogMapper.insert(failLog);
+            String msg = "登录失败次数过多，账号已锁定，剩余 " + loginLockService.formatRemaining(ls.expireAtMs);
+            return ApiResponse.error(msg);
+        }
+
+        SysUser user = sysUserMapper.findByUsername(identifier);
         if (user == null) {
+            loginLockService.recordFailure(LoginLockService.LoginLockType.ADMIN, identifier);
             LoginLog failLog = new LoginLog();
             failLog.setId(UUID.randomUUID().toString());
             failLog.setUserId("unknown");
-            failLog.setUsername(request.getUsername());
+            failLog.setUsername(identifier);
             failLog.setIp(ip);
             failLog.setDevice(device);
             failLog.setStatus("failed");
             failLog.setFailReason("用户名不存在");
             loginLogMapper.insert(failLog);
             return ApiResponse.error("用户名或密码错误");
+        }
+        final String lockId = user.getUsername();
+        // 二次检查（按真实 username 键）
+        LoginLockService.LockStatus ls2 = loginLockService.checkLock(LoginLockService.LoginLockType.ADMIN, lockId);
+        if (ls2.locked) {
+            LoginLog failLog = new LoginLog();
+            failLog.setId(UUID.randomUUID().toString());
+            failLog.setUserId(String.valueOf(user.getId()));
+            failLog.setUsername(lockId);
+            failLog.setIp(ip);
+            failLog.setDevice(device);
+            failLog.setStatus("failed");
+            failLog.setFailReason("账号已锁定");
+            loginLogMapper.insert(failLog);
+            String msg = "登录失败次数过多，账号已锁定，剩余 " + loginLockService.formatRemaining(ls2.expireAtMs);
+            return ApiResponse.error(msg);
         }
 
         // 三层密码校验：超级管理员(id=1 / algovize) Argon2id；其他管理员 BCrypt
@@ -71,6 +109,7 @@ public class AdminAuthController {
             pwOk = PasswordEncoderUtil.bcryptMatches(request.getPassword(), user.getPassword());
         }
         if (!pwOk) {
+            loginLockService.recordFailure(LoginLockService.LoginLockType.ADMIN, lockId);
             LoginLog failLog = new LoginLog();
             failLog.setId(UUID.randomUUID().toString());
             failLog.setUserId(String.valueOf(user.getId()));
@@ -95,6 +134,9 @@ public class AdminAuthController {
             loginLogMapper.insert(failLog);
             return ApiResponse.error("账号已被禁用");
         }
+
+        // 登录成功：清零失败计数
+        loginLockService.reset(LoginLockService.LoginLockType.ADMIN, lockId);
 
         // 更新登录时间
         sysUserMapper.updateLastLogin(user.getId(), LocalDateTime.now(), ip);

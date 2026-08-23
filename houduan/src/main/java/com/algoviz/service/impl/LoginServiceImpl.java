@@ -3,6 +3,7 @@ package com.algoviz.service.impl;
 import com.algoviz.dto.LoginRequest;
 import com.algoviz.dto.LoginResponse;
 import com.algoviz.entity.User;
+import com.algoviz.service.LoginLockService;
 import com.algoviz.service.LoginService;
 import com.algoviz.service.UserService;
 import com.algoviz.common.util.PasswordEncoderUtil;
@@ -18,6 +19,9 @@ public class LoginServiceImpl implements LoginService {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private LoginLockService loginLockService;
 
     // 存储验证码，Key: 验证码, Value: openId（为空说明还未扫码）
     private Map<String, String> verificationCodes = new ConcurrentHashMap<>();
@@ -124,37 +128,53 @@ public class LoginServiceImpl implements LoginService {
             response.setMessage("密码不能为空");
             return response;
         }
+        final String identifier = username.trim();
 
-        // 根据用户名查询用户
-        User user = userService.findByUsername(username.trim());
-        if (user == null) {
+        // 1) 前置检查：账号是否已被锁定（对不存在的用户也按 username 做同样的键，防止枚举）
+        LoginLockService.LockStatus ls = loginLockService.checkLock(LoginLockService.LoginLockType.USER, identifier);
+        if (ls.locked) {
             response.setSuccess(false);
-            response.setMessage("用户不存在");
+            String msg = "登录失败次数过多，账号已锁定，剩余 " + loginLockService.formatRemaining(ls.expireAtMs);
+            response.setMessage(msg);
             return response;
         }
 
-        // 校验密码（MD5加密比对）
+        // 2) 根据用户名查询用户
+        User user = userService.findByUsername(identifier);
+        if (user == null) {
+            // 用户不存在也计入失败，防止暴力枚举用户名（对 username 作为锁定key）
+            loginLockService.recordFailure(LoginLockService.LoginLockType.USER, identifier);
+            response.setSuccess(false);
+            response.setMessage("用户不存在或密码错误");
+            return response;
+        }
+        // 以用户实体 username（规范化值）作为真实锁标识
+        final String lockId = user.getUsername();
+
+        // 3) 校验密码（MD5加密比对）
         String inputMd5 = PasswordEncoderUtil.md5Encode(password);
-        if (!inputMd5.equals(user.getPassword())) {
-            // 兼容旧的明文密码
-            if (!password.equals(user.getPassword())) {
-                response.setSuccess(false);
-                response.setMessage("密码错误");
-                return response;
-            }
+        boolean pwOk = inputMd5.equals(user.getPassword()) || password.equals(user.getPassword());
+        if (!pwOk) {
+            loginLockService.recordFailure(LoginLockService.LoginLockType.USER, lockId);
+            response.setSuccess(false);
+            response.setMessage("用户不存在或密码错误");
+            return response;
         }
 
-        // 检查用户状态
+        // 4) 检查用户状态
         if (user.getStatus() != null && user.getStatus() == 0) {
             response.setSuccess(false);
             response.setMessage("账号已被禁用，请联系管理员");
             return response;
         }
 
-        // 更新最后登录时间
+        // 5) 密码正确：清空失败计数和锁定键
+        loginLockService.reset(LoginLockService.LoginLockType.USER, lockId);
+
+        // 6) 更新最后登录时间
         userService.updateLastLogin(user.getId());
 
-        // 生成token
+        // 7) 生成token
         String token = "account_token_" + System.currentTimeMillis();
 
         response.setSuccess(true);
@@ -186,28 +206,52 @@ public class LoginServiceImpl implements LoginService {
             response.setMessage("密码不能为空");
             return response;
         }
+        final String emailTrimmed = email.trim();
 
-        User user = userService.findByEmail(email.trim());
-        if (user == null) {
+        // 1) 前置锁定检查
+        LoginLockService.LockStatus ls = loginLockService.checkLock(LoginLockService.LoginLockType.USER, emailTrimmed);
+        if (ls.locked) {
             response.setSuccess(false);
-            response.setMessage("邮箱未注册");
+            response.setMessage("登录失败次数过多，账号已锁定，剩余 " + loginLockService.formatRemaining(ls.expireAtMs));
             return response;
         }
 
-        String inputMd5 = PasswordEncoderUtil.md5Encode(password);
-        if (!inputMd5.equals(user.getPassword())) {
-            if (!password.equals(user.getPassword())) {
-                response.setSuccess(false);
-                response.setMessage("密码错误");
-                return response;
-            }
+        // 2) 查询用户
+        User user = userService.findByEmail(emailTrimmed);
+        if (user == null) {
+            loginLockService.recordFailure(LoginLockService.LoginLockType.USER, emailTrimmed);
+            response.setSuccess(false);
+            response.setMessage("邮箱未注册或密码错误");
+            return response;
+        }
+        final String lockId = user.getUsername();
+        // 对锁定态做二次检查（按真实 username 键）
+        LoginLockService.LockStatus ls2 = loginLockService.checkLock(LoginLockService.LoginLockType.USER, lockId);
+        if (ls2.locked) {
+            response.setSuccess(false);
+            response.setMessage("登录失败次数过多，账号已锁定，剩余 " + loginLockService.formatRemaining(ls2.expireAtMs));
+            return response;
         }
 
+        // 3) 校验密码
+        String inputMd5 = PasswordEncoderUtil.md5Encode(password);
+        boolean pwOk = inputMd5.equals(user.getPassword()) || password.equals(user.getPassword());
+        if (!pwOk) {
+            loginLockService.recordFailure(LoginLockService.LoginLockType.USER, lockId);
+            response.setSuccess(false);
+            response.setMessage("邮箱未注册或密码错误");
+            return response;
+        }
+
+        // 4) 账号禁用
         if (user.getStatus() != null && user.getStatus() == 0) {
             response.setSuccess(false);
             response.setMessage("账号已被禁用，请联系管理员");
             return response;
         }
+
+        // 5) 密码正确：清零
+        loginLockService.reset(LoginLockService.LoginLockType.USER, lockId);
 
         userService.updateLastLogin(user.getId());
 
