@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>批量姓名生成器</title>
+<style>
+    :root {
+        --bg-primary: #f5f7fa;
+        --bg-card: #ffffff;
+        --bg-soft: #eef2f7;
+        --text-primary: #1f2937;
+        --text-secondary: #6b7280;
+        --accent: #4f7cff;
+        --accent-hover: #3a63d8;
+        --border: #e5e7eb;
+        --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        min-height: 100vh;
+        padding: 24px;
+        line-height: 1.6;
+    }
+    .app { max-width: 1200px; margin: 0 auto; }
+    .app-header { text-align: center; margin-bottom: 24px; }
+    .app-header h1 { font-size: 26px; color: var(--text-primary); font-weight: 600; }
+    .app-header p { color: var(--text-secondary); font-size: 14px; margin-top: 6px; }
+    .main { display: grid; grid-template-columns: 400px 1fr; gap: 20px; }
+    .card {
+        background: var(--bg-card);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 20px;
+    }
+    .card-title {
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-primary);
+    }
+    .form-group { margin-bottom: 16px; }
+    .form-group:last-child { margin-bottom: 0; }
+    .form-label {
+        display: block;
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+        font-weight: 500;
+    }
+    .form-label .hint { font-size: 12px; color: #9aa3af; font-weight: normal; }
+    .form-input, .form-select, .form-textarea {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 14px;
+        background: #fff;
+        color: var(--text-primary);
+        transition: border-color 0.15s, box-shadow 0.15s;
+        font-family: inherit;
+    }
+    .form-textarea {
+        min-height: 70px;
+        resize: vertical;
+        line-height: 1.7;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.12);
+    }
+    .radio-row, .check-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .radio-item, .check-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        padding: 6px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: #fff;
+        transition: all 0.15s;
+        user-select: none;
+    }
+    .radio-item:hover, .check-item:hover { border-color: var(--accent); background: var(--bg-soft); }
+    .radio-item input, .check-item input { cursor: pointer; accent-color: var(--accent); margin: 0; }
+    .radio-item.active, .check-item.active {
+        border-color: var(--accent);
+        background: rgba(79, 124, 255, 0.08);
+        color: var(--accent);
+    }
+    /* 可折叠区域 */
+    .collapsible {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fafbfc;
+    }
+    .collapsible-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        cursor: pointer;
+        background: #fff;
+        font-size: 14px;
+        font-weight: 500;
+        user-select: none;
+    }
+    .collapsible-header:hover { background: var(--bg-soft); }
+    .collapsible-header .arrow {
+        transition: transform 0.2s;
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+    .collapsible.open .collapsible-header .arrow { transform: rotate(90deg); }
+    .collapsible-body {
+        padding: 14px;
+        display: none;
+    }
+    .collapsible.open .collapsible-body { display: block; }
+    .btn-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+    }
+    .btn {
+        flex: 1;
+        padding: 9px 14px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-weight: 500;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--bg-soft); color: var(--text-primary); }
+    .btn-secondary:hover { background: #dde3ec; }
+    .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    .result-stat { font-size: 13px; color: var(--text-secondary); }
+    .result-stat strong { color: var(--accent); font-weight: 600; }
+    .result-box {
+        width: 100%;
+        height: 540px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fafbfc;
+        font-family: "Consolas", "Microsoft YaHei", monospace;
+        font-size: 14px;
+        line-height: 1.9;
+        resize: vertical;
+        color: var(--text-primary);
+        white-space: pre;
+        overflow: auto;
+    }
+    .result-box:focus { outline: none; border-color: var(--accent); }
+    .toast {
+        position: fixed;
+        top: 30px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-100px);
+        background: rgba(33, 33, 33, 0.92);
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+        z-index: 1000;
+        transition: transform 0.3s ease;
+        pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    @media (max-width: 860px) {
+        .main { grid-template-columns: 1fr; }
+        .result-box { height: 360px; }
+    }
+</style>
+</head>
+<body>
+<div class="app">
+    <header class="app-header">
+        <h1>批量姓名生成器</h1>
+        <p>自定义姓氏 · 名字长度 · 性别风格 · 年代风格 · 自定义字库</p>
+    </header>
+    <div class="main">
+        <!-- 左侧:控制面板 -->
+        <section class="card">
+            <div class="card-title">生成参数</div>
+
+            <!-- 姓氏来源 -->
+            <div class="form-group">
+                <label class="form-label">姓氏来源</label>
+                <div class="radio-row" id="surnameSource">
+                    <label class="radio-item active">
+                        <input type="radio" name="surnameSource" value="fixed" checked>
+                        <span>指定姓氏</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="surnameSource" value="random">
+                        <span>随机单姓</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="surnameSource" value="compound">
+                        <span>随机复姓</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="surnameSource" value="list">
+                        <span>列表随机</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 姓氏输入 -->
+            <div class="form-group">
+                <label class="form-label">
+                    姓氏输入 <span class="hint">(多个用逗号 / 空格分隔,如:张 王,欧阳)</span>
+                </label>
+                <input type="text" class="form-input" id="surnameInput" placeholder="如:张" value="张">
+            </div>
+
+            <!-- 名字长度 -->
+            <div class="form-group">
+                <label class="form-label">名字长度</label>
+                <div class="check-row" id="nameLength">
+                    <label class="check-item active">
+                        <input type="checkbox" value="1" checked>
+                        <span>单字名</span>
+                    </label>
+                    <label class="check-item active">
+                        <input type="checkbox" value="2" checked>
+                        <span>双字名</span>
+                    </label>
+                    <label class="check-item">
+                        <input type="checkbox" value="3">
+                        <span>三字名</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 性别风格 -->
+            <div class="form-group">
+                <label class="form-label">性别风格</label>
+                <div class="radio-row" id="genderStyle">
+                    <label class="radio-item active">
+                        <input type="radio" name="genderStyle" value="mixed" checked>
+                        <span>混合</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="genderStyle" value="male">
+                        <span>偏男</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="genderStyle" value="female">
+                        <span>偏女</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 年代风格 -->
+            <div class="form-group">
+                <label class="form-label">
+                    年代风格 <span class="hint">(影响用字风格)</span>
+                </label>
+                <div class="radio-row" id="eraStyle">
+                    <label class="radio-item active">
+                        <input type="radio" name="eraStyle" value="none" checked>
+                        <span>不限</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="eraStyle" value="era50">
+                        <span>50后</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="eraStyle" value="era70">
+                        <span>70后</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="eraStyle" value="era90">
+                        <span>90后</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="eraStyle" value="era00">
+                        <span>00后</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="eraStyle" value="era10">
+                        <span>10后</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="eraStyle" value="era20">
+                        <span>20后</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 自定义字库(可折叠) -->
+            <div class="form-group">
+                <div class="collapsible" id="customCharBox">
+                    <div class="collapsible-header">
+                        <span>自定义用字库(高级)</span>
+                        <span class="arrow">▶</span>
+                    </div>
+                    <div class="collapsible-body">
+                        <div class="form-group">
+                            <label class="form-label">使用方式</label>
+                            <div class="radio-row" id="customMode">
+                                <label class="radio-item active">
+                                    <input type="radio" name="customMode" value="none" checked>
+                                    <span>不使用</span>
+                                </label>
+                                <label class="radio-item">
+                                    <input type="radio" name="customMode" value="merge">
+                                    <span>扩充</span>
+                                </label>
+                                <label class="radio-item">
+                                    <input type="radio" name="customMode" value="replace">
+                                    <span>替换</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">
+                                自定义用字 <span class="hint">(直接输入汉字,无需分隔符)</span>
+                            </label>
+                            <textarea class="form-textarea" id="customChars" placeholder="如:岚璇玹珩瑾瑜沐辰烁屿"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">字库属性</label>
+                            <div class="radio-row" id="customGender">
+                                <label class="radio-item active">
+                                    <input type="radio" name="customGender" value="neutral" checked>
+                                    <span>中性</span>
+                                </label>
+                                <label class="radio-item">
+                                    <input type="radio" name="customGender" value="male">
+                                    <span>偏男</span>
+                                </label>
+                                <label class="radio-item">
+                                    <input type="radio" name="customGender" value="female">
+                                    <span>偏女</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 生成数量 -->
+            <div class="form-group">
+                <label class="form-label">生成数量</label>
+                <input type="number" class="form-input" id="count" value="50" min="1" max="10000000">
+            </div>
+
+            <!-- 其他选项 -->
+            <div class="form-group">
+                <label class="form-label">其他选项</label>
+                <div class="check-row">
+                    <label class="check-item">
+                        <input type="checkbox" id="allowDup">
+                        <span>允许重复</span>
+                    </label>
+                    <label class="check-item">
+                        <input type="checkbox" id="addNumber" checked>
+                        <span>带序号</span>
+                    </label>
+                    <label class="check-item">
+                        <input type="checkbox" id="showPinyin">
+                        <span>附拼音</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="btn-group">
+                <button class="btn btn-primary" id="btnGenerate">生 成</button>
+                <button class="btn btn-secondary" id="btnCopy">复 制</button>
+                <button class="btn btn-secondary" id="btnExport">导 出</button>
+                <button class="btn btn-secondary" id="btnClear">清 空</button>
+            </div>
+        </section>
+
+        <!-- 右侧:结果区 -->
+        <section class="card">
+            <div class="result-header">
+                <div class="card-title" style="margin:0; padding:0; border:none;">生成结果</div>
+                <div class="result-stat">共 <strong id="statCount">0</strong> 个</div>
+            </div>
+            <textarea class="result-box" id="resultBox" readonly placeholder="点击「生成」按钮,结果将显示在此处..."></textarea>
+        </section>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+ * 模块 1:数据字典 / Data Dictionary
+ * ============================================================ */
+const NameData = {
+    // 单姓(百家姓前 100)
+    surnames: [
+        "赵","钱","孙","李","周","吴","郑","王","冯","陈",
+        "褚","卫","蒋","沈","韩","杨","朱","秦","尤","许",
+        "何","吕","施","张","孔","曹","严","华","金","魏",
+        "陶","姜","戚","谢","邹","喻","柏","水","窦","章",
+        "云","苏","潘","葛","奚","范","彭","郎","鲁","韦",
+        "昌","马","苗","凤","花","方","俞","任","袁","柳",
+        "酆","鲍","史","唐","费","廉","岑","薛","雷","贺",
+        "倪","汤","滕","殷","罗","毕","郝","邬","安","常",
+        "乐","于","时","傅","皮","卞","齐","康","伍","余",
+        "元","卜","顾","孟","平","黄","和","穆","萧","尹"
+    ],
+
+    // 复姓(常用 30 个)
+    compoundSurnames: [
+        "欧阳","司马","上官","诸葛","东方","独孤","南宫","慕容",
+        "公孙","皇甫","夏侯","尉迟","长孙","宇文","司徒","司空",
+        "令狐","钟离","赫连","澹台","端木","万俟","闻人","拓跋",
+        "呼延","太叔","申屠","公羊","公冶","漆雕"
+    ],
+
+    // 默认男性用字
+    maleChars: [
+        "伟","强","军","勇","杰","涛","明","超","刚","华",
+        "飞","宇","鹏","辉","斌","博","健","亮","凯","龙",
+        "磊","鑫","震","海","山","峰","波","宁","贵","福",
+        "生","阳","光","志","德","文","武","宏","国","建",
+        "永","立","成","康","林","彬","源","豪","睿","轩",
+        "晨","浩","天","泽","润","翔","鸿","翰","鼎","瑞",
+        "皓","琛","钧","锐","彦","霆","霖","骐","越","珩"
+    ],
+
+    // 默认女性用字
+    femaleChars: [
+        "芳","娜","敏","静","丽","艳","娟","霞","燕","雪",
+        "莹","婷","洁","慧","欣","悦","瑶","梦","玲","倩",
+        "玉","英","兰","丹","萍","蓉","薇","佳","怡","颖",
+        "妍","露","璐","雯","霏","晶","蕊","蕾","诗","雨",
+        "梓","萱","珂","婉","妙","彤","岚","菱","曼","珊",
+        "晴","若","月","芸","菲","绮","玥","桐","瑾","璇"
+    ],
+
+    // 默认中性用字
+    neutralChars: [
+        "子","雨","晨","宇","思","文","嘉","安","和","晓",
+        "瑞","天","乐","一","亦","可","如","若","之","以",
+        "然","知","言","书","白","青","玄","墨","秋","冬",
+        "春","夏","沐","辰","诺","尧","舜","禹","衡","远"
+    ],
+
+    // 按年代分组的用字(每代分男女)
+    eraChars: {
+        era50: {
+            // 50后:建国初期,政治色彩浓
+            male: ["建","国","援","朝","跃","进","卫","庆","军","华","强","勇","志","远","立"],
+            female: ["红","英","秀","兰","桂","玉","芳","珍","梅","凤","琴","芬","霞","荣","华"]
+        },
+        era70: {
+            // 70后:传统质朴
+            male: ["伟","强","军","勇","杰","涛","明","超","刚","华","飞","鹏","辉","斌","健","亮","凯","龙","海","山"],
+            female: ["芳","娜","敏","静","丽","艳","娟","霞","燕","雪","梅","兰","萍","蓉","薇","红","桂","玉","珍","芬"]
+        },
+        era90: {
+            // 90后:单字为主,开始文雅
+            male: ["磊","鑫","宇","鹏","辉","斌","博","健","亮","凯","龙","震","峰","波","宁","浩","天","泽","翔","鸿"],
+            female: ["莹","婷","洁","慧","欣","悦","瑶","梦","玲","倩","颖","妍","露","璐","雯","霏","晶","蕊","蕾","诗"]
+        },
+        era00: {
+            // 00后:子涵浩然时代
+            male: ["浩","然","子","轩","宇","航","思","远","梓","豪","睿","晨","天","泽","嘉","懿","一","鸣","俊","熙"],
+            female: ["梓","涵","诗","涵","嘉","懿","子","涵","怡","馨","雅","琪","妍","婷","雯","思","涵","雨","桐","萱"]
+        },
+        era10: {
+            // 10后:精致唯美
+            male: ["一","诺","沐","辰","煜","祺","瑾","轩","子","瑜","翊","珩","宥","屿","烁","玹","衍","灿","辰","沐"],
+            female: ["梓","萱","若","汐","瑾","瑶","玥","桐","萌","妍","熙","婉","宁","苡","桐","沐","辰","璇","玹","珩"]
+        },
+        era20: {
+            // 20后:简约古风
+            male: ["沐","辰","诺","尧","玹","珩","宥","屿","烁","翊","瑾","瑜","衍","灿","珩","玹","辰","沐","诺","尧"],
+            female: ["玥","桐","瑾","玹","珩","婉","柚","沅","沁","汐","栩","桐","苒","瑾","璇","玹","珩","沐","辰","玥"]
+        }
+    },
+
+    // 拼音字典(常用字,用于附拼音功能)
+    pinyinMap: {
+        // 单姓
+        "赵":"zhào","钱":"qián","孙":"sūn","李":"lǐ","周":"zhōu","吴":"wú","郑":"zhèng","王":"wáng","冯":"féng","陈":"chén",
+        "褚":"chǔ","卫":"wèi","蒋":"jiǎng","沈":"shěn","韩":"hán","杨":"yáng","朱":"zhū","秦":"qín","尤":"yóu","许":"xǔ",
+        "何":"hé","吕":"lǚ","施":"shī","张":"zhāng","孔":"kǒng","曹":"cáo","严":"yán","华":"huá","金":"jīn","魏":"wèi",
+        "陶":"táo","姜":"jiāng","戚":"qī","谢":"xiè","邹":"zōu","喻":"yù","柏":"bǎi","水":"shuǐ","窦":"dòu","章":"zhāng",
+        "云":"yún","苏":"sū","潘":"pān","葛":"gé","奚":"xī","范":"fàn","彭":"péng","郎":"láng","鲁":"lǔ","韦":"wéi",
+        "马":"mǎ","苗":"miáo","花":"huā","方":"fāng","俞":"yú","任":"rèn","袁":"yuán","柳":"liǔ","史":"shǐ","唐":"táng",
+        "费":"fèi","薛":"xuē","雷":"léi","贺":"hè","倪":"ní","汤":"tāng","罗":"luó","毕":"bì","安":"ān","常":"cháng",
+        "于":"yú","傅":"fù","齐":"qí","康":"kāng","余":"yú","顾":"gù","孟":"mèng","黄":"huáng","萧":"xiāo","尹":"yǐn",
+        // 复姓(全部 30 个)
+        "欧阳":"ōu yáng","司马":"sī mǎ","上官":"shàng guān","诸葛":"zhū gě","东方":"dōng fāng","独孤":"dú gū",
+        "南宫":"nán gōng","慕容":"mù róng","公孙":"gōng sūn","皇甫":"huáng fǔ","夏侯":"xià hóu","尉迟":"yù chí",
+        "长孙":"zhǎng sūn","宇文":"yǔ wén","司徒":"sī tú","司空":"sī kōng","令狐":"lìng hú","钟离":"zhōng lí",
+        "赫连":"hè lián","澹台":"tán tái","端木":"duān mù","万俟":"mò qí","闻人":"wén rén","拓跋":"tuò bá",
+        "呼延":"hū yán","太叔":"tài shū","申屠":"shēn tú","公羊":"gōng yáng","公冶":"gōng yě","漆雕":"qī diāo",
+        // 常用名用字(部分)
+        "伟":"wěi","强":"qiáng","军":"jūn","勇":"yǒng","杰":"jié","涛":"tāo","明":"míng","超":"chāo","刚":"gāng","飞":"fēi",
+        "宇":"yǔ","鹏":"péng","辉":"huī","斌":"bīn","博":"bó","健":"jiàn","亮":"liàng","凯":"kǎi","龙":"lóng","磊":"lěi",
+        "鑫":"xīn","海":"hǎi","山":"shān","峰":"fēng","波":"bō","宁":"níng","阳":"yáng","光":"guāng","志":"zhì","德":"dé",
+        "文":"wén","武":"wǔ","宏":"hóng","国":"guó","建":"jiàn","永":"yǒng","立":"lì","成":"chéng","康":"kāng","林":"lín",
+        "芳":"fāng","娜":"nà","敏":"mǐn","静":"jìng","丽":"lì","艳":"yàn","娟":"juān","霞":"xiá","燕":"yàn","雪":"xuě",
+        "莹":"yíng","婷":"tíng","洁":"jié","慧":"huì","欣":"xīn","悦":"yuè","瑶":"yáo","梦":"mèng","玲":"líng","倩":"qiàn",
+        "玉":"yù","英":"yīng","兰":"lán","丹":"dān","萍":"píng","蓉":"róng","薇":"wēi","佳":"jiā","怡":"yí","颖":"yǐng",
+        "妍":"yán","露":"lù","璐":"lù","雯":"wén","晶":"jīng","蕊":"ruǐ","蕾":"lěi","诗":"shī","雨":"yǔ","梓":"zǐ",
+        "萱":"xuān","婉":"wǎn","彤":"tóng","岚":"lán","曼":"màn","珊":"shān","晴":"qíng","若":"ruò","月":"yuè","芸":"yún",
+        "菲":"fēi","绮":"qǐ","玥":"yuè","桐":"tóng","瑾":"jǐn","璇":"xuán","子":"zǐ","晨":"chén","思":"sī","嘉":"jiā",
+        "安":"ān","和":"hé","晓":"xiǎo","瑞":"ruì","天":"tiān","乐":"lè","一":"yī","亦":"yì","可":"kě","如":"rú",
+        "之":"zhī","以":"yǐ","然":"rán","知":"zhī","言":"yán","书":"shū","白":"bái","青":"qīng","玄":"xuán","墨":"mò",
+        "秋":"qiū","冬":"dōng","春":"chūn","夏":"xià","沐":"mù","辰":"chén","诺":"nuò","尧":"yáo","舜":"shùn","禹":"yǔ",
+        "衡":"héng","远":"yuǎn","浩":"hào","泽":"zé","润":"rùn","翔":"xiáng","鸿":"hóng","翰":"hàn","鼎":"dǐng","皓":"hào",
+        "琛":"chēn","钧":"jūn","锐":"ruì","彦":"yàn","霆":"tíng","霖":"lín","骐":"qí","越":"yuè","珩":"héng","翊":"yì",
+        "宥":"yòu","屿":"yǔ","烁":"shuò","玹":"xuán","衍":"yǎn","灿":"càn","瑾":"jǐn","瑜":"yú","沅":"yuán","沁":"qìn",
+        "汐":"xī","栩":"xǔ","苒":"rǎn","柚":"yòu","萌":"méng","熙":"xī","宁":"níng","苡":"yǐ","祺":"qí","煜":"yù",
+        "豪":"háo","睿":"ruì","航":"háng","懿":"yì","鸣":"míng","俊":"jùn","熙":"xī","馨":"xīn","雅":"yǎ","琪":"qí",
+        "涵":"hán","萱":"xuān","涛":"tāo","杰":"jié","勇":"yǒng","跃":"yuè","进":"jìn","卫":"wèi","庆":"qìng","援":"yuán",
+        "朝":"cháo","凤":"fèng","琴":"qín","芬":"fēn","荣":"róng","华":"huá","贵":"guì","福":"fú","生":"shēng","源":"yuán",
+        "斌":"bīn","波":"bō","宁":"níng","刚":"gāng","超":"chāo","梅":"méi","桂":"guì","珍":"zhēn"
+    }
+};
+
+/* ============================================================
+ * 模块 2:核心生成器 / Name Generator Core
+ * ============================================================ */
+const NameGenerator = {
+
+    /** 从数组随机取一个元素 */
+    pick(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+    },
+
+    /** 解析姓氏字符串(支持空格/中英文逗号分隔) */
+    parseSurnames(text) {
+        if (!text) return [];
+        return text.split(/[\s,，、;；]+/).map(s => s.trim()).filter(s => s.length > 0);
+    },
+
+    /** 解析自定义用字(直接拆分为单字数组) */
+    parseCustomChars(text) {
+        if (!text) return [];
+        // 移除所有空白和标点,按字符拆分
+        return text.replace(/[\s,，、;；·\-_.]+/g, "").split("").filter(c => c.trim().length > 0);
+    },
+
+    /**
+     * 根据性别 + 年代 + 自定义配置,构建名用字池
+     * @param {string} gender - mixed / male / female
+     * @param {string} era - none / era50 / era70 / ...
+     * @param {Object} custom - { mode: none|merge|replace, chars: string[], gender: neutral|male|female }
+     * @returns {{male: string[], female: string[], neutral: string[]}}
+     */
+    buildCharPool(gender, era, custom) {
+        let malePool, femalePool, neutralPool;
+
+        if (era !== "none" && NameData.eraChars[era]) {
+            // 年代模式:使用年代字库
+            const eraData = NameData.eraChars[era];
+            malePool = eraData.male.slice();
+            femalePool = eraData.female.slice();
+            neutralPool = [...eraData.male, ...eraData.female]; // 中性 = 年代男女混合
+        } else {
+            // 默认字库
+            malePool = NameData.maleChars.slice();
+            femalePool = NameData.femaleChars.slice();
+            neutralPool = NameData.neutralChars.slice();
+        }
+
+        // 应用自定义字库
+        if (custom.mode !== "none" && custom.chars.length > 0) {
+            if (custom.mode === "replace") {
+                // 替换:完全只用自定义字,所有池统一为自定义字
+                malePool = custom.chars.slice();
+                femalePool = custom.chars.slice();
+                neutralPool = custom.chars.slice();
+            } else if (custom.mode === "merge") {
+                // 扩充:按性别属性加入对应池
+                if (custom.gender === "male") {
+                    malePool = [...malePool, ...custom.chars];
+                } else if (custom.gender === "female") {
+                    femalePool = [...femalePool, ...custom.chars];
+                } else {
+                    neutralPool = [...neutralPool, ...custom.chars];
+                    malePool = [...malePool, ...custom.chars];
+                    femalePool = [...femalePool, ...custom.chars];
+                }
+            }
+        }
+
+        return { male: malePool, female: femalePool, neutral: neutralPool };
+    },
+
+    /** 根据性别风格选择字池 */
+    selectPoolByGender(pools, gender) {
+        if (gender === "male") {
+            return [...pools.male, ...pools.neutral];
+        }
+        if (gender === "female") {
+            return [...pools.female, ...pools.neutral];
+        }
+        return [...pools.male, ...pools.female, ...pools.neutral];
+    },
+
+    /** 生成单个名字(不含姓) */
+    generateGivenName(length, pool) {
+        let name = "";
+        for (let i = 0; i < length; i++) {
+            name += this.pick(pool);
+        }
+        return name;
+    },
+
+    /** 批量生成 */
+    generateBatch(options) {
+        const {
+            surnameSource,
+            surnames = [],
+            lengths = [1, 2],
+            gender = "mixed",
+            era = "none",
+            custom = { mode: "none", chars: [], gender: "neutral" },
+            count = 50,
+            allowDup = false
+        } = options;
+
+        // 构建姓氏池
+        let surnamePool = [];
+        if (surnameSource === "fixed") {
+            surnamePool = surnames.slice(0, 1);
+        } else if (surnameSource === "list") {
+            surnamePool = surnames.slice();
+        } else if (surnameSource === "random") {
+            surnamePool = NameData.surnames.slice();
+        } else if (surnameSource === "compound") {
+            surnamePool = NameData.compoundSurnames.slice();
+        }
+        if (surnamePool.length === 0) {
+            throw new Error("未提供有效姓氏,请检查输入");
+        }
+        if (lengths.length === 0) {
+            throw new Error("请至少选择一种名字长度");
+        }
+
+        // 构建名用字池
+        const pools = this.buildCharPool(gender, era, custom);
+        const charPool = this.selectPoolByGender(pools, gender);
+        if (charPool.length === 0) {
+            throw new Error("用字池为空,请检查自定义字库配置");
+        }
+
+        const result = [];
+        const seen = new Set();
+        const maxAttempts = count * 50;
+        let attempts = 0;
+
+        while (result.length < count && attempts < maxAttempts) {
+            attempts++;
+            const surname = this.pick(surnamePool);
+            const len = this.pick(lengths);
+            const given = this.generateGivenName(len, charPool);
+            const fullName = surname + given;
+            if (!allowDup) {
+                if (seen.has(fullName)) continue;
+                seen.add(fullName);
+            }
+            result.push(fullName);
+        }
+        return result;
+    },
+
+    /** 查询姓名拼音(优先匹配复姓,再匹配单姓,剩余逐字) */
+    getPinyin(text) {
+        if (!text) return "";
+        const compoundSet = new Set(NameData.compoundSurnames);
+        let idx = 0;
+        let parts = [];
+        // 1. 先尝试匹配复姓(前 2 字)
+        if (text.length >= 2 && compoundSet.has(text.slice(0, 2))) {
+            parts.push(NameData.pinyinMap[text.slice(0, 2)] || "?");
+            idx = 2;
+        } else if (NameData.pinyinMap[text.slice(0, 1)]) {
+            // 2. 单姓
+            parts.push(NameData.pinyinMap[text.slice(0, 1)]);
+            idx = 1;
+        } else {
+            // 3. 首字无拼音,逐字处理
+            idx = 0;
+        }
+        // 4. 剩余字符逐字查询
+        for (let i = idx; i < text.length; i++) {
+            parts.push(NameData.pinyinMap[text[i]] || "?");
+        }
+        return parts.join(" ");
+    }
+};
+
+/* ============================================================
+ * 模块 3:UI 控制器 / UI Controller
+ * ============================================================ */
+const UI = {
+    els: {},
+
+    init() {
+        this.els = {
+            surnameInput: document.getElementById("surnameInput"),
+            count: document.getElementById("count"),
+            allowDup: document.getElementById("allowDup"),
+            addNumber: document.getElementById("addNumber"),
+            showPinyin: document.getElementById("showPinyin"),
+            customChars: document.getElementById("customChars"),
+            btnGenerate: document.getElementById("btnGenerate"),
+            btnCopy: document.getElementById("btnCopy"),
+            btnExport: document.getElementById("btnExport"),
+            btnClear: document.getElementById("btnClear"),
+            resultBox: document.getElementById("resultBox"),
+            statCount: document.getElementById("statCount"),
+            toast: document.getElementById("toast"),
+            customCharBox: document.getElementById("customCharBox")
+        };
+
+        this.bindRadioStyle("surnameSource", (val) => this.updateSurnamePlaceholder(val));
+        this.bindCheckboxStyle("nameLength");
+        this.bindRadioStyle("genderStyle");
+        this.bindRadioStyle("eraStyle");
+        this.bindRadioStyle("customMode");
+        this.bindRadioStyle("customGender");
+
+        // 可折叠区域
+        this.els.customCharBox.querySelector(".collapsible-header").addEventListener("click", () => {
+            this.els.customCharBox.classList.toggle("open");
+        });
+
+        this.els.btnGenerate.addEventListener("click", () => this.onGenerate());
+        this.els.btnCopy.addEventListener("click", () => this.onCopy());
+        this.els.btnExport.addEventListener("click", () => this.onExport());
+        this.els.btnClear.addEventListener("click", () => this.onClear());
+    },
+
+    /** 单选组 active 样式 + change 回调 */
+    bindRadioStyle(containerId, onChange) {
+        const container = document.getElementById(containerId);
+        const items = container.querySelectorAll(".radio-item");
+        items.forEach(item => {
+            const input = item.querySelector("input");
+            input.addEventListener("change", () => {
+                items.forEach(i => i.classList.remove("active"));
+                item.classList.add("active");
+                if (onChange) onChange(input.value);
+            });
+        });
+    },
+
+    /** 复选组 active 样式 */
+    bindCheckboxStyle(containerId) {
+        const container = document.getElementById(containerId);
+        const items = container.querySelectorAll(".check-item");
+        items.forEach(item => {
+            const input = item.querySelector("input");
+            input.addEventListener("change", () => {
+                item.classList.toggle("active", input.checked);
+            });
+        });
+    },
+
+    updateSurnamePlaceholder(source) {
+        const map = {
+            fixed: "如:张",
+            random: "随机单姓模式下留空即可",
+            compound: "随机复姓模式下留空即可",
+            list: "如:张 王,欧阳 司马"
+        };
+        this.els.surnameInput.placeholder = map[source] || "";
+        if (source === "random" || source === "compound") {
+            this.els.surnameInput.value = "";
+        }
+    },
+
+    /** 收集表单参数 */
+    getOptions() {
+        const source = document.querySelector('input[name="surnameSource"]:checked').value;
+        const surnames = NameGenerator.parseSurnames(this.els.surnameInput.value);
+        const lengths = Array.from(document.querySelectorAll('#nameLength input:checked'))
+            .map(cb => parseInt(cb.value, 10));
+        const gender = document.querySelector('input[name="genderStyle"]:checked').value;
+        const era = document.querySelector('input[name="eraStyle"]:checked').value;
+        const customMode = document.querySelector('input[name="customMode"]:checked').value;
+        const customGender = document.querySelector('input[name="customGender"]:checked').value;
+        const customChars = NameGenerator.parseCustomChars(this.els.customChars.value);
+        const count = Math.max(1, Math.min(10000000, parseInt(this.els.count.value, 10) || 50));
+        return {
+            source, surnames, lengths, gender, era,
+            custom: { mode: customMode, chars: customChars, gender: customGender },
+            count,
+            allowDup: this.els.allowDup.checked,
+            addNumber: this.els.addNumber.checked,
+            showPinyin: this.els.showPinyin.checked
+        };
+    },
+
+    onGenerate() {
+        try {
+            const opts = this.getOptions();
+            const names = NameGenerator.generateBatch({
+                surnameSource: opts.source,
+                surnames: opts.surnames,
+                lengths: opts.lengths,
+                gender: opts.gender,
+                era: opts.era,
+                custom: opts.custom,
+                count: opts.count,
+                allowDup: opts.allowDup
+            });
+
+            const lines = names.map((n, i) => {
+                let line = opts.addNumber
+                    ? (i + 1).toString().padStart(4, "0") + ".\t" + n
+                    : n;
+                if (opts.showPinyin) {
+                    line += "  (" + NameGenerator.getPinyin(n) + ")";
+                }
+                return line;
+            });
+
+            this.els.resultBox.value = lines.join("\n");
+            this.els.statCount.textContent = names.length;
+
+            if (names.length < opts.count) {
+                this.toast("候选空间不足,仅生成 " + names.length + " 个(可勾选「允许重复」)");
+            } else {
+                this.toast("已生成 " + names.length + " 个姓名");
+            }
+        } catch (e) {
+            this.toast("错误:" + e.message);
+        }
+    },
+
+    async onCopy() {
+        const text = this.els.resultBox.value;
+        if (!text) { this.toast("暂无结果可复制"); return; }
+        try {
+            await navigator.clipboard.writeText(text);
+            this.toast("已复制到剪贴板");
+        } catch (e) {
+            this.els.resultBox.select();
+            document.execCommand("copy");
+            this.toast("已复制到剪贴板");
+        }
+    },
+
+    onExport() {
+        const text = this.els.resultBox.value;
+        if (!text) { this.toast("暂无结果可导出"); return; }
+        const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+        a.href = url;
+        a.download = "姓名列表_" + ts + ".txt";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.toast("已导出 txt 文件");
+    },
+
+    onClear() {
+        this.els.resultBox.value = "";
+        this.els.statCount.textContent = "0";
+        this.toast("已清空");
+    },
+
+    toast(msg) {
+        const t = this.els.toast;
+        t.textContent = msg;
+        t.classList.add("show");
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
+    }
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+    UI.init();
+});
+</script>
+</body>
+</html>

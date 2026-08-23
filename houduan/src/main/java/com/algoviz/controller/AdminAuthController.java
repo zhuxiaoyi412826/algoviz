@@ -3,6 +3,7 @@ package com.algoviz.controller;
 import cn.dev33.satoken.stp.StpUtil;
 import com.algoviz.dto.AdminLoginRequest;
 import com.algoviz.dto.ApiResponse;
+import com.algoviz.aspect.LogOperation;
 import com.algoviz.entity.LoginLog;
 import com.algoviz.entity.rbac.SysRole;
 import com.algoviz.entity.rbac.SysUser;
@@ -226,6 +227,7 @@ public class AdminAuthController {
      *  - 二级管理员：无权限创建
      */
     @PostMapping("/system/admin")
+    @LogOperation(module = "用户管理", action = "新增", detail = "创建管理员账号")
     public ApiResponse<Map<String, Object>> createAdmin(@RequestBody Map<String, Object> body) {
         long currentUserId = StpUtil.getLoginIdAsLong();
         List<String> currentUserRoles = sysUserMapper.findRoleCodesByUserId(currentUserId);
@@ -292,6 +294,7 @@ public class AdminAuthController {
     }
 
     @PutMapping("/system/admin/{id}")
+    @LogOperation(module = "用户管理", action = "编辑", detail = "修改管理员信息")
     public ApiResponse<SysUser> updateAdmin(@PathVariable Long id, @RequestBody SysUser user) {
         if (user.getPassword() != null && !user.getPassword().isEmpty()) {
             // 更新密码也走 BCrypt（超级管理员密码仅允许 id=1 自己改 Argon2id，这里通用 BCrypt 覆盖）
@@ -307,15 +310,18 @@ public class AdminAuthController {
     }
 
     @DeleteMapping("/system/admin/{id}")
+    @LogOperation(module = "用户管理", action = "删除", detail = "删除管理员账号")
     public ApiResponse<Void> deleteAdmin(@PathVariable Long id) {
         if (id == 1L) {
             return ApiResponse.error("超级管理员不可删除");
         }
+        SysUser target = sysUserMapper.findById(id);
         boolean success = sysUserMapper.deleteById(id) > 0;
         return success ? ApiResponse.success(null) : ApiResponse.error("删除失败");
     }
 
     @PostMapping("/system/admin/{id}/reset-password")
+    @LogOperation(module = "用户管理", action = "重置密码", detail = "重置管理员密码")
     public ApiResponse<Void> resetPassword(@PathVariable Long id) {
         // 超级管理员保持 Argon2id（algovize123），其他管理员重置为 BCrypt(admin123)
         String encoded;
@@ -329,6 +335,7 @@ public class AdminAuthController {
     }
 
     @PutMapping("/system/admin/{id}/status")
+    @LogOperation(module = "用户管理", action = "编辑", detail = "变更管理员状态")
     public ApiResponse<Void> changeStatus(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         Integer status;
         Object v = body.get("status");

@@ -34,7 +34,7 @@ __pycache__/
 *.env
 
 # 某个目录下的 txt 要提交
-!resources/txt/*.txt
+!resources/*.txt
 !bin/*.txt
 
 # JS/TS bundlers & build outputs
