@@ -2,6 +2,8 @@ package com.algoviz.entity;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.time.LocalDateTime;
+
 @Schema(description = "登录日志实体")
 public class LoginLog {
     @Schema(description = "主键ID")
@@ -17,7 +19,7 @@ public class LoginLog {
     @Schema(description = "登录地点")
     private String location;
     @Schema(description = "登录时间")
-    private String loginTime;
+    private LocalDateTime loginTime;
     @Schema(description = "状态")
     private String status;
     @Schema(description = "失败原因")
@@ -37,8 +39,8 @@ public class LoginLog {
     public void setDevice(String device) { this.device = device; }
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
-    public String getLoginTime() { return loginTime; }
-    public void setLoginTime(String loginTime) { this.loginTime = loginTime; }
+    public LocalDateTime getLoginTime() { return loginTime; }
+    public void setLoginTime(LocalDateTime loginTime) { this.loginTime = loginTime; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public String getFailReason() { return failReason; }

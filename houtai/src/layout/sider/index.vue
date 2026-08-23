@@ -43,8 +43,7 @@ const fullMenuList: MenuItem[] = [
       { path: '/system/login-log', name: 'LoginLog', meta: { title: '登录日志' }, menuGroup: 'system' },
       { path: '/system/operation-log', name: 'OperationLog', meta: { title: '操作日志' }, menuGroup: 'system' },
       { path: '/system/system-config', name: 'SystemConfig', meta: { title: '系统配置' }, menuGroup: 'system' },
-      { path: '/system/security', name: 'Security', meta: { title: '安全设置' }, menuGroup: 'system' },
-      { path: '/system/audit-log', name: 'AuditLog', meta: { title: '审计日志' }, menuGroup: 'audit-log' }
+      { path: '/system/security', name: 'Security', meta: { title: '安全设置' }, menuGroup: 'system' }
     ]
   },
   {
@@ -76,6 +75,17 @@ const fullMenuList: MenuItem[] = [
       { path: '/audit/sensitive-words', name: 'SensitiveWords', meta: { title: '关键词屏蔽' }, menuGroup: 'audit' },
       { path: '/audit/review', name: 'AuditReview', meta: { title: '人工审核' }, menuGroup: 'audit' },
       { path: '/audit/solution-review', name: 'SolutionReview', meta: { title: '题解审核' }, menuGroup: 'audit' }
+    ]
+  },
+  {
+    path: '/user',
+    name: 'User',
+    meta: { title: '用户管理', icon: 'User' },
+    menuGroup: 'user',
+    children: [
+      { path: '/user/list', name: 'UserList', meta: { title: '用户列表' }, menuGroup: 'user' },
+      { path: '/user/login-record', name: 'UserLoginRecord', meta: { title: '登录记录' }, menuGroup: 'user' },
+      { path: '/user/behavior', name: 'UserBehavior', meta: { title: '行为数据' }, menuGroup: 'user' }
     ]
   },
   {
@@ -115,26 +125,15 @@ const fullMenuList: MenuItem[] = [
     ]
   },
   {
-    path: '/operation-center',
-    name: 'OperationCenter',
-    meta: { title: '运营中心', icon: 'Operation' },
-    menuGroup: 'operation',
-    children: [
-      { path: '/operation-center/monitor', name: 'OpServiceMonitor', meta: { title: '服务状态' }, menuGroup: 'operation' },
-      { path: '/operation-center/resource', name: 'OpResourceMonitor', meta: { title: '资源占用' }, menuGroup: 'operation' },
-      { path: '/operation-center/alarm', name: 'OpAlarm', meta: { title: '异常告警' }, menuGroup: 'operation' }
-    ]
-  },
-  {
     path: '/extension',
     name: 'Extension',
     meta: { title: '客服工单', icon: 'Service' },
-    menuGroup: 'customer',
+    menuGroup: 'extension',
     children: [
-      { path: '/extension/announcement', name: 'Announcement', meta: { title: '公告管理' }, menuGroup: 'customer' },
-      { path: '/extension/feedback', name: 'Feedback', meta: { title: '反馈管理' }, menuGroup: 'customer' },
-      { path: '/extension/backup', name: 'Backup', meta: { title: '数据备份' }, menuGroup: 'customer' },
-      { path: '/extension/third-party', name: 'ThirdParty', meta: { title: '第三方集成' }, menuGroup: 'customer' }
+      { path: '/extension/announcement', name: 'Announcement', meta: { title: '公告管理' }, menuGroup: 'extension' },
+      { path: '/extension/feedback', name: 'Feedback', meta: { title: '反馈管理' }, menuGroup: 'extension' },
+      { path: '/extension/backup', name: 'Backup', meta: { title: '数据备份' }, menuGroup: 'extension' },
+      { path: '/extension/third-party', name: 'ThirdParty', meta: { title: '第三方集成' }, menuGroup: 'extension' }
     ]
   }
 ]

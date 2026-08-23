@@ -9,6 +9,7 @@ import com.algoviz.entity.rbac.SysUser;
 import com.algoviz.mapper.LoginLogMapper;
 import com.algoviz.mapper.rbac.SysRoleMapper;
 import com.algoviz.mapper.rbac.SysUserMapper;
+import com.algoviz.common.util.IpLocationUtil;
 import com.algoviz.common.util.PasswordEncoderUtil;
 import com.algoviz.service.LoginLockService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,6 +41,9 @@ public class AdminAuthController {
     @Autowired
     private LoginLockService loginLockService;
 
+    @Autowired
+    private IpLocationUtil ipLocationUtil;
+
     /**
      * 后台管理员登录（Sa-Token）
      *  密码校验：
@@ -52,19 +56,13 @@ public class AdminAuthController {
                                                         HttpServletRequest httpRequest) {
         String ip = httpRequest.getRemoteAddr();
         String device = httpRequest.getHeader("User-Agent");
+        String location = ipLocationUtil.getLocationByIp(ip);
         final String identifier = request.getUsername() == null ? "" : request.getUsername().trim();
 
         // 1) 前置锁定检查（ADMIN scope）
         LoginLockService.LockStatus ls = loginLockService.checkLock(LoginLockService.LoginLockType.ADMIN, identifier);
         if (ls.locked) {
-            LoginLog failLog = new LoginLog();
-            failLog.setId(UUID.randomUUID().toString());
-            failLog.setUserId("locked");
-            failLog.setUsername(identifier);
-            failLog.setIp(ip);
-            failLog.setDevice(device);
-            failLog.setStatus("failed");
-            failLog.setFailReason("账号已锁定");
+            LoginLog failLog = buildLoginLog("locked", identifier, ip, device, location, "failed", "账号已锁定");
             loginLogMapper.insert(failLog);
             String msg = "登录失败次数过多，账号已锁定，剩余 " + loginLockService.formatRemaining(ls.expireAtMs);
             return ApiResponse.error(msg);
@@ -73,14 +71,7 @@ public class AdminAuthController {
         SysUser user = sysUserMapper.findByUsername(identifier);
         if (user == null) {
             loginLockService.recordFailure(LoginLockService.LoginLockType.ADMIN, identifier);
-            LoginLog failLog = new LoginLog();
-            failLog.setId(UUID.randomUUID().toString());
-            failLog.setUserId("unknown");
-            failLog.setUsername(identifier);
-            failLog.setIp(ip);
-            failLog.setDevice(device);
-            failLog.setStatus("failed");
-            failLog.setFailReason("用户名不存在");
+            LoginLog failLog = buildLoginLog("unknown", identifier, ip, device, location, "failed", "用户名不存在");
             loginLogMapper.insert(failLog);
             return ApiResponse.error("用户名或密码错误");
         }
@@ -88,14 +79,7 @@ public class AdminAuthController {
         // 二次检查（按真实 username 键）
         LoginLockService.LockStatus ls2 = loginLockService.checkLock(LoginLockService.LoginLockType.ADMIN, lockId);
         if (ls2.locked) {
-            LoginLog failLog = new LoginLog();
-            failLog.setId(UUID.randomUUID().toString());
-            failLog.setUserId(String.valueOf(user.getId()));
-            failLog.setUsername(lockId);
-            failLog.setIp(ip);
-            failLog.setDevice(device);
-            failLog.setStatus("failed");
-            failLog.setFailReason("账号已锁定");
+            LoginLog failLog = buildLoginLog(String.valueOf(user.getId()), lockId, ip, device, location, "failed", "账号已锁定");
             loginLogMapper.insert(failLog);
             String msg = "登录失败次数过多，账号已锁定，剩余 " + loginLockService.formatRemaining(ls2.expireAtMs);
             return ApiResponse.error(msg);
@@ -110,27 +94,13 @@ public class AdminAuthController {
         }
         if (!pwOk) {
             loginLockService.recordFailure(LoginLockService.LoginLockType.ADMIN, lockId);
-            LoginLog failLog = new LoginLog();
-            failLog.setId(UUID.randomUUID().toString());
-            failLog.setUserId(String.valueOf(user.getId()));
-            failLog.setUsername(user.getUsername());
-            failLog.setIp(ip);
-            failLog.setDevice(device);
-            failLog.setStatus("failed");
-            failLog.setFailReason("密码错误");
+            LoginLog failLog = buildLoginLog(String.valueOf(user.getId()), user.getUsername(), ip, device, location, "failed", "密码错误");
             loginLogMapper.insert(failLog);
             return ApiResponse.error("用户名或密码错误");
         }
 
         if (user.getStatus() == null || user.getStatus() != 1) {
-            LoginLog failLog = new LoginLog();
-            failLog.setId(UUID.randomUUID().toString());
-            failLog.setUserId(String.valueOf(user.getId()));
-            failLog.setUsername(user.getUsername());
-            failLog.setIp(ip);
-            failLog.setDevice(device);
-            failLog.setStatus("failed");
-            failLog.setFailReason("账号已禁用");
+            LoginLog failLog = buildLoginLog(String.valueOf(user.getId()), user.getUsername(), ip, device, location, "failed", "账号已禁用");
             loginLogMapper.insert(failLog);
             return ApiResponse.error("账号已被禁用");
         }
@@ -140,13 +110,7 @@ public class AdminAuthController {
 
         // 更新登录时间
         sysUserMapper.updateLastLogin(user.getId(), LocalDateTime.now(), ip);
-        LoginLog successLog = new LoginLog();
-        successLog.setId(UUID.randomUUID().toString());
-        successLog.setUserId(String.valueOf(user.getId()));
-        successLog.setUsername(user.getUsername());
-        successLog.setIp(ip);
-        successLog.setDevice(device);
-        successLog.setStatus("success");
+        LoginLog successLog = buildLoginLog(String.valueOf(user.getId()), user.getUsername(), ip, device, location, "success", null);
         loginLogMapper.insert(successLog);
 
         // Sa-Token 登录（loginId = sys_user.id）
@@ -374,5 +338,20 @@ public class AdminAuthController {
         else status = Integer.valueOf(String.valueOf(v));
         boolean success = sysUserMapper.updateStatus(id, status) > 0;
         return success ? ApiResponse.success(null) : ApiResponse.error("状态变更失败");
+    }
+
+    private LoginLog buildLoginLog(String userId, String username, String ip, String device,
+                                    String location, String status, String failReason) {
+        LoginLog log = new LoginLog();
+        log.setId(UUID.randomUUID().toString());
+        log.setUserId(userId);
+        log.setUsername(username);
+        log.setIp(ip);
+        log.setDevice(device);
+        log.setLocation(location);
+        log.setLoginTime(LocalDateTime.now());
+        log.setStatus(status);
+        log.setFailReason(failReason);
+        return log;
     }
 }

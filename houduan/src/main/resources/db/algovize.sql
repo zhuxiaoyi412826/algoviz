@@ -22,19 +22,25 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- 用户表
 DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
-    `id`            BIGINT       NOT NULL AUTO_INCREMENT,
-    `username`      VARCHAR(50)  NOT NULL,
-    `email`         VARCHAR(100) NOT NULL,
-    `password`      VARCHAR(255) DEFAULT NULL,
-    `age`           INT          DEFAULT NULL,
-    `gender`        VARCHAR(10)  DEFAULT '未知',
-    `nickname`      VARCHAR(100) DEFAULT NULL,
-    `avatar_url`    VARCHAR(500) DEFAULT NULL,
-    `login_status`  VARCHAR(20)  DEFAULT 'offline',
-    `status`        TINYINT      DEFAULT 1 COMMENT '1:正常 0:封禁',
-    `created_at`    DATETIME     DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`    DATETIME     DEFAULT CURRENT_TIMESTAMP,
-    `last_login_at` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    `id`              BIGINT       NOT NULL AUTO_INCREMENT,
+    `username`        VARCHAR(50)  NOT NULL,
+    `email`           VARCHAR(100) NOT NULL,
+    `password`        VARCHAR(255) DEFAULT NULL,
+    `age`             INT          DEFAULT NULL,
+    `gender`          VARCHAR(10)  DEFAULT '未知',
+    `nickname`        VARCHAR(100) DEFAULT NULL,
+    `avatar_url`      VARCHAR(500) DEFAULT NULL,
+    `login_status`    VARCHAR(20)  DEFAULT 'offline',
+    `status`          TINYINT      DEFAULT 1 COMMENT '1:正常 0:封禁',
+    `coins`           INT          NOT NULL DEFAULT 1000 COMMENT '硬币余额',
+    `created_at`      DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`      DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    `last_login_at`   DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    `ai_dialogues`    INT          DEFAULT 0 COMMENT 'AI对话次数',
+    `ds_visits`       INT          DEFAULT 0 COMMENT '数据结构访问次数',
+    `algo_visits`     INT          DEFAULT 0 COMMENT '算法访问次数',
+    `oj_visits`       INT          DEFAULT 0 COMMENT 'OJ访问次数',
+    `last_visit_time` DATETIME     DEFAULT NULL COMMENT '最后访问时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_user_username` (`username`),
     UNIQUE KEY `uk_user_email` (`email`),
@@ -388,12 +394,10 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- 用户测试数据
 INSERT INTO `user` (`username`, `email`, `password`, `age`, `gender`, `nickname`, `avatar_url`, `login_status`, `status`) VALUES
-('admin',  'admin@example.com',  'admin123', 25, '男',   '管理员', 'https://i.pravatar.cc/150?u=1', 'offline', 1),
 ('user1',  'user1@example.com',  'user123',  NULL, '未知', '用户1', 'https://i.pravatar.cc/150?u=2', 'offline', 1);
 
--- 管理员账号（密码: admin123）
-INSERT INTO `admin` (`id`, `username`, `nickname`, `password`, `role`, `status`) VALUES
-('1', 'admin', '超级管理员', '412826zxyZXY', 'super_admin', 'active');
+-- 注：旧 admin 表已弃用，管理员统一使用 sys_user (RBAC) 体系
+-- 超级管理员账号：algovize / algovize123（Argon2id 加密，见 sys_user 种子数据）
 
 -- 系统配置
 INSERT INTO `system_config` (`key`, `value`, `type`, `label`, `description`, `config_group`) VALUES
@@ -434,8 +438,7 @@ INSERT INTO `oj_problem` (`id`, `problem_no`, `title`, `difficulty`, `tags`, `de
 ALTER TABLE `test_case`      MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
 ALTER TABLE `test_case`      MODIFY COLUMN `problem_id` VARCHAR(40) NOT NULL;
 
--- 管理员 / 日志
-ALTER TABLE `admin`          MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
+-- 日志
 ALTER TABLE `login_log`      MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
 ALTER TABLE `login_log`      MODIFY COLUMN `user_id`    VARCHAR(40) NOT NULL;
 ALTER TABLE `operation_log`  MODIFY COLUMN `id`         VARCHAR(40) NOT NULL;
@@ -462,7 +465,6 @@ SELECT 'algoviz 数据库迁移完成' AS message;
 SELECT COUNT(*) AS user_count      FROM `user`;
 SELECT COUNT(*) AS product_count   FROM `product`;
 SELECT COUNT(*) AS oj_problem_cnt  FROM `oj_problem`;
-SELECT COUNT(*) AS admin_count     FROM `admin`;
 
 -- ============================================================================
 -- 6. user 表字段变更：avatar → age，新增 avatar_url / login_status / status

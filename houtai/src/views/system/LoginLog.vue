@@ -2,10 +2,11 @@
 import { ref, reactive, onMounted } from 'vue'
 import {
   ElTable, ElTableColumn, ElButton, ElTag, ElCard, ElDatePicker, ElSelect,
-  ElOption, ElProgress
+  ElOption, ElProgress, ElInput, ElPagination, ElMessage, ElDialog,
+  ElDescriptions, ElDescriptionsItem
 } from 'element-plus'
-import { Search, Refresh, Download, Warning } from '@element-plus/icons-vue'
-import dayjs from 'dayjs'
+import { Search, Refresh, Download, Warning, View } from '@element-plus/icons-vue'
+import request from '@/api/request'
 import type { LoginLog } from '@/types'
 
 const tableData = ref<LoginLog[]>([])
@@ -18,10 +19,10 @@ const searchForm = reactive({
 })
 
 const stats = ref({
-  todayCount: 45,
-  weekCount: 312,
-  failCount: 8,
-  failRate: 2.5
+  todayCount: 0,
+  weekCount: 0,
+  failCount: 0,
+  failRate: 0
 })
 
 const statusOptions = [
@@ -30,27 +31,52 @@ const statusOptions = [
 ]
 
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(20)
 const total = ref(0)
+const pageSizeOptions = [10, 20, 50, 100]
+
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailData = ref<LoginLog | null>(null)
 
 onMounted(() => {
   loadData()
+  loadStats()
 })
 
 const loadData = async () => {
   loading.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 500))
-    tableData.value = [
-      { id: '1', userId: '1', username: 'admin', ip: '192.168.1.100', device: 'Chrome/Windows', location: '北京市', loginTime: dayjs().subtract(0, 'hour').format('YYYY-MM-DD HH:mm:ss'), status: 'success' },
-      { id: '2', userId: '2', username: 'content_admin', ip: '192.168.1.101', device: 'Safari/MacOS', location: '上海市', loginTime: dayjs().subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ss'), status: 'success' },
-      { id: '3', userId: '1', username: 'admin', ip: '10.0.0.1', device: 'Firefox/Linux', location: '广州市', loginTime: dayjs().subtract(5, 'hour').format('YYYY-MM-DD HH:mm:ss'), status: 'failed', failReason: '密码错误' },
-      { id: '4', userId: '3', username: 'op_admin', ip: '192.168.1.102', device: 'Chrome/Windows', location: '深圳市', loginTime: dayjs().subtract(1, 'day').format('YYYY-MM-DD HH:mm:ss'), status: 'success' },
-      { id: '5', userId: '1', username: 'admin', ip: '203.0.113.50', device: 'Unknown', location: '美国', loginTime: dayjs().subtract(2, 'day').format('YYYY-MM-DD HH:mm:ss'), status: 'failed', failReason: '账号已锁定' }
-    ]
-    total.value = 5
+    const params: Record<string, any> = {
+      page: page.value,
+      pageSize: pageSize.value
+    }
+    if (searchForm.username) params.username = searchForm.username
+    if (searchForm.status) params.status = searchForm.status
+    if (searchForm.dateRange && searchForm.dateRange.length === 2) {
+      params.startDate = searchForm.dateRange[0]
+      params.endDate = searchForm.dateRange[1]
+    }
+    const res = await request.get('/system/login-log', { params })
+    tableData.value = res.list || []
+    total.value = res.total || 0
+  } catch {
+    tableData.value = []
+    total.value = 0
   } finally {
     loading.value = false
+  }
+}
+
+const loadStats = async () => {
+  try {
+    const res = await request.get('/system/login-log/stats')
+    stats.value.todayCount = res.todayCount || 0
+    stats.value.weekCount = res.weekCount || 0
+    stats.value.failCount = res.failCount || 0
+    stats.value.failRate = res.failRate || 0
+  } catch {
+    // keep default zeros
   }
 }
 
@@ -63,11 +89,63 @@ const handleReset = () => {
   searchForm.username = ''
   searchForm.status = ''
   searchForm.dateRange = []
+  page.value = 1
   loadData()
 }
 
-const handleExport = () => {
-  // 导出逻辑
+const handlePageChange = (val: number) => {
+  page.value = val
+  loadData()
+}
+
+const handlePageSizeChange = (val: number) => {
+  pageSize.value = val
+  page.value = 1
+  loadData()
+}
+
+const handleViewDetail = async (row: LoginLog) => {
+  detailVisible.value = true
+  detailLoading.value = true
+  detailData.value = row
+  try {
+    const res = await request.get(`/system/login-log/${row.id}`)
+    detailData.value = res
+  } catch {
+    // keep the row data already available
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+const handleExport = async () => {
+  try {
+    const params: Record<string, any> = {}
+    if (searchForm.username) params.username = searchForm.username
+    if (searchForm.status) params.status = searchForm.status
+    if (searchForm.dateRange && searchForm.dateRange.length === 2) {
+      params.startDate = searchForm.dateRange[0]
+      params.endDate = searchForm.dateRange[1]
+    }
+    const res = await request.get('/export/logs', { params, responseType: 'blob' })
+    const blob = new Blob([res], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `login_logs_${Date.now()}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch {
+    ElMessage.error('导出失败')
+  }
+}
+
+const formatStatus = (s: string) => s === 'success' ? '成功' : '失败'
+const statusTagType = (s: string) => s === 'success' ? 'success' : 'danger'
+const formatTime = (t?: string) => {
+  if (!t) return '-'
+  return t.replace('T', ' ').substring(0, 19)
 }
 </script>
 
@@ -131,26 +209,31 @@ const handleExport = () => {
         <el-button :icon="Refresh" @click="handleReset">重置</el-button>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" stripe style="width: 100%; margin-top: 16px">
+      <el-table
+        :data="tableData"
+        v-loading="loading"
+        stripe
+        style="width: 100%; margin-top: 16px"
+        :row-style="{ padding: '12px 0' }"
+        @row-click="handleViewDetail"
+      >
         <el-table-column prop="username" label="用户名" width="120" />
-        <el-table-column prop="ip" label="IP地址" width="140" />
-        <el-table-column prop="location" label="登录地点" width="100" />
-        <el-table-column prop="device" label="设备" min-width="160" />
-        <el-table-column prop="loginTime" label="登录时间" min-width="160" />
+        <el-table-column prop="ip" label="IP地址" width="160" />
+        <el-table-column prop="location" label="登录地点" width="120" />
+        <el-table-column prop="device" label="设备" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="loginTime" label="登录时间" min-width="170">
+          <template #default="{ row }">{{ formatTime(row.loginTime) }}</template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'success' ? 'success' : 'danger'" size="small">
-              {{ row.status === 'success' ? '成功' : '失败' }}
+            <el-tag :type="statusTagType(row.status)" size="small">
+              {{ formatStatus(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="failReason" label="失败原因" min-width="120">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
-            <span v-if="row.status === 'failed'" class="fail-reason">
-              <el-icon v-if="row.failReason?.includes('异地')" color="#e6a23c"><Warning /></el-icon>
-              {{ row.failReason || '-' }}
-            </span>
-            <span v-else>-</span>
+            <el-button link type="primary" :icon="View" @click.stop="handleViewDetail(row)">查看</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -160,11 +243,53 @@ const handleExport = () => {
           v-model:current-page="page"
           v-model:page-size="pageSize"
           :total="total"
-          :page-sizes="[10, 20, 50]"
-          layout="total, sizes, prev, pager, next"
+          :page-sizes="pageSizeOptions"
+          :max-pagination-count="10"
+          layout="total, sizes, prev, pager, next, jumper"
+          @current-change="handlePageChange"
+          @size-change="handlePageSizeChange"
         />
       </div>
     </div>
+
+    <el-dialog v-model="detailVisible" title="登录日志详情" width="640px" destroy-on-close>
+      <div v-loading="detailLoading" v-if="detailData">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="日志ID" :span="2">
+            {{ detailData.id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="用户ID">
+            {{ detailData.userId }}
+          </el-descriptions-item>
+          <el-descriptions-item label="用户名">
+            {{ detailData.username }}
+          </el-descriptions-item>
+          <el-descriptions-item label="IP地址">
+            {{ detailData.ip }}
+          </el-descriptions-item>
+          <el-descriptions-item label="登录地点">
+            {{ detailData.location || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="登录时间">
+            {{ formatTime(detailData.loginTime) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="statusTagType(detailData.status)" size="small">
+              {{ formatStatus(detailData.status) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="失败原因" :span="2" v-if="detailData.status === 'failed'">
+            <span class="fail-reason">
+              <el-icon v-if="detailData.failReason?.includes('异地')" color="#e6a23c"><Warning /></el-icon>
+              {{ detailData.failReason || '-' }}
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="设备" :span="2">
+            {{ detailData.device || '-' }}
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -205,5 +330,13 @@ const handleExport = () => {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+:deep(.el-table .el-table__row td) {
+  padding: 12px 0;
+}
+
+:deep(.el-table .cell) {
+  line-height: 1.6;
 }
 </style>

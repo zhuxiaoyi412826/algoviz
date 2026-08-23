@@ -6,6 +6,7 @@
  *  系统管理   → /system
  *  内容管理   → /content
  *  内容审核   → /audit
+ *  用户管理   → /user
  *  题目辅助   → /content (部分子菜单)
  *  日志平台   → /operation/log (及子菜单)
  *  数据报表   → /statistics
@@ -25,6 +26,7 @@ export type MenuGroup =
   | 'system'        // 系统管理
   | 'content'       // 内容管理
   | 'audit'         // 内容审核
+  | 'user'          // 用户管理
   | 'log'           // 日志平台
   | 'statistics'    // 数据报表+分析配置
   | 'order'         // 订单财务
@@ -49,6 +51,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermission> = {
     system: 'full',
     content: 'full',
     audit: 'full',
+    user: 'full',
     log: 'full',
     statistics: 'full',
     order: 'full',
@@ -65,6 +68,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermission> = {
     system: 'partial',     // ✏️ 受限：不能看审计日志
     content: 'full',
     audit: 'full',
+    user: 'full',
     log: 'full',
     statistics: 'full',
     order: 'full',
@@ -453,7 +457,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermission> = {
     statistics: 'none',
     order: 'none',
     operation: 'none',
-    customer: 'full',       // ✅ 客服工单
+    customer: 'none',
     'my-problems': 'none',
     'audit-log': 'none',
     extension: 'partial'    // ✏️ 反馈管理
@@ -627,19 +631,19 @@ export function canAccessRoute(roles: string[], path: string): boolean {
  */
 function pathToGroup(path: string): string | null {
   if (path.startsWith('/system')) {
-    // 审计日志单独分组
     if (path.startsWith('/system/audit-log')) return 'audit-log'
     return 'system'
   }
   if (path.startsWith('/content')) return 'content'
   if (path.startsWith('/audit')) return 'audit'
+  if (path.startsWith('/user')) return 'user'
   if (path.startsWith('/order')) return 'order'
-  if (path.startsWith('/operation')) return 'operation'
-  if (path.startsWith('/statistics')) return 'statistics'
-  if (path.startsWith('/extension')) {
-    // 客服管理员可见反馈
-    return 'extension'
+  if (path.startsWith('/operation')) {
+    if (path.startsWith('/operation/log')) return 'log'
+    return 'operation'
   }
+  if (path.startsWith('/statistics')) return 'statistics'
+  if (path.startsWith('/extension')) return 'extension'
   if (path.startsWith('/dashboard') || path === '/') return 'dashboard'
   return null
 }

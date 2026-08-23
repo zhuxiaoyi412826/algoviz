@@ -37,20 +37,18 @@ public interface DashboardMapper {
     @Select("SELECT COUNT(*) FROM data_structure")
     int countDataStructures();
 
-    @Select("SELECT IFNULL(SUM(ai_dialogues), 0) FROM app_user")
+    @Select("SELECT IFNULL(SUM(ai_dialogues), 0) FROM user")
     int countAIDialogues();
 
-    @Select("SELECT IFNULL(SUM(ai_dialogues), 0) FROM app_user WHERE last_visit_time >= DATE_SUB(NOW(), INTERVAL 1 DAY)")
+    @Select("SELECT IFNULL(SUM(ai_dialogues), 0) FROM user WHERE last_visit_time >= DATE_SUB(NOW(), INTERVAL 1 DAY)")
     int countTodayAIDialogues();
 
-    // === 趋势数据 ===
+    // === 趋势数据（近7天） ===
 
-    @Select("SELECT DATE(DATE_SUB(CURDATE(), INTERVAL #{days} DAY)) as date, 0 as dau, 0 as submissions " +
-            "UNION ALL " +
-            "SELECT DATE(DATE_SUB(CURDATE(), INTERVAL n DAY)) as date, " +
-            "(SELECT COUNT(DISTINCT user_id) FROM login_log WHERE status='success' AND login_time >= DATE_SUB(CURDATE(), INTERVAL n DAY) AND login_time < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL n DAY), INTERVAL 1 DAY)) as dau, " +
-            "(SELECT COUNT(*) FROM submission WHERE submit_time >= DATE_SUB(CURDATE(), INTERVAL n DAY) AND submit_time < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL n DAY), INTERVAL 1 DAY)) as submissions " +
-            "FROM (SELECT 0 AS n UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6) days " +
+    @Select("SELECT DATE(DATE_SUB(CURDATE(), INTERVAL n DAY)) AS date, " +
+            "(SELECT COUNT(DISTINCT user_id) FROM login_log WHERE status='success' AND login_time >= DATE_SUB(CURDATE(), INTERVAL n DAY) AND login_time < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL n DAY), INTERVAL 1 DAY)) AS dau, " +
+            "(SELECT COUNT(*) FROM submission WHERE submit_time >= DATE_SUB(CURDATE(), INTERVAL n DAY) AND submit_time < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL n DAY), INTERVAL 1 DAY)) AS submissions " +
+            "FROM (SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6) days " +
             "ORDER BY date")
     List<Map<String, Object>> getWeekTrend();
 
@@ -61,24 +59,24 @@ public interface DashboardMapper {
 
     // === 模块访问量 ===
 
-    @Select("SELECT '数据结构' as name, IFNULL(SUM(ds_visits), 0) as value FROM app_user " +
+    @Select("SELECT '数据结构' AS name, IFNULL(SUM(ds_visits), 0) AS value FROM user " +
             "UNION ALL " +
-            "SELECT '算法' as name, IFNULL(SUM(algo_visits), 0) as value FROM app_user " +
+            "SELECT '算法' AS name, IFNULL(SUM(algo_visits), 0) AS value FROM user " +
             "UNION ALL " +
-            "SELECT 'OJ' as name, IFNULL(SUM(oj_visits), 0) as value FROM app_user " +
+            "SELECT 'OJ' AS name, IFNULL(SUM(oj_visits), 0) AS value FROM user " +
             "UNION ALL " +
-            "SELECT 'AI助手' as name, IFNULL(SUM(ai_dialogues), 0) as value FROM app_user")
+            "SELECT 'AI助手' AS name, IFNULL(SUM(ai_dialogues), 0) AS value FROM user")
     List<Map<String, Object>> getModuleVisits();
 
     // === 最多提交的 OJ 题目 Top 5 ===
 
-    @Select("SELECT p.title as title, p.submission_count as submissions, p.difficulty as difficulty " +
+    @Select("SELECT p.title AS title, p.submission_count AS submissions, p.difficulty AS difficulty " +
             "FROM oj_problem p ORDER BY p.submission_count DESC LIMIT 5")
     List<Map<String, Object>> getTopOJProblems();
 
     // === 最多浏览的面试题 Top 5 ===
 
-    @Select("SELECT p.title as title, p.view_count as views, p.difficulty as difficulty, p.category as category " +
+    @Select("SELECT p.title AS title, p.view_count AS views, p.difficulty AS difficulty, p.category AS category " +
             "FROM interview_problem p WHERE p.status = 'ACTIVE' AND (p.is_deleted = 0 OR p.is_deleted IS NULL) " +
             "ORDER BY p.view_count DESC LIMIT 5")
     List<Map<String, Object>> getTopInterviewProblems();
@@ -91,6 +89,6 @@ public interface DashboardMapper {
     @Select("SELECT COUNT(*) FROM submission WHERE submit_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND submit_time < CURDATE()")
     int countYesterdaySubmissions();
 
-    @Select("SELECT IFNULL(SUM(ai_dialogues), 0) FROM app_user WHERE last_visit_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND last_visit_time < CURDATE()")
+    @Select("SELECT IFNULL(SUM(ai_dialogues), 0) FROM user WHERE last_visit_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND last_visit_time < CURDATE()")
     int countYesterdayAIDialogues();
 }

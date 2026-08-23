@@ -370,8 +370,33 @@ router.beforeEach(async (to, from, next) => {
     sessionValidated = true
     try {
       const { default: request } = await import('@/api/request')
-      await request.get('/admin/info')
-      // session 有效，继续
+      const data = await request.get('/admin/info')
+      // 同步最新的用户信息到 store（修复刷新后角色丢失问题）
+      const { useUserStore } = await import('@/stores/user')
+      const userStore = useUserStore()
+      const serverUserInfo = data?.userInfo
+      const serverRoles = data?.roles || []
+      const serverPermissions = data?.permissions || []
+
+      if (serverUserInfo) {
+        const adaptedUserInfo = {
+          id: serverUserInfo.id?.toString() || '',
+          username: serverUserInfo.username || '',
+          nickname: serverUserInfo.realName || serverUserInfo.username || '',
+          email: serverUserInfo.email || '',
+          phone: serverUserInfo.phone || '',
+          role: serverRoles[0] || '',
+          status: serverUserInfo.status === 1 || serverUserInfo.status === 'active' ? 'active' : 'disabled',
+          avatar: serverUserInfo.avatar || '',
+          createTime: serverUserInfo.createdAt || '',
+          updateTime: serverUserInfo.updatedAt || '',
+          lastLoginTime: serverUserInfo.lastLoginTime || ''
+        }
+        userStore.setUserInfo(adaptedUserInfo, serverRoles, serverPermissions)
+        localStorage.setItem('userInfo', JSON.stringify(adaptedUserInfo))
+        localStorage.setItem('roles', JSON.stringify(serverRoles))
+        localStorage.setItem('permissions', JSON.stringify(serverPermissions))
+      }
     } catch {
       // session 已过期或 token 无效 → 清除登录态，跳转登录页
       localStorage.removeItem('token')

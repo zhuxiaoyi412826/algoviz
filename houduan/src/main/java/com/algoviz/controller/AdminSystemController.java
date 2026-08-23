@@ -32,10 +32,45 @@ public class AdminSystemController {
     @GetMapping("/system/login-log")
     public ApiResponse<Map<String, Object>> getLoginLog(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int pageSize) {
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        if (pageSize > 100) pageSize = 100;
         int offset = (page - 1) * pageSize;
-        List<LoginLog> list = loginLogMapper.findByPage(offset, pageSize);
-        int total = loginLogMapper.count();
+        List<LoginLog> list;
+        int total;
+
+        boolean hasUsername = username != null && !username.isEmpty();
+        boolean hasStatus = status != null && !status.isEmpty();
+        boolean hasDateRange = startDate != null && !startDate.isEmpty() && endDate != null && !endDate.isEmpty();
+
+        if (!hasUsername && !hasStatus && !hasDateRange) {
+            list = loginLogMapper.findByPage(offset, pageSize);
+            total = loginLogMapper.count();
+        } else if (hasUsername && hasStatus && hasDateRange) {
+            list = loginLogMapper.findByAllFilters(offset, pageSize, username, status, startDate, endDate);
+            total = loginLogMapper.countByAllFilters(username, status, startDate, endDate);
+        } else if (hasUsername && hasStatus) {
+            list = loginLogMapper.findByUsernameAndStatus(offset, pageSize, username, status);
+            total = loginLogMapper.countByUsernameAndStatus(username, status);
+        } else if (hasUsername && hasDateRange) {
+            list = loginLogMapper.findByUsernameAndDateRange(offset, pageSize, username, startDate, endDate);
+            total = loginLogMapper.countByUsernameAndDateRange(username, startDate, endDate);
+        } else if (hasStatus && hasDateRange) {
+            list = loginLogMapper.findByStatusAndDateRange(offset, pageSize, status, startDate, endDate);
+            total = loginLogMapper.countByStatusAndDateRange(status, startDate, endDate);
+        } else if (hasUsername) {
+            list = loginLogMapper.findByUsername(offset, pageSize, username);
+            total = loginLogMapper.countByUsername(username);
+        } else if (hasStatus) {
+            list = loginLogMapper.findByStatus(offset, pageSize, status);
+            total = loginLogMapper.countByStatus(status);
+        } else {
+            list = loginLogMapper.findByDateRange(offset, pageSize, startDate, endDate);
+            total = loginLogMapper.countByDateRange(startDate, endDate);
+        }
 
         Map<String, Object> result = new HashMap<>();
         result.put("list", list);
@@ -46,10 +81,21 @@ public class AdminSystemController {
     @GetMapping("/system/login-log/stats")
     public ApiResponse<Map<String, Object>> getLoginLogStats() {
         Map<String, Object> result = new HashMap<>();
+        int failCount = loginLogMapper.countFailed();
+        int successCount = loginLogMapper.countSuccess();
+        int total = failCount + successCount;
         result.put("todayCount", loginLogMapper.countToday());
         result.put("weekCount", loginLogMapper.countWeek());
-        result.put("failCount", loginLogMapper.countFailed());
+        result.put("failCount", failCount);
+        result.put("successCount", successCount);
+        result.put("total", total);
+        result.put("failRate", total > 0 ? Math.round(failCount * 10000.0 / total) / 100.0 : 0.0);
         return ApiResponse.success(result);
+    }
+
+    @GetMapping("/system/login-log/{id}")
+    public ApiResponse<LoginLog> getLoginLogDetail(@PathVariable String id) {
+        return ApiResponse.success(loginLogMapper.findById(id));
     }
 
     @GetMapping("/system/operation-log")

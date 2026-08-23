@@ -25,6 +25,11 @@ public class SaTokenConfig implements WebMvcConfigurer {
                             "/api/system/admin/**",
                             "/api/system/profile",
                             "/api/system/system-config",
+                            "/api/system/login-log",
+                            "/api/system/login-log/**",
+                            "/api/system/operation-log",
+                            "/api/system/operation-log/**",
+                            "/api/export/**",
                             "/api/dashboard/**"
                     )
                     .check(r -> StpUtil.checkLogin());

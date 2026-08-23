@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.sql.SQLException;
 import java.util.stream.Collectors;
@@ -140,6 +142,16 @@ public class GlobalExceptionHandler {
     }
 
     // ==================== HTTP 协议错误 ====================
+
+    /**
+     * 请求路径不存在（404），返回 JSON 而不是 HTML
+     */
+    @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public InterviewResponse<Void> handleNotFoundException(Exception e) {
+        log.warn("[NotFound] {}", e.getMessage());
+        return InterviewResponse.fail(ErrorCode.NOT_FOUND.getCode(), ErrorCode.NOT_FOUND.getMessage());
+    }
 
     /**
      * 请求方法不支持（POST 写成 GET 等）

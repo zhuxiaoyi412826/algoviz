@@ -8,6 +8,8 @@ public class AdminLoginRequest {
     private String username;
     @Schema(description = "密码")
     private String password;
+    @Schema(description = "登录地点")
+    private String location;
 
     public AdminLoginRequest() {}
 
@@ -15,4 +17,6 @@ public class AdminLoginRequest {
     public void setUsername(String username) { this.username = username; }
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
 }
