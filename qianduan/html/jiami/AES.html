@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>对称加密原理可视化 · AES-128</title>
+<style>
+  @font-face { font-family: 'system-ui-fallback'; src: local('Arial'); }
+
+  :root{
+    --bg: #12141a;
+    --bg-panel: #191c24;
+    --bg-panel-2: #1f232c;
+    --line: #2a2e38;
+    --line-soft: #22252e;
+    --text: #e9e7e0;
+    --text-dim: #8a8f9c;
+    --text-faint: #565b68;
+    --amber: #e8a33d;
+    --cyan: #56c2e0;
+    --green: #6fcf97;
+    --red: #e2685b;
+    --mono: 'IBM Plex Mono', 'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace;
+    --disp: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+    --body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+  body{
+    margin:0;
+    background:
+      radial-gradient(1100px 500px at 12% -8%, rgba(232,163,61,0.07), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(86,194,224,0.06), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection{ background: rgba(232,163,61,0.35); }
+
+  a{ color: var(--amber); }
+
+  .wrap{ max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+  /* ---------- Header ---------- */
+  header.hero{ padding: 88px 0 56px; border-bottom: 1px solid var(--line-soft); }
+  .eyebrow{
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--amber); display:flex; align-items:center; gap:10px; margin-bottom: 22px;
+  }
+  .eyebrow::before{ content:''; width:20px; height:1px; background:var(--amber); display:inline-block; }
+  h1{
+    font-family: var(--disp); font-weight: 600; font-size: clamp(34px, 5vw, 54px);
+    line-height: 1.08; margin: 0 0 20px; letter-spacing: -0.01em;
+  }
+  h1 span{ color: var(--text-dim); }
+  .hero p.lede{ max-width: 640px; color: var(--text-dim); font-size: 16.5px; margin: 0 0 30px; }
+
+  .hero-key-row{ display:flex; align-items:center; gap: 14px; flex-wrap: wrap; }
+  .pill{
+    font-family: var(--mono); font-size: 12.5px; color: var(--text-dim);
+    border: 1px solid var(--line); padding: 6px 12px; border-radius: 100px; background: var(--bg-panel);
+  }
+  .pill b{ color: var(--amber); font-weight: 600; }
+
+  /* ---------- Section shell ---------- */
+  section{ padding: 68px 0; border-bottom: 1px solid var(--line-soft); }
+  section:last-of-type{ border-bottom: none; }
+  .sec-head{ margin-bottom: 40px; }
+  .sec-num{
+    font-family: var(--mono); font-size: 12px; color: var(--text-faint); letter-spacing: 0.1em;
+    margin-bottom: 10px; text-transform: uppercase;
+  }
+  h2{ font-family: var(--disp); font-size: 28px; font-weight: 600; margin: 0 0 10px; letter-spacing: -0.01em; }
+  .sec-desc{ color: var(--text-dim); max-width: 620px; font-size: 15px; }
+
+  /* ---------- Symmetric enc principle diagram ---------- */
+  .principle{
+    display:flex; align-items:center; justify-content:center; gap: 6px; flex-wrap: wrap;
+    background: var(--bg-panel); border:1px solid var(--line); border-radius: 16px; padding: 44px 28px;
+    position: relative;
+  }
+  .p-node{
+    display:flex; flex-direction:column; align-items:center; gap:10px; min-width: 110px;
+  }
+  .p-box{
+    font-family: var(--mono); font-size: 13px; padding: 14px 16px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--bg-panel-2); color: var(--text); text-align:center;
+    min-width: 96px;
+  }
+  .p-box.text{ color: var(--text); }
+  .p-box.cipher{ border-color: rgba(226,104,91,0.4); color: var(--red); }
+  .p-label{ font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; }
+  .p-op{
+    display:flex; flex-direction:column; align-items:center; gap:6px; padding: 0 14px;
+  }
+  .p-op-box{
+    width: 56px; height: 56px; border-radius: 12px; display:flex; align-items:center; justify-content:center;
+    font-family: var(--mono); font-size: 11px; text-align:center; border: 1px solid;
+  }
+  .p-op-box.enc{ background: rgba(232,163,61,0.1); border-color: rgba(232,163,61,0.4); color: var(--amber); }
+  .p-op-box.dec{ background: rgba(86,194,224,0.1); border-color: rgba(86,194,224,0.4); color: var(--cyan); }
+  .p-arrow{ color: var(--text-faint); font-size: 18px; }
+  .p-key-link{
+    position:absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+  }
+  .p-key-icon{
+    font-family: var(--mono); font-size: 11px; color: var(--amber); border:1px dashed rgba(232,163,61,0.5);
+    border-radius: 8px; padding: 5px 10px; background: rgba(232,163,61,0.06);
+  }
+  .principle-row{ display:flex; align-items:center; justify-content:center; flex-wrap: wrap; gap: 4px; margin-top: 30px; }
+
+  .principle-note{
+    margin-top: 26px; text-align:center; font-size: 13.5px; color: var(--text-dim); font-family: var(--mono);
+  }
+  .principle-note b{ color: var(--text); font-weight: 600; }
+
+  /* ---------- Overview flow chips ---------- */
+  .flow{
+    display:flex; align-items:stretch; gap: 8px; overflow-x: auto; padding: 6px 2px 18px;
+    scrollbar-width: thin;
+  }
+  .flow::-webkit-scrollbar{ height: 6px; }
+  .flow::-webkit-scrollbar-thumb{ background: var(--line); border-radius: 4px; }
+  .chip{
+    flex: 0 0 auto; min-width: 84px; border: 1px solid var(--line); background: var(--bg-panel);
+    border-radius: 12px; padding: 12px 14px; text-align:center; transition: all .25s ease; position: relative;
+  }
+  .chip .chip-title{ font-family: var(--mono); font-size: 12px; color: var(--text); font-weight: 600; }
+  .chip .chip-sub{ font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
+  .chip.active{ border-color: var(--amber); background: rgba(232,163,61,0.08); box-shadow: 0 0 0 1px rgba(232,163,61,0.25); }
+  .chip.active .chip-title{ color: var(--amber); }
+  .chip.done{ opacity: 0.45; }
+  .chip-arrow{ align-self:center; color: var(--text-faint); font-family: var(--mono); padding: 0 2px; }
+
+  .legend-row{ display:flex; gap: 20px; flex-wrap: wrap; margin-top: 8px; }
+  .legend-item{ display:flex; align-items:center; gap:8px; font-size: 13px; color: var(--text-dim); }
+  .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+
+  /* ---------- Interactive visualizer ---------- */
+  .viz-grid{ display:grid; grid-template-columns: 1.15fr 0.85fr; gap: 26px; align-items:start; }
+  @media (max-width: 860px){ .viz-grid{ grid-template-columns: 1fr; } }
+
+  .panel{ background: var(--bg-panel); border:1px solid var(--line); border-radius: 16px; padding: 26px; }
+
+  .inputs-grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+  @media (max-width: 560px){ .inputs-grid{ grid-template-columns: 1fr; } }
+  .field label{ font-size: 11.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.07em; display:block; margin-bottom: 7px; font-family: var(--mono); }
+  .field-row{ display:flex; gap: 8px; }
+  .field input[type=text]{
+    flex:1; background: var(--bg-panel-2); border: 1px solid var(--line); color: var(--text);
+    font-family: var(--mono); font-size: 13.5px; padding: 10px 12px; border-radius: 8px; min-width: 0;
+  }
+  .field input[type=text]:focus{ outline:none; border-color: var(--amber); }
+
+  .copy-btn{
+    flex: 0 0 auto; background: var(--bg-panel-2); border: 1px solid var(--line); color: var(--text-dim);
+    font-size: 15px; width: 38px; border-radius: 8px; cursor: pointer; transition: border-color .15s ease, color .15s ease;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .copy-btn:hover{ border-color: var(--amber); color: var(--amber); }
+  .copy-btn.copied{ border-color: var(--green); color: var(--green); }
+
+  .qr-copy-btn{
+    background: transparent; border: 1px solid var(--line); color: var(--text-faint);
+    font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 6px; cursor: pointer;
+    margin-left: 8px; transition: border-color .15s ease, color .15s ease;
+  }
+  .qr-copy-btn:hover{ border-color: var(--amber); color: var(--amber); }
+  .qr-copy-btn.copied{ border-color: var(--green); color: var(--green); }
+
+  .toggle{ display:flex; border:1px solid var(--line); border-radius: 8px; overflow: hidden; font-family: var(--mono); font-size: 11.5px; }
+  .toggle button{
+    background: var(--bg-panel-2); color: var(--text-faint); border:none; padding: 0 10px; cursor:pointer;
+  }
+  .toggle button.on{ background: rgba(232,163,61,0.15); color: var(--amber); }
+
+  .run-row{ display:flex; align-items:center; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
+
+  /* ---------- random plaintext generator ---------- */
+  .randbox{
+    border: 1px dashed var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px;
+    background: var(--bg-panel-2);
+  }
+  .randbox-head{ font-family: var(--mono); font-size: 12.5px; color: var(--text-dim); margin-bottom: 12px; }
+  .randbox-row{ display:flex; align-items:center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+  .randbox-row:last-child{ margin-bottom: 0; }
+  .rand-len-label{ font-family: var(--mono); font-size: 12.5px; color: var(--text-dim); white-space: nowrap; }
+  .rand-len-label b{ color: var(--amber); }
+  .rand-checks{ gap: 18px; }
+  .rand-check{ font-size: 12.5px; color: var(--text-dim); display:flex; align-items:center; gap: 6px; cursor:pointer; user-select:none; }
+  .rand-check input[type=checkbox]{ accent-color: var(--amber); width:14px; height:14px; cursor:pointer; }
+  .rand-preview{ font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); word-break: break-all; }
+
+  .range-input{
+    -webkit-appearance: none; appearance: none; height: 4px; border-radius: 4px; background: var(--line);
+    outline: none; cursor: pointer; flex: 1; min-width: 100px;
+  }
+  .range-input::-webkit-slider-thumb{
+    -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--amber); cursor: pointer; border: 2px solid #1a1305;
+  }
+  .range-input::-moz-range-thumb{
+    width: 15px; height: 15px; border-radius: 50%; background: var(--amber); cursor: pointer; border: 2px solid #1a1305;
+  }
+
+  .speed-control{ display:flex; align-items:center; gap: 8px; }
+  .speed-label{ font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); white-space: nowrap; }
+  .speed-range{ width: 100px; }
+  .speed-val{ font-family: var(--mono); font-size: 12.5px; color: var(--amber); min-width: 26px; }
+
+  .quick-result{
+    margin-top: 10px; font-family: var(--mono); font-size: 12.5px; color: var(--text-dim);
+    min-height: 18px; word-break: break-all;
+  }
+  .quick-result b{ color: var(--green); }
+  .quick-result .qr-label{ color: var(--text-faint); }
+
+  button.primary{
+    background: var(--amber); color: #1a1305; border:none; font-family: var(--body); font-weight: 600;
+    font-size: 13.5px; padding: 10px 18px; border-radius: 8px; cursor:pointer; transition: transform .15s ease, opacity .15s ease;
+  }
+  button.primary:hover{ transform: translateY(-1px); }
+  .err-msg{ color: var(--red); font-size: 12.5px; font-family: var(--mono); min-height: 16px; }
+
+  hr.sep{ border:none; border-top:1px solid var(--line-soft); margin: 20px 0; }
+
+  .state-title{ font-family: var(--mono); font-size: 12px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; display:flex; justify-content: space-between; }
+
+  .matrices{ display:flex; gap: 26px; flex-wrap: wrap; align-items:center; justify-content:center; padding: 10px 0 6px; }
+  .matrix-block{ display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .matrix{ display:grid; grid-template-columns: repeat(4, 44px); grid-template-rows: repeat(4, 44px); gap: 5px; }
+  @media (max-width: 420px){ .matrix{ grid-template-columns: repeat(4, 38px); grid-template-rows: repeat(4, 38px); } }
+  .cell{
+    display:flex; align-items:center; justify-content:center; font-family: var(--mono); font-size: 13px;
+    border-radius: 6px; background: var(--bg-panel-2); border: 1px solid var(--line); color: var(--text-dim);
+    transition: background .35s ease, border-color .35s ease, color .35s ease, transform .35s ease;
+  }
+  .cell.changed{ color: #1a1305; font-weight: 700; }
+  .cell.op-sub.changed{ background: var(--amber); border-color: var(--amber); }
+  .cell.op-shift.changed{ background: var(--cyan); border-color: var(--cyan); color:#04202a; }
+  .cell.op-mix.changed{ background: var(--green); border-color: var(--green); color:#062015; }
+  .cell.op-key.changed{ background: var(--red); border-color: var(--red); color:#2a0904; }
+  .matrix-label{ font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+
+  .xor-sym{ font-family: var(--mono); font-size: 20px; color: var(--text-faint); align-self:center; }
+
+  .step-desc{
+    margin-top: 8px; background: var(--bg-panel-2); border:1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; font-size: 13.5px; color: var(--text-dim); min-height: 46px;
+  }
+  .step-desc b{ color: var(--text); }
+
+  .stage-result{
+    margin-top: 8px; font-family: var(--mono); font-size: 12.5px; color: var(--text-dim);
+    background: transparent; padding: 2px 2px; word-break: break-all;
+  }
+  .stage-result .sr-label{ color: var(--text-faint); }
+  .stage-result b{ color: var(--cyan); }
+
+
+  .controls{ display:flex; align-items:center; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .ctrl-btn{
+    background: var(--bg-panel-2); border:1px solid var(--line); color: var(--text); font-family: var(--mono);
+    font-size: 13px; padding: 9px 14px; border-radius: 8px; cursor:pointer; transition: border-color .15s ease;
+  }
+  .ctrl-btn:hover{ border-color: var(--amber); }
+  .ctrl-btn:disabled{ opacity: 0.35; cursor: not-allowed; }
+  .ctrl-btn.play.on{ border-color: var(--amber); color: var(--amber); }
+  .step-counter{ font-family: var(--mono); font-size: 12.5px; color: var(--text-faint); margin-left: auto; }
+
+  .progress{ height: 4px; background: var(--line-soft); border-radius: 4px; margin-top: 16px; overflow:hidden; }
+  .progress-bar{ height: 100%; background: linear-gradient(90deg, var(--amber), var(--cyan)); width: 0%; transition: width .3s ease; }
+
+  /* ---------- side ops list ---------- */
+  .ops-list{ display:flex; flex-direction:column; gap: 10px; }
+  .op-card{
+    border:1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--bg-panel-2);
+    transition: border-color .25s ease, background .25s ease;
+  }
+  .op-card.active{ border-color: var(--amber); background: rgba(232,163,61,0.06); }
+  .op-card .op-name{ font-family: var(--mono); font-size: 13px; font-weight: 600; display:flex; align-items:center; gap:8px; }
+  .op-card .op-desc{ font-size: 12.5px; color: var(--text-dim); margin-top: 6px; }
+  .op-swatch{ width:9px; height:9px; border-radius: 3px; display:inline-block; }
+
+  .result-box{
+    margin-top: 18px; border:1px solid rgba(111,207,151,0.35); background: rgba(111,207,151,0.06);
+    border-radius: 10px; padding: 14px 16px; font-family: var(--mono); font-size: 13px; color: var(--green);
+    display:none;
+  }
+  .result-box.show{ display:block; }
+
+  /* ---------- structure summary section ---------- */
+  .struct-cols{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 760px){ .struct-cols{ grid-template-columns: 1fr; } }
+  .struct-card{ background: var(--bg-panel); border:1px solid var(--line); border-radius: 14px; padding: 20px; }
+  .struct-card .num{ font-family: var(--mono); color: var(--amber); font-size: 12px; margin-bottom: 8px; }
+  .struct-card h3{ font-family: var(--disp); font-size: 17px; margin: 0 0 8px; }
+  .struct-card p{ font-size: 13.5px; color: var(--text-dim); margin:0; }
+
+  .note-callout{
+    margin-top: 22px; display:flex; gap: 14px; align-items:flex-start;
+    background: rgba(232,163,61,0.06); border: 1px solid rgba(232,163,61,0.3);
+    border-radius: 12px; padding: 16px 20px; font-size: 13.5px; color: var(--text-dim); line-height: 1.7;
+  }
+  .note-callout-icon{ font-size: 18px; line-height: 1; margin-top: 1px; }
+  .note-callout b{ color: var(--text); }
+
+
+  footer{ padding: 40px 0 60px; }
+  footer p{ font-size: 12.5px; color: var(--text-faint); font-family: var(--mono); }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">对称加密 · 原理可视化</div>
+    <h1>一把钥匙，锁上又打开<br><span>AES 加密的内部结构</span></h1>
+    <p class="lede">对称加密的核心只有一句话：加密和解密用的是同一把密钥。下面用 AES-128 的真实字节运算，逐步拆开这句话背后发生了什么——数据如何被反复替换、打乱、混合，最终变成看似随机的密文。</p>
+    <div class="hero-key-row">
+      <span class="pill">算法 <b>AES-128</b></span>
+      <span class="pill">分组大小 <b>128 位 / 16 字节</b></span>
+      <span class="pill">密钥长度 <b>128 位 / 16 字节</b></span>
+      <span class="pill">轮数 <b>10 轮</b></span>
+    </div>
+  </header>
+
+  <!-- ============ SECTION 1: 对称加密原理 ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">01 · 原理</div>
+      <h2>什么是对称加密</h2>
+      <p class="sec-desc">加密方和解密方共享同一把密钥。明文经密钥加密得到密文，密文再用同一把密钥解密还原为明文——整个过程只有一把钥匙，没有公钥私钥之分。</p>
+    </div>
+
+    <div class="principle">
+      <div class="p-key-link">
+        <span class="p-key-icon">🔑 同一把密钥</span>
+      </div>
+      <div class="principle-row" style="margin-top:34px;">
+        <div class="p-node">
+          <div class="p-box text">明文<br>Hello!</div>
+          <span class="p-label">Plaintext</span>
+        </div>
+        <div class="p-arrow">→</div>
+        <div class="p-op">
+          <div class="p-op-box enc">加密<br>Encrypt</div>
+        </div>
+        <div class="p-arrow">→</div>
+        <div class="p-node">
+          <div class="p-box cipher">密文<br>8f 3a c1…</div>
+          <span class="p-label">Ciphertext</span>
+        </div>
+        <div class="p-arrow" style="opacity:.4">⋯</div>
+        <div class="p-op">
+          <div class="p-op-box dec">解密<br>Decrypt</div>
+        </div>
+        <div class="p-arrow">→</div>
+        <div class="p-node">
+          <div class="p-box text">明文<br>Hello!</div>
+          <span class="p-label">Plaintext</span>
+        </div>
+      </div>
+    </div>
+    <p class="principle-note">与"非对称加密"（公钥加密、私钥解密）不同，对称加密速度快，因此常用于加密大量数据本身；<b>AES</b>（Advanced Encryption Standard）正是目前应用最广泛的对称加密算法。</p>
+  </section>
+
+  <!-- ============ SECTION 2: AES 总体结构 ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">02 · 结构</div>
+      <h2>AES 的总体结构</h2>
+      <p class="sec-desc">AES 把 16 字节明文当作一个 4×4 的字节矩阵（称为 "state"），先做一次密钥加轮，再重复多轮相同的四个操作，最后一轮省略其中一步。</p>
+    </div>
+
+    <div class="struct-cols">
+      <div class="struct-card">
+        <div class="num">开始</div>
+        <h3>初始轮</h3>
+        <p>明文按列填入 4×4 矩阵，与轮密钥 0 做一次 <b>AddRoundKey</b>（按位异或）。</p>
+      </div>
+      <div class="struct-card">
+        <div class="num">重复 9 次</div>
+        <h3>主轮（第 1–9 轮）</h3>
+        <p>每一轮依次执行 <b>SubBytes → ShiftRows → MixColumns → AddRoundKey</b> 四步。</p>
+      </div>
+      <div class="struct-card">
+        <div class="num">结束</div>
+        <h3>末轮（第 10 轮）</h3>
+        <p>执行 <b>SubBytes → ShiftRows → AddRoundKey</b>，唯独跳过 MixColumns，输出即为密文。</p>
+      </div>
+    </div>
+
+    <div class="note-callout">
+      <div class="note-callout-icon">💡</div>
+      <div>
+        <b>为什么一次只能加密 16 字节？</b> 上面这套 4×4 矩阵运算是 AES 标准本身规定的固定尺寸，一次只能处理 128 位（16 字节）。要加密更长的内容，需要先把数据切成一个个 16 字节的<b>分组</b>，再逐块套用这套运算，并通过 ECB / CBC / CTR / GCM 等<b>分组模式</b>把各分组关联起来（例如 CBC 会让每块先与前一块密文异或再加密），这样才能安全地处理任意长度的数据。
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 3: 交互式单步可视化 ============ -->
+  <section id="viz">
+    <div class="sec-head">
+      <div class="sec-num">03 · 交互演示</div>
+      <h2>逐步观察真实的字节运算</h2>
+      <p class="sec-desc">输入任意明文和密钥（16 字节，也可用下方随机生成器一键生成），点击"运行"后会自动倍速播放整个过程；也可以随时暂停、单步或拖动倍速。</p>
+    </div>
+
+    <div class="panel" style="margin-bottom:22px;">
+      <div class="inputs-grid">
+        <div class="field">
+          <label>明文 Plaintext（16 字节）</label>
+          <div class="field-row">
+            <input type="text" id="ptInput" value="Attack at dawn!!" />
+            <button class="copy-btn" data-target="ptInput" title="复制明文">⧉</button>
+            <div class="toggle" id="ptToggle">
+              <button data-mode="ascii" class="on">ASCII</button>
+              <button data-mode="hex">HEX</button>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label>密钥 Key（16 字节）</label>
+          <div class="field-row">
+            <input type="text" id="keyInput" value="0123456789abcdef" />
+            <button class="copy-btn" data-target="keyInput" title="复制密钥">⧉</button>
+            <div class="toggle" id="keyToggle">
+              <button data-mode="ascii" class="on">ASCII</button>
+              <button data-mode="hex">HEX</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="randbox">
+        <div class="randbox-head">🎲 随机生成明文（固定 16 字节）</div>
+        <div class="randbox-row rand-checks">
+          <label class="rand-check"><input type="checkbox" id="randUpper" checked> 大写字母 A-Z</label>
+          <label class="rand-check"><input type="checkbox" id="randLower" checked> 小写字母 a-z</label>
+          <label class="rand-check"><input type="checkbox" id="randDigits" checked> 数字 0-9</label>
+          <label class="rand-check"><input type="checkbox" id="randSpecial"> 特殊符号 !@#…</label>
+        </div>
+        <div class="randbox-row">
+          <button class="ctrl-btn" id="randGenBtn">生成随机字符串</button>
+          <span class="rand-preview" id="randPreview"></span>
+        </div>
+      </div>
+
+      <div class="randbox">
+        <div class="randbox-head">🎲 随机生成密钥（固定 16 字节）</div>
+        <div class="randbox-row rand-checks">
+          <label class="rand-check"><input type="checkbox" id="keyRandUpper" checked> 大写字母 A-Z</label>
+          <label class="rand-check"><input type="checkbox" id="keyRandLower" checked> 小写字母 a-z</label>
+          <label class="rand-check"><input type="checkbox" id="keyRandDigits" checked> 数字 0-9</label>
+          <label class="rand-check"><input type="checkbox" id="keyRandSpecial"> 特殊符号 !@#…</label>
+        </div>
+        <div class="randbox-row">
+          <button class="ctrl-btn" id="keyRandGenBtn">生成随机密钥</button>
+          <span class="rand-preview" id="keyRandPreview"></span>
+        </div>
+      </div>
+
+      <div class="run-row">
+        <button class="primary" id="encRunBtn">运行加密并可视化</button>
+        <div class="speed-control">
+          <span class="speed-label">倍速</span>
+          <input type="range" id="encSpeedRange" min="1" max="10" value="1" class="range-input speed-range" />
+          <span class="speed-val" id="encSpeedVal">1x</span>
+        </div>
+        <span class="err-msg" id="encErrMsg"></span>
+      </div>
+      <div class="quick-result" id="encQuickResult"></div>
+    </div>
+
+    <!-- overview flow chips -->
+    <div class="flow" id="encFlowChips"></div>
+    <div class="legend-row">
+      <span class="legend-item"><span class="dot" style="background:var(--amber)"></span>SubBytes 字节替换</span>
+      <span class="legend-item"><span class="dot" style="background:var(--cyan)"></span>ShiftRows 行移位</span>
+      <span class="legend-item"><span class="dot" style="background:var(--green)"></span>MixColumns 列混合</span>
+      <span class="legend-item"><span class="dot" style="background:var(--red)"></span>AddRoundKey 轮密钥加</span>
+    </div>
+
+    <div class="viz-grid" style="margin-top:26px;">
+      <div class="panel">
+        <div class="state-title"><span>当前状态矩阵 State</span><span id="encRoundLabel">—</span></div>
+
+        <div class="matrices" id="encMatricesArea"></div>
+
+        <div class="step-desc" id="encStepDesc">点击上方按钮开始运行。</div>
+        <div class="stage-result" id="encStageResult"></div>
+
+        <div class="controls">
+          <button class="ctrl-btn" id="encFirstBtn">⏮ 首步</button>
+          <button class="ctrl-btn" id="encPrevBtn">← 上一步</button>
+          <button class="ctrl-btn" id="encNextBtn">下一步 →</button>
+          <button class="ctrl-btn play" id="encPlayBtn">▶ 播放</button>
+          <span class="step-counter" id="encStepCounter">0 / 0</span>
+        </div>
+        <div class="progress"><div class="progress-bar" id="encProgressBar"></div></div>
+
+        <div class="result-box" id="encResultBox"></div>
+      </div>
+
+      <div class="panel">
+        <div class="state-title"><span>四种基本操作</span></div>
+        <div class="ops-list" id="encOpsList">
+          <div class="op-card" data-op="key">
+            <div class="op-name"><span class="op-swatch" style="background:var(--red)"></span>AddRoundKey · 轮密钥加</div>
+            <div class="op-desc">state 与本轮密钥逐字节异或（XOR）。这是唯一真正引入"密钥"信息的步骤——没有它，加密和密钥毫无关系。</div>
+          </div>
+          <div class="op-card" data-op="sub">
+            <div class="op-name"><span class="op-swatch" style="background:var(--amber)"></span>SubBytes · 字节替换</div>
+            <div class="op-desc">用固定的 S-盒（一张 256 项查找表）把每个字节替换成另一个字节，提供非线性混淆，抵抗线性分析。</div>
+          </div>
+          <div class="op-card" data-op="shift">
+            <div class="op-name"><span class="op-swatch" style="background:var(--cyan)"></span>ShiftRows · 行移位</div>
+            <div class="op-desc">state 矩阵第 r 行循环左移 r 位（第 0 行不动）。让每一列的字节来自不同的原始列，实现字节间的扩散。</div>
+          </div>
+          <div class="op-card" data-op="mix">
+            <div class="op-name"><span class="op-swatch" style="background:var(--green)"></span>MixColumns · 列混合</div>
+            <div class="op-desc">在有限域 GF(2⁸) 中，用固定矩阵对每一列做线性变换，让一列中的 4 个字节互相影响。末轮省略此步。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 4: 交互式解密可视化 ============ -->
+  <section id="decviz">
+    <div class="sec-head">
+      <div class="sec-num">04 · 解密还原</div>
+      <h2>反向运算：从密文找回明文</h2>
+      <p class="sec-desc">解密使用<b>同一把密钥</b>，把加密的四个操作按相反顺序、用各自的"逆运算"执行一遍：AddRoundKey 本身就是自己的逆（异或两次等于没异或），SubBytes 换成 InvSubBytes（逆 S-盒），ShiftRows 换成反方向的 InvShiftRows，MixColumns 换成 InvMixColumns。</p>
+    </div>
+
+    <div class="panel" style="margin-bottom:22px;">
+      <div class="inputs-grid">
+        <div class="field">
+          <label>密文 Ciphertext（HEX，32 位）</label>
+          <div class="field-row">
+            <input type="text" id="decCtInput" value="" />
+            <button class="copy-btn" data-target="decCtInput" title="复制密文">⧉</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>密钥 Key（16 字节，须与加密一致）</label>
+          <div class="field-row">
+            <input type="text" id="decKeyInput" value="0123456789abcdef" />
+            <button class="copy-btn" data-target="decKeyInput" title="复制密钥">⧉</button>
+            <div class="toggle" id="decKeyToggle">
+              <button data-mode="ascii" class="on">ASCII</button>
+              <button data-mode="hex">HEX</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="randbox">
+        <div class="randbox-head">🎲 随机生成密文（固定 16 字节，用于观察解密任意密文块的过程）</div>
+        <div class="randbox-row rand-checks">
+          <label class="rand-check"><input type="checkbox" id="decRandUpper" checked> 大写字母 A-Z</label>
+          <label class="rand-check"><input type="checkbox" id="decRandLower" checked> 小写字母 a-z</label>
+          <label class="rand-check"><input type="checkbox" id="decRandDigits" checked> 数字 0-9</label>
+          <label class="rand-check"><input type="checkbox" id="decRandSpecial"> 特殊符号 !@#…</label>
+        </div>
+        <div class="randbox-row">
+          <button class="ctrl-btn" id="decRandGenBtn">生成随机密文</button>
+          <span class="rand-preview" id="decRandPreview"></span>
+        </div>
+      </div>
+
+      <div class="randbox">
+        <div class="randbox-head">🎲 随机生成密钥（固定 16 字节）</div>
+        <div class="randbox-row rand-checks">
+          <label class="rand-check"><input type="checkbox" id="decKeyRandUpper" checked> 大写字母 A-Z</label>
+          <label class="rand-check"><input type="checkbox" id="decKeyRandLower" checked> 小写字母 a-z</label>
+          <label class="rand-check"><input type="checkbox" id="decKeyRandDigits" checked> 数字 0-9</label>
+          <label class="rand-check"><input type="checkbox" id="decKeyRandSpecial"> 特殊符号 !@#…</label>
+        </div>
+        <div class="randbox-row">
+          <button class="ctrl-btn" id="decKeyRandGenBtn">生成随机密钥</button>
+          <span class="rand-preview" id="decKeyRandPreview"></span>
+        </div>
+      </div>
+
+      <div class="run-row">
+        <button class="primary" id="decRunBtn">运行解密并可视化</button>
+        <button class="ctrl-btn" id="decAutoBtn">↑ 使用上方加密结果</button>
+        <div class="speed-control">
+          <span class="speed-label">倍速</span>
+          <input type="range" id="decSpeedRange" min="1" max="10" value="1" class="range-input speed-range" />
+          <span class="speed-val" id="decSpeedVal">1x</span>
+        </div>
+        <span class="err-msg" id="decErrMsg"></span>
+      </div>
+      <div class="quick-result" id="decQuickResult"></div>
+    </div>
+
+    <div class="flow" id="decFlowChips"></div>
+    <div class="legend-row">
+      <span class="legend-item"><span class="dot" style="background:var(--red)"></span>AddRoundKey 轮密钥加（自逆）</span>
+      <span class="legend-item"><span class="dot" style="background:var(--cyan)"></span>InvShiftRows 逆行移位</span>
+      <span class="legend-item"><span class="dot" style="background:var(--amber)"></span>InvSubBytes 逆字节替换</span>
+      <span class="legend-item"><span class="dot" style="background:var(--green)"></span>InvMixColumns 逆列混合</span>
+    </div>
+
+    <div class="viz-grid" style="margin-top:26px;">
+      <div class="panel">
+        <div class="state-title"><span>当前状态矩阵 State</span><span id="decRoundLabel">—</span></div>
+
+        <div class="matrices" id="decMatricesArea"></div>
+
+        <div class="step-desc" id="decStepDesc">填入密文（可点击"使用上方加密结果"自动填入）后运行解密。</div>
+        <div class="stage-result" id="decStageResult"></div>
+
+        <div class="controls">
+          <button class="ctrl-btn" id="decFirstBtn">⏮ 首步</button>
+          <button class="ctrl-btn" id="decPrevBtn">← 上一步</button>
+          <button class="ctrl-btn" id="decNextBtn">下一步 →</button>
+          <button class="ctrl-btn play" id="decPlayBtn">▶ 播放</button>
+          <span class="step-counter" id="decStepCounter">0 / 0</span>
+        </div>
+        <div class="progress"><div class="progress-bar" id="decProgressBar"></div></div>
+
+        <div class="result-box" id="decResultBox"></div>
+      </div>
+
+      <div class="panel">
+        <div class="state-title"><span>解密的四种逆运算</span></div>
+        <div class="ops-list" id="decOpsList">
+          <div class="op-card" data-op="key">
+            <div class="op-name"><span class="op-swatch" style="background:var(--red)"></span>AddRoundKey · 轮密钥加</div>
+            <div class="op-desc">异或运算自身就是自己的逆：A⊕K⊕K=A。所以解密时直接用同一把轮密钥再异或一次即可撤销。</div>
+          </div>
+          <div class="op-card" data-op="shift">
+            <div class="op-name"><span class="op-swatch" style="background:var(--cyan)"></span>InvShiftRows · 逆行移位</div>
+            <div class="op-desc">方向相反：第 r 行循环<b>右</b>移 r 格，把 ShiftRows 打乱的字节位置还原。</div>
+          </div>
+          <div class="op-card" data-op="sub">
+            <div class="op-name"><span class="op-swatch" style="background:var(--amber)"></span>InvSubBytes · 逆字节替换</div>
+            <div class="op-desc">使用逆 S-盒（S-盒的反向查找表）把每个字节换回替换前的原值。</div>
+          </div>
+          <div class="op-card" data-op="mix">
+            <div class="op-name"><span class="op-swatch" style="background:var(--green)"></span>InvMixColumns · 逆列混合</div>
+            <div class="op-desc">用 MixColumns 矩阵的逆矩阵，在 GF(2⁸) 中对每列做逆向线性变换。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 5: AES-128/192/256 的区别 ============ -->
+  <section id="variants">
+    <div class="sec-head">
+      <div class="sec-num">05 · 延伸阅读</div>
+      <h2>AES-128 / 192 / 256 的区别</h2>
+      <p class="sec-desc">本页交互演示的是 AES-128。AES 家族还有 192 位和 256 位两个变体，三者<b>算法结构完全相同</b>——区别只在密钥长度和轮数上。</p>
+    </div>
+
+    <div class="struct-cols">
+      <div class="struct-card">
+        <div class="num">本页演示</div>
+        <h3>AES-128</h3>
+        <p>密钥 <b>128 位</b>（16 字节），<b>10 轮</b>加密。速度最快、开销最小，是目前应用最广泛的版本，安全强度足以抵御所有已知的实际攻击。</p>
+      </div>
+      <div class="struct-card">
+        <div class="num">中间档</div>
+        <h3>AES-192</h3>
+        <p>密钥 <b>192 位</b>（24 字节），<b>12 轮</b>加密。安全余量比 128 位更大，但实际采用较少，多见于部分政府或行业规范的中间等级要求。</p>
+      </div>
+      <div class="struct-card">
+        <div class="num">最高强度</div>
+        <h3>AES-256</h3>
+        <p>密钥 <b>256 位</b>（32 字节），<b>14 轮</b>加密。安全边际最大，常用于长期保密、高敏感数据或合规要求较高的场景，计算开销比 128 位略高。</p>
+      </div>
+    </div>
+
+    <div class="note-callout">
+      <div class="note-callout-icon">💡</div>
+      <div>
+        <b>三者唯一变化的是密钥长度和轮数，其余环节完全一致：</b>分组大小始终是 128 位（16 字节），SubBytes、ShiftRows、MixColumns、AddRoundKey 这四种操作也完全相同。密钥越长，需要重复的轮数就越多（10→12→14 轮），密钥扩展生成的轮密钥数量也相应增加，从而获得更大的安全余量，但换来的是略高的计算开销。日常场景 AES-128 已经足够安全；对保密要求极高或有明确合规规定的场景，会选择 AES-256。
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>本页在浏览器本地运行完整的 AES-128 算法（含真实 S-盒、逆 S-盒、密钥扩展与 GF(2⁸) 正逆向运算），不上传任何输入数据。仅用于教学演示。</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= AES-128 core implementation ================= */
+  const SBOX = [
+    0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
+    0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
+    0xb7,0xfd,0x93,0x26,0x36,0x3f,0xf7,0xcc,0x34,0xa5,0xe5,0xf1,0x71,0xd8,0x31,0x15,
+    0x04,0xc7,0x23,0xc3,0x18,0x96,0x05,0x9a,0x07,0x12,0x80,0xe2,0xeb,0x27,0xb2,0x75,
+    0x09,0x83,0x2c,0x1a,0x1b,0x6e,0x5a,0xa0,0x52,0x3b,0xd6,0xb3,0x29,0xe3,0x2f,0x84,
+    0x53,0xd1,0x00,0xed,0x20,0xfc,0xb1,0x5b,0x6a,0xcb,0xbe,0x39,0x4a,0x4c,0x58,0xcf,
+    0xd0,0xef,0xaa,0xfb,0x43,0x4d,0x33,0x85,0x45,0xf9,0x02,0x7f,0x50,0x3c,0x9f,0xa8,
+    0x51,0xa3,0x40,0x8f,0x92,0x9d,0x38,0xf5,0xbc,0xb6,0xda,0x21,0x10,0xff,0xf3,0xd2,
+    0xcd,0x0c,0x13,0xec,0x5f,0x97,0x44,0x17,0xc4,0xa7,0x7e,0x3d,0x64,0x5d,0x19,0x73,
+    0x60,0x81,0x4f,0xdc,0x22,0x2a,0x90,0x88,0x46,0xee,0xb8,0x14,0xde,0x5e,0x0b,0xdb,
+    0xe0,0x32,0x3a,0x0a,0x49,0x06,0x24,0x5c,0xc2,0xd3,0xac,0x62,0x91,0x95,0xe4,0x79,
+    0xe7,0xc8,0x37,0x6d,0x8d,0xd5,0x4e,0xa9,0x6c,0x56,0xf4,0xea,0x65,0x7a,0xae,0x08,
+    0xba,0x78,0x25,0x2e,0x1c,0xa6,0xb4,0xc6,0xe8,0xdd,0x74,0x1f,0x4b,0xbd,0x8b,0x8a,
+    0x70,0x3e,0xb5,0x66,0x48,0x03,0xf6,0x0e,0x61,0x35,0x57,0xb9,0x86,0xc1,0x1d,0x9e,
+    0xe1,0xf8,0x98,0x11,0x69,0xd9,0x8e,0x94,0x9b,0x1e,0x87,0xe9,0xce,0x55,0x28,0xdf,
+    0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16
+  ];
+  const RCON = [0x00,0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1B,0x36];
+
+  function gmul(a,b){
+    let p=0;
+    for(let i=0;i<8;i++){
+      if(b & 1) p ^= a;
+      const hi = a & 0x80;
+      a = (a << 1) & 0xFF;
+      if(hi) a ^= 0x1B;
+      b >>= 1;
+    }
+    return p;
+  }
+
+  function keyExpansion(key){ // key: 16 bytes -> returns array of 44 words (each word = 4 bytes array)
+    const Nk=4, Nr=10;
+    const w = [];
+    for(let i=0;i<Nk;i++) w.push([key[4*i],key[4*i+1],key[4*i+2],key[4*i+3]]);
+    for(let i=Nk;i<4*(Nr+1);i++){
+      let temp = w[i-1].slice();
+      if(i % Nk === 0){
+        temp = [temp[1],temp[2],temp[3],temp[0]]; // RotWord
+        temp = temp.map(b=>SBOX[b]); // SubWord
+        temp[0] ^= RCON[i/Nk];
+      }
+      w.push(w[i-Nk].map((b,idx)=>b ^ temp[idx]));
+    }
+    return w;
+  }
+
+  function wordsToRoundKeyMatrix(words, round){ // returns 4x4 [row][col]
+    const m = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+    for(let c=0;c<4;c++){
+      const word = words[round*4+c];
+      for(let r=0;r<4;r++) m[r][c] = word[r];
+    }
+    return m;
+  }
+
+  function bytesToState(bytes){ // column-major
+    const m = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+    for(let c=0;c<4;c++) for(let r=0;r<4;r++) m[r][c] = bytes[r+4*c];
+    return m;
+  }
+
+  function cloneState(s){ return s.map(row=>row.slice()); }
+
+  function addRoundKey(state, rk){
+    const out = cloneState(state);
+    for(let r=0;r<4;r++) for(let c=0;c<4;c++) out[r][c] ^= rk[r][c];
+    return out;
+  }
+
+  function subBytes(state){
+    const out = cloneState(state);
+    for(let r=0;r<4;r++) for(let c=0;c<4;c++) out[r][c] = SBOX[state[r][c]];
+    return out;
+  }
+
+  function shiftRows(state){
+    const out = cloneState(state);
+    for(let r=0;r<4;r++){
+      for(let c=0;c<4;c++){
+        out[r][c] = state[r][(c+r)%4];
+      }
+    }
+    return out;
+  }
+
+  function mixColumns(state){
+    const out = cloneState(state);
+    for(let c=0;c<4;c++){
+      const s0=state[0][c], s1=state[1][c], s2=state[2][c], s3=state[3][c];
+      out[0][c] = gmul(s0,2) ^ gmul(s1,3) ^ s2 ^ s3;
+      out[1][c] = s0 ^ gmul(s1,2) ^ gmul(s2,3) ^ s3;
+      out[2][c] = s0 ^ s1 ^ gmul(s2,2) ^ gmul(s3,3);
+      out[3][c] = gmul(s0,3) ^ s1 ^ s2 ^ gmul(s3,2);
+    }
+    return out;
+  }
+
+  // Build the full list of steps for visualization
+  function aesEncryptSteps(ptBytes, keyBytes){
+    const words = keyExpansion(keyBytes);
+    const steps = [];
+    let state = bytesToState(ptBytes);
+
+    steps.push({round:0, op:'plain', opClass:'plain', state: cloneState(state),
+      title:'明文分组', desc:'16 字节明文按<b>列优先</b>顺序填入 4×4 矩阵，这就是初始 state。'});
+
+    const rk0 = wordsToRoundKeyMatrix(words,0);
+    state = addRoundKey(state, rk0);
+    steps.push({round:0, op:'key', opClass:'op-key', state: cloneState(state), rk: rk0,
+      title:'初始轮 · AddRoundKey', desc:'state 与<b>轮密钥 0</b>（原始密钥本身）逐字节异或，作为加密的起点。'});
+
+    for(let round=1; round<=9; round++){
+      state = subBytes(state);
+      steps.push({round, op:'sub', opClass:'op-sub', state: cloneState(state),
+        title:`第 ${round} 轮 · SubBytes`, desc:'查 S-盒表，把每个字节替换为另一字节，引入非线性。'});
+
+      state = shiftRows(state);
+      steps.push({round, op:'shift', opClass:'op-shift', state: cloneState(state),
+        title:`第 ${round} 轮 · ShiftRows`, desc:`第 r 行循环左移 r 格：第 0 行不动，第 1 行移 1，第 2 行移 2，第 3 行移 3。`});
+
+      state = mixColumns(state);
+      steps.push({round, op:'mix', opClass:'op-mix', state: cloneState(state),
+        title:`第 ${round} 轮 · MixColumns`, desc:'在 GF(2⁸) 有限域中用固定矩阵混合每一列的 4 个字节。'});
+
+      const rk = wordsToRoundKeyMatrix(words, round);
+      state = addRoundKey(state, rk);
+      steps.push({round, op:'key', opClass:'op-key', state: cloneState(state), rk,
+        title:`第 ${round} 轮 · AddRoundKey`, desc:`与本轮密钥（轮密钥 ${round}）异或，完成第 ${round} 轮。`});
+    }
+
+    // final round (10) — no MixColumns
+    state = subBytes(state);
+    steps.push({round:10, op:'sub', opClass:'op-sub', state: cloneState(state),
+      title:'第 10 轮（末轮）· SubBytes', desc:'末轮同样先做字节替换。'});
+
+    state = shiftRows(state);
+    steps.push({round:10, op:'shift', opClass:'op-shift', state: cloneState(state),
+      title:'第 10 轮（末轮）· ShiftRows', desc:'末轮同样做行移位，但<b>跳过 MixColumns</b>。'});
+
+    const rk10 = wordsToRoundKeyMatrix(words, 10);
+    state = addRoundKey(state, rk10);
+    steps.push({round:10, op:'key', opClass:'op-key', state: cloneState(state), rk: rk10, final:true,
+      title:'第 10 轮 · AddRoundKey（输出密文）', desc:'与最后的轮密钥异或后，state 矩阵按列读出即为最终<b>密文</b>。'});
+
+    return steps;
+  }
+
+  /* ---------- Inverse primitives (decryption) ---------- */
+  const INV_SBOX = new Array(256);
+  for(let i=0;i<256;i++) INV_SBOX[SBOX[i]] = i; // derive inverse S-box directly from SBOX (guarantees correctness)
+
+  function invSubBytes(state){
+    const out = cloneState(state);
+    for(let r=0;r<4;r++) for(let c=0;c<4;c++) out[r][c] = INV_SBOX[state[r][c]];
+    return out;
+  }
+
+  function invShiftRows(state){
+    const out = cloneState(state);
+    for(let r=0;r<4;r++){
+      for(let c=0;c<4;c++){
+        out[r][c] = state[r][(c - r + 4) % 4]; // shift right by r (opposite of ShiftRows)
+      }
+    }
+    return out;
+  }
+
+  function invMixColumns(state){
+    const out = cloneState(state);
+    for(let c=0;c<4;c++){
+      const s0=state[0][c], s1=state[1][c], s2=state[2][c], s3=state[3][c];
+      out[0][c] = gmul(s0,14) ^ gmul(s1,11) ^ gmul(s2,13) ^ gmul(s3,9);
+      out[1][c] = gmul(s0,9)  ^ gmul(s1,14) ^ gmul(s2,11) ^ gmul(s3,13);
+      out[2][c] = gmul(s0,13) ^ gmul(s1,9)  ^ gmul(s2,14) ^ gmul(s3,11);
+      out[3][c] = gmul(s0,11) ^ gmul(s1,13) ^ gmul(s2,9)  ^ gmul(s3,14);
+    }
+    return out;
+  }
+
+  // Build the full list of steps for decryption visualization (straightforward InvCipher, FIPS-197 Fig.12)
+  function aesDecryptSteps(ctBytes, keyBytes){
+    const words = keyExpansion(keyBytes);
+    const steps = [];
+    let state = bytesToState(ctBytes);
+
+    steps.push({round:10, op:'cipher', opClass:'op-key', state: cloneState(state),
+      title:'密文分组', desc:'16 字节密文按<b>列优先</b>顺序填入 4×4 矩阵，作为解密的起点 state。'});
+
+    const rk10 = wordsToRoundKeyMatrix(words,10);
+    state = addRoundKey(state, rk10);
+    steps.push({round:10, op:'key', opClass:'op-key', state: cloneState(state), rk: rk10,
+      title:'初始轮 · AddRoundKey（撤销末轮密钥）', desc:'先与<b>轮密钥 10</b> 异或，撤销加密最后一步施加的密钥。'});
+
+    for(let round=9; round>=1; round--){
+      state = invShiftRows(state);
+      steps.push({round, op:'shift', opClass:'op-shift', state: cloneState(state),
+        title:`第 ${round} 轮 · InvShiftRows`, desc:'把每行循环右移相应位数，撤销加密时的左移。'});
+
+      state = invSubBytes(state);
+      steps.push({round, op:'sub', opClass:'op-sub', state: cloneState(state),
+        title:`第 ${round} 轮 · InvSubBytes`, desc:'查逆 S-盒，把每个字节换回替换前的原值。'});
+
+      const rk = wordsToRoundKeyMatrix(words, round);
+      state = addRoundKey(state, rk);
+      steps.push({round, op:'key', opClass:'op-key', state: cloneState(state), rk,
+        title:`第 ${round} 轮 · AddRoundKey`, desc:`与轮密钥 ${round} 异或，撤销该轮加密时施加的密钥。`});
+
+      state = invMixColumns(state);
+      steps.push({round, op:'mix', opClass:'op-mix', state: cloneState(state),
+        title:`第 ${round} 轮 · InvMixColumns`, desc:'用 MixColumns 的逆矩阵还原该轮列混合之前的字节。'});
+    }
+
+    // final: InvShiftRows, InvSubBytes, AddRoundKey(0) — no InvMixColumns (mirrors encryption's final round)
+    state = invShiftRows(state);
+    steps.push({round:0, op:'shift', opClass:'op-shift', state: cloneState(state),
+      title:'末轮 · InvShiftRows', desc:'撤销初始轮之前（加密第 1 轮）的行移位。'});
+
+    state = invSubBytes(state);
+    steps.push({round:0, op:'sub', opClass:'op-sub', state: cloneState(state),
+      title:'末轮 · InvSubBytes', desc:'撤销最初的字节替换。'});
+
+    const rk0 = wordsToRoundKeyMatrix(words, 0);
+    state = addRoundKey(state, rk0);
+    steps.push({round:0, op:'key', opClass:'op-key', state: cloneState(state), rk: rk0, final:true,
+      title:'AddRoundKey · 输出明文', desc:'与<b>轮密钥 0</b>（原始密钥）异或后，state 矩阵按列读出，还原出<b>原始明文</b>。'});
+
+    return steps;
+  }
+
+  function stateToHex(state){
+    let bytes = [];
+    for(let c=0;c<4;c++) for(let r=0;r<4;r++) bytes.push(state[r][c]);
+    return bytes.map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
+  /* ================= Input encoding ================= */
+  function encodeInput(str, mode){
+    if(mode === 'hex'){
+      const clean = str.trim().replace(/\s+/g,'');
+      if(!/^[0-9a-fA-F]{32}$/.test(clean)) throw new Error('HEX 输入必须是 32 位十六进制字符（16 字节）');
+      const bytes = [];
+      for(let i=0;i<32;i+=2) bytes.push(parseInt(clean.substr(i,2),16));
+      return bytes;
+    } else {
+      // ASCII: use TextEncoder to support multibyte safely, but require exactly 16 bytes
+      const bytes = Array.from(new TextEncoder().encode(str));
+      if(bytes.length !== 16) throw new Error(`ASCII 输入需恰好 16 字节，当前为 ${bytes.length} 字节`);
+      return bytes;
+    }
+  }
+
+  /* ================= UI: reusable step visualizer ================= */
+  const $ = sel => document.querySelector(sel);
+
+  function renderMatrix(state, opClass, prevState, container, label){
+    const block = document.createElement('div');
+    block.className = 'matrix-block';
+    const grid = document.createElement('div');
+    grid.className = 'matrix';
+    for(let r=0;r<4;r++){
+      for(let c=0;c<4;c++){
+        const cell = document.createElement('div');
+        const changed = prevState ? (prevState[r][c] !== state[r][c]) : false;
+        cell.className = 'cell' + (opClass ? ' '+opClass : '') + (changed ? ' changed' : '');
+        cell.textContent = state[r][c].toString(16).padStart(2,'0');
+        grid.appendChild(cell);
+      }
+    }
+    block.appendChild(grid);
+    const lab = document.createElement('div');
+    lab.className = 'matrix-label';
+    lab.textContent = label;
+    block.appendChild(lab);
+    container.appendChild(block);
+  }
+
+  // direction: 'enc' | 'dec' — controls flow-chip labels and round-key captions
+  function createVisualizer(idPrefix, direction){
+    const ids = {
+      matrices: `#${idPrefix}MatricesArea`, desc: `#${idPrefix}StepDesc`, round: `#${idPrefix}RoundLabel`,
+      counter: `#${idPrefix}StepCounter`, progress: `#${idPrefix}ProgressBar`, flow: `#${idPrefix}FlowChips`,
+      result: `#${idPrefix}ResultBox`, ops: `#${idPrefix}OpsList`, stage: `#${idPrefix}StageResult`,
+      first: `#${idPrefix}FirstBtn`, prev: `#${idPrefix}PrevBtn`, next: `#${idPrefix}NextBtn`, play: `#${idPrefix}PlayBtn`
+    };
+    const el = {};
+    Object.keys(ids).forEach(k => el[k] = $(ids[k]));
+
+    const v = { steps: [], stepIdx: 0, playing: false, timer: null };
+
+    function buildFlowChips(){
+      let items;
+      if(direction === 'enc'){
+        items = [{label:'初始轮', sub:'AddRoundKey'}];
+        for(let i=1;i<=9;i++) items.push({label:'第 '+i+' 轮', sub:'Sub·Shift·Mix·Key'});
+        items.push({label:'第 10 轮', sub:'Sub·Shift·Key'});
+      } else {
+        items = [{label:'初始轮', sub:'AddRoundKey(10)'}];
+        for(let i=9;i>=1;i--) items.push({label:'第 '+i+' 轮', sub:'Shift·Sub·Key·Mix'});
+        items.push({label:'末轮', sub:'Shift·Sub·Key(0)'});
+      }
+      el.flow.innerHTML = '';
+      items.forEach((it, i)=>{
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.dataset.idx = i;
+        chip.innerHTML = `<div class="chip-title">${it.label}</div><div class="chip-sub">${it.sub}</div>`;
+        el.flow.appendChild(chip);
+        if(i < items.length-1){
+          const arrow = document.createElement('div');
+          arrow.className = 'chip-arrow';
+          arrow.textContent = '→';
+          el.flow.appendChild(arrow);
+        }
+      });
+    }
+    buildFlowChips();
+
+    // maps a step's "round" (as produced by aesEncryptSteps/aesDecryptSteps) to a chip index 0..10
+    function chipIndexFor(step){
+      if(direction === 'enc') return step.round;
+      // decryption: round 10 -> chip 0, round 9..1 -> chip (10-round), round 0 -> chip 10
+      if(step.round === 10) return 0;
+      if(step.round === 0) return 10;
+      return 10 - step.round;
+    }
+
+    function updateFlowChips(idx){
+      el.flow.querySelectorAll('.chip').forEach(chip=>{
+        const i = parseInt(chip.dataset.idx,10);
+        chip.classList.remove('active','done');
+        if(idx < 0) return;
+        if(i === idx) chip.classList.add('active');
+        else if(i < idx) chip.classList.add('done');
+      });
+    }
+
+    function updateOpsHighlight(op){
+      el.ops.querySelectorAll('.op-card').forEach(card=>{
+        card.classList.toggle('active', card.dataset.op === op);
+      });
+    }
+
+    function render(){
+      if(v.steps.length === 0){
+        el.matrices.innerHTML = '';
+        el.desc.textContent = direction === 'enc' ? '点击上方按钮开始运行。' : '填入密文后运行解密。';
+        el.round.textContent = '—';
+        el.counter.textContent = '0 / 0';
+        el.progress.style.width = '0%';
+        el.result.classList.remove('show');
+        el.stage.textContent = '';
+        updateFlowChips(-1);
+        updateOpsHighlight(null);
+        el.first.disabled = el.prev.disabled = el.next.disabled = true;
+        return;
+      }
+
+      const cur = v.steps[v.stepIdx];
+      const prev = v.stepIdx > 0 ? v.steps[v.stepIdx-1] : null;
+
+      el.matrices.innerHTML = '';
+      renderMatrix(cur.state, cur.opClass, prev ? prev.state : null, el.matrices, 'State');
+
+      if(cur.op === 'key' && cur.rk){
+        const xor = document.createElement('div');
+        xor.className = 'xor-sym';
+        xor.textContent = '⊕';
+        el.matrices.appendChild(xor);
+        const rkLabel = cur.round===0 ? '轮密钥 0（原始密钥）' : `轮密钥 ${cur.round}`;
+        renderMatrix(cur.rk, 'op-key', null, el.matrices, rkLabel);
+      }
+
+      el.desc.innerHTML = `<b>${cur.title}</b><br>${cur.desc}`;
+      let roundText;
+      if(cur.op === 'plain' || cur.op === 'cipher') roundText = '输入';
+      else if(direction === 'dec' && cur.round === 0) roundText = '末轮';
+      else roundText = `Round ${cur.round}`;
+      el.round.textContent = roundText;
+      el.counter.textContent = `${v.stepIdx+1} / ${v.steps.length}`;
+      el.progress.style.width = `${Math.round(((v.stepIdx+1)/v.steps.length)*100)}%`;
+
+      // show the current stage's result (state as hex, every step — not just the final one)
+      {
+        const curHex = stateToHex(cur.state);
+        let curBytes = [];
+        for(let c=0;c<4;c++) for(let r=0;r<4;r++) curBytes.push(cur.state[r][c]);
+        const curPrintable = curBytes.every(b => b>=32 && b<127);
+        const curAscii = curPrintable ? curBytes.map(b=>String.fromCharCode(b)).join('') : null;
+        const label = cur.final ? '当前阶段结果（最终）：' : '当前阶段结果：';
+        el.stage.innerHTML = `<span class="sr-label">${label}</span><b>${curHex}</b>` +
+          (curAscii ? ` <span class="sr-label">ASCII：</span><b>"${escapeHtml(curAscii)}"</b>` : '');
+      }
+
+      updateFlowChips(chipIndexFor(cur));
+      updateOpsHighlight(cur.op === 'cipher' ? null : cur.op);
+
+      if(cur.final){
+        el.result.classList.add('show');
+        if(direction === 'enc'){
+          el.result.innerHTML = `密文 Ciphertext (hex)：<br><span style="font-size:15px;letter-spacing:0.03em;">${stateToHex(cur.state)}</span>`;
+        } else {
+          const hex = stateToHex(cur.state);
+          let bytes = [];
+          for(let c=0;c<4;c++) for(let r=0;r<4;r++) bytes.push(cur.state[r][c]);
+          const printable = bytes.every(b => b>=32 && b<127);
+          const asciiStr = printable ? bytes.map(b=>String.fromCharCode(b)).join('') : null;
+          let matchLine = '';
+          if(window.__lastPlaintextHex){
+            const match = window.__lastPlaintextHex === hex;
+            matchLine = `<br>${match ? '✓ 与原始明文完全一致' : '⚠ 与最近一次加密的明文不一致（密钥或密文可能不同）'}`;
+          }
+          el.result.innerHTML = `还原出的原始明文 (hex)：<br><span style="font-size:15px;letter-spacing:0.03em;">${hex}</span>` +
+            (asciiStr ? `<br>ASCII：<span style="font-size:15px;">"${escapeHtml(asciiStr)}"</span>` : '') + matchLine;
+        }
+      } else {
+        el.result.classList.remove('show');
+      }
+
+      el.first.disabled = v.stepIdx === 0;
+      el.prev.disabled = v.stepIdx === 0;
+      el.next.disabled = v.stepIdx === v.steps.length-1;
+    }
+
+    function goTo(i){
+      v.stepIdx = Math.max(0, Math.min(v.steps.length-1, i));
+      render();
+    }
+
+    function intervalMs(){
+      return Math.max(60, Math.round(900 / v.speed));
+    }
+
+    function stopPlay(){
+      v.playing = false;
+      clearInterval(v.timer);
+      el.play.classList.remove('on');
+      el.play.textContent = '▶ 播放';
+    }
+
+    function startPlay(){
+      if(v.steps.length === 0) return;
+      if(v.stepIdx >= v.steps.length-1) v.stepIdx = 0; // restart from beginning if already at end
+      v.playing = true;
+      el.play.classList.add('on');
+      el.play.textContent = '⏸ 暂停';
+      clearInterval(v.timer);
+      v.timer = setInterval(()=>{
+        if(v.stepIdx >= v.steps.length-1){ stopPlay(); return; }
+        goTo(v.stepIdx+1);
+      }, intervalMs());
+      render();
+    }
+
+    el.first.addEventListener('click', ()=>{ stopPlay(); goTo(0); });
+    el.prev.addEventListener('click', ()=>{ stopPlay(); goTo(v.stepIdx-1); });
+    el.next.addEventListener('click', ()=>{ stopPlay(); goTo(v.stepIdx+1); });
+    el.play.addEventListener('click', ()=>{
+      if(v.steps.length === 0) return;
+      if(v.playing){ stopPlay(); return; }
+      startPlay();
+    });
+
+    v.speed = 1;
+
+    return {
+      load(steps, opts){
+        v.steps = steps; v.stepIdx = 0; stopPlay(); render();
+        if(opts && opts.autoplay) startPlay();
+      },
+      clear(){ v.steps = []; stopPlay(); render(); },
+      setSpeed(s){
+        v.speed = Math.max(1, Math.min(10, s));
+        if(v.playing){ // apply new speed immediately without losing position
+          clearInterval(v.timer);
+          v.timer = setInterval(()=>{
+            if(v.stepIdx >= v.steps.length-1){ stopPlay(); return; }
+            goTo(v.stepIdx+1);
+          }, intervalMs());
+        }
+      },
+      render
+    };
+  }
+
+  function setupToggle(id, onChange){
+    const el = document.getElementById(id);
+    el.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        el.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+        btn.classList.add('on');
+        onChange(btn.dataset.mode);
+      });
+    });
+  }
+
+  function setToggleUI(id, mode){
+    const el = document.getElementById(id);
+    el.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.mode === mode));
+  }
+
+  /* ---------- Clipboard copy helper ---------- */
+  function escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function fallbackCopy(text){
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+  }
+  function copyText(text, btn){
+    if(!text) return;
+    const flash = ()=>{
+      const orig = btn.dataset.origText !== undefined ? btn.dataset.origText : btn.textContent;
+      btn.dataset.origText = orig;
+      btn.classList.add('copied');
+      btn.textContent = '已复制✓';
+      clearTimeout(btn.__copyTimer);
+      btn.__copyTimer = setTimeout(()=>{ btn.classList.remove('copied'); btn.textContent = orig; }, 1200);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(flash).catch(()=>{ fallbackCopy(text); flash(); });
+    } else {
+      fallbackCopy(text); flash();
+    }
+  }
+  // static copy buttons next to input fields
+  document.querySelectorAll('.copy-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const input = document.getElementById(btn.dataset.target);
+      if(input) copyText(input.value, btn);
+    });
+  });
+  // delegated copy buttons inside dynamically-rendered quick-result boxes
+  document.querySelectorAll('.quick-result').forEach(container=>{
+    container.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.qr-copy-btn');
+      if(!btn) return;
+      copyText(btn.dataset.copy, btn);
+    });
+  });
+
+  /* ---------- Encryption panel wiring ---------- */
+  let ptMode = 'ascii', keyMode = 'ascii';
+  setupToggle('ptToggle', m=>{ ptMode = m; });
+  setupToggle('keyToggle', m=>{
+    keyMode = m;
+    decKeyMode = m;
+    setToggleUI('decKeyToggle', m);
+  });
+  const encVis = createVisualizer('enc', 'enc');
+
+  window.__lastPlaintextHex = null;
+  window.__lastKeyBytes = null;
+  window.__lastCipherHex = null;
+
+  // speed slider
+  const encSpeedRange = $('#encSpeedRange');
+  const encSpeedVal = $('#encSpeedVal');
+  encSpeedRange.addEventListener('input', ()=>{
+    const s = parseInt(encSpeedRange.value,10);
+    encSpeedVal.textContent = s + 'x';
+    encVis.setSpeed(s);
+  });
+
+  function runEncryption(){
+    $('#encErrMsg').textContent = '';
+    try{
+      const ptBytes = encodeInput($('#ptInput').value, ptMode);
+      const keyBytes = encodeInput($('#keyInput').value, keyMode);
+      const steps = aesEncryptSteps(ptBytes, keyBytes);
+
+      window.__lastPlaintextHex = ptBytes.map(b=>b.toString(16).padStart(2,'0')).join('');
+      window.__lastKeyBytes = keyBytes;
+      window.__lastCipherHex = stateToHex(steps[steps.length-1].state);
+
+      encVis.setSpeed(parseInt(encSpeedRange.value,10));
+      encVis.load(steps, {autoplay:true});
+
+      $('#encQuickResult').innerHTML = `<span class="qr-label">本次运行密文（HEX）：</span><b>${window.__lastCipherHex}</b><button class="qr-copy-btn" data-copy="${window.__lastCipherHex}">复制</button>`;
+    }catch(e){
+      encVis.clear();
+      $('#encErrMsg').textContent = e.message;
+      $('#encQuickResult').textContent = '';
+    }
+  }
+  $('#encRunBtn').addEventListener('click', runEncryption);
+
+  /* ---------- Random plaintext generator ---------- */
+  const CHARSETS = {
+    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    lower: 'abcdefghijklmnopqrstuvwxyz',
+    digits: '0123456789',
+    special: '!@#$%^&*()-_=+[]{}<>?,./~'
+  };
+
+  const BLOCK_LEN = 16; // AES single-block generators always produce exactly 16 bytes
+
+  function randomString(length, opts){
+    let pool = '';
+    if(opts.upper) pool += CHARSETS.upper;
+    if(opts.lower) pool += CHARSETS.lower;
+    if(opts.digits) pool += CHARSETS.digits;
+    if(opts.special) pool += CHARSETS.special;
+    if(pool.length === 0) return null;
+    const arr = new Uint32Array(length);
+    if(window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(arr);
+    else for(let i=0;i<length;i++) arr[i] = Math.floor(Math.random()*4294967296);
+    let out = '';
+    for(let i=0;i<length;i++) out += pool[arr[i] % pool.length];
+    return out;
+  }
+
+  $('#randGenBtn').addEventListener('click', ()=>{
+    const opts = {
+      upper: $('#randUpper').checked,
+      lower: $('#randLower').checked,
+      digits: $('#randDigits').checked,
+      special: $('#randSpecial').checked
+    };
+    const full = randomString(BLOCK_LEN, opts);
+    if(full === null){
+      $('#randPreview').textContent = '请至少勾选一种字符类型';
+      $('#randPreview').style.color = 'var(--red)';
+      return;
+    }
+    // 固定生成 16 字节；若因异常情况长度不足则自动用空格补全
+    let block = full.length >= 16 ? full.slice(0,16) : full.padEnd(16, ' ');
+
+    $('#ptInput').value = block;
+    ptMode = 'ascii';
+    const ptToggleEl = document.getElementById('ptToggle');
+    ptToggleEl.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.mode === 'ascii'));
+
+    $('#randPreview').style.color = 'var(--text-faint)';
+    if(full.length === 16){
+      $('#randPreview').textContent = `已生成 16 位并填入明文框：${full}`;
+    } else if(full.length < 16){
+      $('#randPreview').textContent = `生成了 ${full.length} 位："${full}"，不足 16 字节已用空格补齐 → "${block}"`;
+    } else {
+      $('#randPreview').textContent = `生成了 ${full.length} 位："${full}"，AES 单分组固定 16 字节，已截取前 16 位 → "${block}"`;
+    }
+  });
+
+  /* ---------- Generic ASCII random generator wiring (used for key fields; fixed 16-byte output) ---------- */
+  function wireAsciiRandGenerator(cfg){
+    $('#'+cfg.btnId).addEventListener('click', ()=>{
+      const opts = {
+        upper: $('#'+cfg.upperId).checked,
+        lower: $('#'+cfg.lowerId).checked,
+        digits: $('#'+cfg.digitsId).checked,
+        special: $('#'+cfg.specialId).checked
+      };
+      const full = randomString(BLOCK_LEN, opts);
+      const previewEl = $('#'+cfg.previewId);
+      if(full === null){
+        previewEl.textContent = '请至少勾选一种字符类型';
+        previewEl.style.color = 'var(--red)';
+        return;
+      }
+      // 固定生成 16 字节；若因异常情况长度不足则自动用空格补全
+      let block = full.length >= 16 ? full.slice(0,16) : full.padEnd(16, ' ');
+
+      $('#'+cfg.targetId).value = block;
+      if(cfg.setMode) cfg.setMode('ascii');
+      if(cfg.toggleId){
+        const toggleEl = document.getElementById(cfg.toggleId);
+        toggleEl.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.mode === 'ascii'));
+      }
+
+      // keep the two key fields (encryption panel + decryption panel) in sync
+      if(cfg.mirrorTargetId){
+        $('#'+cfg.mirrorTargetId).value = block;
+        if(cfg.mirrorSetMode) cfg.mirrorSetMode('ascii');
+        if(cfg.mirrorToggleId){
+          const mToggleEl = document.getElementById(cfg.mirrorToggleId);
+          mToggleEl.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.mode === 'ascii'));
+        }
+      }
+
+      previewEl.style.color = 'var(--text-faint)';
+      previewEl.textContent = `已生成 16 位并填入${cfg.label}框：${full}`;
+    });
+  }
+
+  // random KEY generator — encryption panel (mirrors into decryption panel's key field too)
+  wireAsciiRandGenerator({
+    upperId:'keyRandUpper', lowerId:'keyRandLower', digitsId:'keyRandDigits', specialId:'keyRandSpecial',
+    btnId:'keyRandGenBtn', previewId:'keyRandPreview', targetId:'keyInput', toggleId:'keyToggle',
+    setMode:(m)=>{ keyMode = m; }, label:'密钥',
+    mirrorTargetId:'decKeyInput', mirrorToggleId:'decKeyToggle', mirrorSetMode:(m)=>{ decKeyMode = m; }
+  });
+
+  /* ---------- Decryption panel wiring ---------- */
+  let decKeyMode = 'ascii';
+  setupToggle('decKeyToggle', m=>{
+    decKeyMode = m;
+    keyMode = m;
+    setToggleUI('keyToggle', m);
+  });
+  const decVis = createVisualizer('dec', 'dec');
+
+  // keep the two key fields (encryption panel + decryption panel) in sync when typed directly
+  $('#keyInput').addEventListener('input', ()=>{ $('#decKeyInput').value = $('#keyInput').value; });
+  $('#decKeyInput').addEventListener('input', ()=>{ $('#keyInput').value = $('#decKeyInput').value; });
+
+  /* random ciphertext generator (any 16-byte block, even if not a "real" AES ciphertext,
+     is still valid input for the inverse cipher — this just lets you explore decrypting arbitrary data) */
+  $('#decRandGenBtn').addEventListener('click', ()=>{
+    const opts = {
+      upper: $('#decRandUpper').checked,
+      lower: $('#decRandLower').checked,
+      digits: $('#decRandDigits').checked,
+      special: $('#decRandSpecial').checked
+    };
+    const full = randomString(BLOCK_LEN, opts);
+    if(full === null){
+      $('#decRandPreview').textContent = '请至少勾选一种字符类型';
+      $('#decRandPreview').style.color = 'var(--red)';
+      return;
+    }
+    // 固定生成 16 字节；若因异常情况长度不足则自动用空格补全
+    let block = full.length >= 16 ? full.slice(0,16) : full.padEnd(16, ' ');
+    const blockBytes = Array.from(block).map(ch => ch.charCodeAt(0) & 0xFF);
+    const hex = blockBytes.map(b => b.toString(16).padStart(2,'0')).join('');
+
+    $('#decCtInput').value = hex;
+
+    $('#decRandPreview').style.color = 'var(--text-faint)';
+    $('#decRandPreview').textContent = `已生成 16 位 "${full}" → 转换为密文 HEX 并填入：${hex}`;
+  });
+
+  // random KEY generator — decryption panel (mirrors into encryption panel's key field too)
+  wireAsciiRandGenerator({
+    upperId:'decKeyRandUpper', lowerId:'decKeyRandLower', digitsId:'decKeyRandDigits', specialId:'decKeyRandSpecial',
+    btnId:'decKeyRandGenBtn', previewId:'decKeyRandPreview', targetId:'decKeyInput', toggleId:'decKeyToggle',
+    setMode:(m)=>{ decKeyMode = m; }, label:'密钥',
+    mirrorTargetId:'keyInput', mirrorToggleId:'keyToggle', mirrorSetMode:(m)=>{ keyMode = m; }
+  });
+
+  const decSpeedRange = $('#decSpeedRange');
+  const decSpeedVal = $('#decSpeedVal');
+  decSpeedRange.addEventListener('input', ()=>{
+    const s = parseInt(decSpeedRange.value,10);
+    decSpeedVal.textContent = s + 'x';
+    decVis.setSpeed(s);
+  });
+
+  function runDecryption(){
+    $('#decErrMsg').textContent = '';
+    try{
+      const ctBytes = encodeInput($('#decCtInput').value, 'hex');
+      const keyBytes = encodeInput($('#decKeyInput').value, decKeyMode);
+      const steps = aesDecryptSteps(ctBytes, keyBytes);
+
+      const finalState = steps[steps.length-1].state;
+      const hex = stateToHex(finalState);
+      let bytes = [];
+      for(let c=0;c<4;c++) for(let r=0;r<4;r++) bytes.push(finalState[r][c]);
+      const printable = bytes.every(b => b>=32 && b<127);
+      const asciiStr = printable ? bytes.map(b=>String.fromCharCode(b)).join('') : null;
+
+      decVis.setSpeed(parseInt(decSpeedRange.value,10));
+      decVis.load(steps, {autoplay:true});
+
+      $('#decQuickResult').innerHTML = `<span class="qr-label">本次运行明文（HEX）：</span><b>${hex}</b><button class="qr-copy-btn" data-copy="${hex}">复制</button>` +
+        (asciiStr ? ` <span class="qr-label">ASCII：</span><b>"${escapeHtml(asciiStr)}"</b><button class="qr-copy-btn" data-copy="${escapeHtml(asciiStr)}">复制</button>` : '');
+    }catch(e){
+      decVis.clear();
+      $('#decErrMsg').textContent = e.message;
+      $('#decQuickResult').textContent = '';
+    }
+  }
+  $('#decRunBtn').addEventListener('click', runDecryption);
+
+  $('#decAutoBtn').addEventListener('click', ()=>{
+    if(!window.__lastCipherHex || !window.__lastKeyBytes){
+      $('#decErrMsg').textContent = '请先在上方运行一次加密。';
+      return;
+    }
+    $('#decCtInput').value = window.__lastCipherHex;
+    // fill key as hex to guarantee exact byte match regardless of original input mode
+    const keyHex = window.__lastKeyBytes.map(b=>b.toString(16).padStart(2,'0')).join('');
+    $('#decKeyInput').value = keyHex;
+    decKeyMode = 'hex';
+    setToggleUI('decKeyToggle', 'hex');
+    // mirror back into the encryption panel's key field so both stay in sync
+    $('#keyInput').value = keyHex;
+    keyMode = 'hex';
+    setToggleUI('keyToggle', 'hex');
+    $('#decErrMsg').textContent = '';
+    runDecryption();
+  });
+
+  // auto-run encryption on load with defaults
+  runEncryption();
+})();
+</script>
+</body>
+</html>

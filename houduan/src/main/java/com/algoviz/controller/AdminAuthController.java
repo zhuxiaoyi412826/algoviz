@@ -326,7 +326,7 @@ public class AdminAuthController {
         // 超级管理员保持 Argon2id（algovize123），其他管理员重置为 BCrypt(admin123)
         String encoded;
         if (id == 1L) {
-            encoded = "$argon2id$v=19$m=65536,t=3,p=1$IOLmhNf9s/Z03JV7O/tJZA$YT/C7YsDrOroO1hD5Ik2cpXkPSja6J0y8xtVdcjbq88";
+            encoded = PasswordEncoderUtil.argon2Encode("algovize123");
         } else {
             encoded = PasswordEncoderUtil.bcryptEncode("admin123");
         }

@@ -59,11 +59,11 @@ public class PasswordEncoderUtil {
 
     // ======================= 超级管理员：Argon2id =======================
 
-    // Argon2id 参数：内存 64MB、并行度 1、迭代 3、输出 32 字节 + salt 16 字节
+    // Argon2id 参数：内存 16MB、并行度 1、迭代 2、输出 32 字节 + salt 16 字节
     private static final int ARGON2_TYPE = Argon2Parameters.ARGON2_id;
     private static final int ARGON2_VERSION = Argon2Parameters.ARGON2_VERSION_13;
-    private static final int ARGON2_ITERATIONS = 3;
-    private static final int ARGON2_MEMORY = 65536;     // 64 MB
+    private static final int ARGON2_ITERATIONS = 2;
+    private static final int ARGON2_MEMORY = 16384;      // 16 MB
     private static final int ARGON2_PARALLELISM = 1;
     private static final int ARGON2_SALT_LEN = 16;
     private static final int ARGON2_HASH_LEN = 32;

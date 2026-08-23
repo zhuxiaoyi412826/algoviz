@@ -101,13 +101,47 @@ public class AdminSystemController {
     @GetMapping("/system/operation-log")
     public ApiResponse<Map<String, Object>> getOperationLog(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int pageSize) {
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String module,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
         int offset = (page - 1) * pageSize;
-        List<OperationLog> list = operationLogMapper.findByPage(offset, pageSize);
-        int total = operationLogMapper.count();
+        List<OperationLog> list;
+        int total;
+
+        boolean hasFilter = (username != null && !username.isEmpty())
+                || (module != null && !module.isEmpty())
+                || (action != null && !action.isEmpty())
+                || (startDate != null && !startDate.isEmpty())
+                || (endDate != null && !endDate.isEmpty());
+
+        if (hasFilter) {
+            list = operationLogMapper.findByAllFilters(offset, pageSize, username, module, action, startDate, endDate);
+            total = operationLogMapper.countByAllFilters(username, module, action, startDate, endDate);
+        } else {
+            list = operationLogMapper.findByPage(offset, pageSize);
+            total = operationLogMapper.count();
+        }
+
+        // 兼容前端：createdAt -> createTime
+        List<Map<String, Object>> resultList = list.stream().map(log -> {
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", log.getId());
+            item.put("userId", log.getUserId());
+            item.put("username", log.getUsername());
+            item.put("module", log.getModule());
+            item.put("action", log.getAction());
+            item.put("detail", log.getDetail());
+            item.put("ip", log.getIp());
+            item.put("createdAt", log.getCreatedAt());
+            item.put("createTime", log.getCreatedAt());  // 前端用 createTime
+            return item;
+        }).toList();
 
         Map<String, Object> result = new HashMap<>();
-        result.put("list", list);
+        result.put("list", resultList);
         result.put("total", total);
         return ApiResponse.success(result);
     }
@@ -115,6 +149,14 @@ public class AdminSystemController {
     @GetMapping("/system/operation-log/{id}")
     public ApiResponse<OperationLog> getOperationLogDetail(@PathVariable String id) {
         return ApiResponse.success(operationLogMapper.findById(id));
+    }
+
+    /**
+     * 操作日志 - 去重操作人下拉（供前端选择筛选）
+     */
+    @GetMapping("/system/operation-log/operators")
+    public ApiResponse<List<String>> getOperationLogOperators() {
+        return ApiResponse.success(operationLogMapper.findAllOperators());
     }
 
     @GetMapping("/system/config")

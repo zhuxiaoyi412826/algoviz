@@ -38,6 +38,9 @@ export const operationLogApi = {
   getList: (params?: any) =>
     request.get<{ list: OperationLog[]; total: number }>('/system/operation-log', { params }),
 
+  getOperators: () =>
+    request.get<string[]>('/system/operation-log/operators'),
+
   getDetail: (id: string) =>
     request.get<OperationLog>(`/system/operation-log/${id}`),
 

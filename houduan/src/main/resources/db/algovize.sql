@@ -47,6 +47,13 @@ CREATE TABLE `user` (
     KEY `idx_user_nickname` (`nickname`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
+-- 1. 注册时间索引（排序用，最关键，解决 ORDER BY filesort）
+ALTER TABLE `user` ADD INDEX `idx_user_created_at` (`created_at`);
+
+-- 2. 组合索引：筛选字段 + 注册时间（让筛选+排序都走索引）
+ALTER TABLE `user` ADD INDEX `idx_user_status_created` (`status`, `created_at`);
+ALTER TABLE `user` ADD INDEX `idx_user_gender_created` (`gender`, `created_at`);
+ALTER TABLE `user` ADD INDEX `idx_user_login_created` (`login_status`, `created_at`);
 -- 商品表
 DROP TABLE IF EXISTS `product`;
 CREATE TABLE `product` (

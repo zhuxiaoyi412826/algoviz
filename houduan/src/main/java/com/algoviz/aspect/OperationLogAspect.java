@@ -80,23 +80,13 @@ public class OperationLogAspect {
 
     /**
      * 排除的路径（不记录操作日志）
+     * 注意：仅排除登录/退出/验证码和操作日志查询，不要排除业务接口路径
+     *      因为 GET 方法已经通过 EXCLUDE_HTTP_METHODS 排除，
+     *      所以只要写操作（POST/PUT/DELETE）进来，就应该记录，不分管理员等级
      */
     private static final String[] EXCLUDE_PATHS = {
-            "/api/admin/login",
-            "/api/admin/logout",
-            "/api/admin/info",
-            "/api/system/login-log",
-            "/api/system/operation-log",
-            "/api/captcha",
-            "/api/login",
-            "/api/register",
-            "/api/password/",
-            "/api/dashboard",
-            "/api/announcements",
-            "/api/feedback",
-            "/api/product",
-            "/api/coin/",
-            "/api/order/",
+            "/api/system/operation-log",  // 操作日志查询接口本身不记录
+            "/api/captcha",               // 验证码
     };
 
     /**
