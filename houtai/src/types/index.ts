@@ -49,6 +49,22 @@ export interface SystemConfig {
   group: 'basic' | 'security' | 'api' | 'theme'
 }
 
+export interface Changelog {
+  id: number
+  version: string
+  type: 'new' | 'optimize' | 'fix' | 'urgent'
+  summary: string
+  releaseDate: string       // YYYY-MM-DD
+  modules: string           // JSON 字符串：["个人中心","商品"]
+  details: string           // Markdown 正文
+  knownIssues: string       // Markdown（可以为空）
+  issuesTitle: string       // 默认 "已知问题"
+  status: 0 | 1             // 0=草稿 1=已发布
+  createdAt?: string
+  updatedAt?: string
+}
+
+
 export interface DataStructure {
   id: string
   name: string

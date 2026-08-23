@@ -10,6 +10,19 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/Login.vue'),
     meta: { title: '登录', hidden: true }
   },
+  // 更新日志独立编辑器：新窗口打开，不包 Layout，纯 Vditor + 保存/取消
+  {
+    path: '/changelog/new',
+    name: 'ChangelogCreateStandalone',
+    component: () => import('@/views/extension/ChangelogEdit.vue'),
+    meta: { title: '新增更新日志', hidden: true, standalone: true }
+  },
+  {
+    path: '/changelog/edit/:id',
+    name: 'ChangelogEditStandalone',
+    component: () => import('@/views/extension/ChangelogEdit.vue'),
+    meta: { title: '编辑更新日志', hidden: true, standalone: true }
+  },
   {
     path: '/',
     component: () => import('@/layout/index.vue'),
@@ -318,6 +331,12 @@ const routes: RouteRecordRaw[] = [
             name: 'Feedback',
             component: () => import('@/views/extension/Feedback.vue'),
             meta: { title: '反馈管理' }
+          },
+          {
+            path: 'changelog',
+            name: 'Changelog',
+            component: () => import('@/views/extension/ChangelogList.vue'),
+            meta: { title: '更新日志' }
           },
           {
             path: 'backup',

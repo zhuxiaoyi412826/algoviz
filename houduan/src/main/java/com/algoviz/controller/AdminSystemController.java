@@ -8,6 +8,7 @@ import com.algoviz.mapper.LoginLogMapper;
 import com.algoviz.mapper.OperationLogMapper;
 import com.algoviz.mapper.SystemConfigMapper;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,6 +29,47 @@ public class AdminSystemController {
 
     @Autowired
     private SystemConfigMapper systemConfigMapper;
+
+    /**
+     * 基础配置的固定 keys（前后端统一约定）
+     */
+    private static final String KEY_SITE_NAME = "site_name";
+    private static final String KEY_SITE_LOGO = "site_logo";
+    private static final String KEY_ICP_NUMBER = "icp_number";
+    private static final String KEY_COPYRIGHT = "copyright";
+    private static final String KEY_GITHUB_LINK = "github_link";
+    private static final String KEY_SITE_SLOGAN = "site_slogan";
+
+    /**
+     * 系统启动时初始化 6 个基础配置项到 system_config（不存在则插入默认值）
+     */
+    @PostConstruct
+    public void initBasicConfigs() {
+        ensureConfig(KEY_SITE_NAME, "AlgoViz", "string", "站点名称", "前台站点/导航显示的名称", "basic");
+        ensureConfig(KEY_SITE_LOGO, "", "string", "网站Logo", "站点图标（URL或上传后保存的路径）", "basic");
+        ensureConfig(KEY_ICP_NUMBER, "豫ICP备12345678号", "string", "ICP备案号", "工信部备案号（用于页脚）", "basic");
+        ensureConfig(KEY_COPYRIGHT, "© 2026 AlgoViz", "string", "版权信息", "页脚展示的版权声明", "basic");
+        ensureConfig(KEY_GITHUB_LINK, "https://github.com/", "string", "GitHub链接", "页脚展示的仓库链接", "basic");
+        ensureConfig(KEY_SITE_SLOGAN, "AlgoViz - 数据结构与算法可视化学习平台 · 让学习变得更有趣", "string", "站点标语", "页脚展示的一句话介绍", "basic");
+    }
+
+    private void ensureConfig(String key, String defaultValue, String type, String label, String description, String group) {
+        try {
+            SystemConfig existed = systemConfigMapper.findByKey(key);
+            if (existed == null) {
+                SystemConfig c = new SystemConfig();
+                c.setKey(key);
+                c.setValue(defaultValue);
+                c.setType(type);
+                c.setLabel(label);
+                c.setDescription(description);
+                c.setConfigGroup(group);
+                systemConfigMapper.insertOrUpdate(c);
+            }
+        } catch (Exception ignore) {
+            // 数据库尚未初始化启动时，防止启动失败
+        }
+    }
 
     @GetMapping("/system/login-log")
     public ApiResponse<Map<String, Object>> getLoginLog(
@@ -167,12 +209,47 @@ public class AdminSystemController {
     @PutMapping("/system/config")
     public ApiResponse<Void> updateSystemConfig(@RequestBody Map<String, Object> data) {
         for (Map.Entry<String, Object> entry : data.entrySet()) {
-            SystemConfig config = systemConfigMapper.findByKey(entry.getKey());
-            if (config != null) {
-                config.setValue(entry.getValue().toString());
-                systemConfigMapper.insertOrUpdate(config);
+            if (entry.getValue() == null) continue;
+            SystemConfig existed = systemConfigMapper.findByKey(entry.getKey());
+            String value = entry.getValue().toString();
+            if (existed != null) {
+                existed.setValue(value);
+                systemConfigMapper.insertOrUpdate(existed);
+            } else {
+                SystemConfig c = new SystemConfig();
+                c.setKey(entry.getKey());
+                c.setValue(value);
+                c.setType("string");
+                c.setLabel(entry.getKey());
+                c.setConfigGroup("basic");
+                systemConfigMapper.insertOrUpdate(c);
             }
         }
         return ApiResponse.success(null);
+    }
+
+    /**
+     * 前台公开接口：获取站点基础配置（不鉴权，页脚用）
+     * 返回: { siteName, siteLogo, icpNumber, copyright, githubLink, siteSlogan }
+     */
+    @GetMapping("/public/site-config")
+    public ApiResponse<Map<String, String>> getPublicSiteConfig() {
+        Map<String, String> res = new HashMap<>();
+        res.put("siteName", valueOrDefault(KEY_SITE_NAME, "AlgoViz"));
+        res.put("siteLogo", valueOrDefault(KEY_SITE_LOGO, ""));
+        res.put("icpNumber", valueOrDefault(KEY_ICP_NUMBER, ""));
+        res.put("copyright", valueOrDefault(KEY_COPYRIGHT, "© 2026 AlgoViz"));
+        res.put("githubLink", valueOrDefault(KEY_GITHUB_LINK, ""));
+        res.put("siteSlogan", valueOrDefault(KEY_SITE_SLOGAN, "AlgoViz - 数据结构与算法可视化学习平台 · 让学习变得更有趣"));
+        return ApiResponse.success(res);
+    }
+
+    private String valueOrDefault(String key, String defaultValue) {
+        try {
+            SystemConfig c = systemConfigMapper.findByKey(key);
+            return (c != null && c.getValue() != null) ? c.getValue() : defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
+        }
     }
 }

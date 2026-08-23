@@ -89,9 +89,15 @@ public class WebConfig implements WebMvcConfigurer {
                         // 公告管理（后台接口）
                         "/api/announcements",
                         "/api/announcements/**",
+                        // 更新日志（后台 CRUD，Sa-Token 做管理员鉴权；公开列表另走 /api/public/changelog）
+                        "/api/changelog",
+                        "/api/changelog/**",
                         // 仪表盘数据（后台接口）
                         "/api/dashboard",
                         "/api/dashboard/**",
+                        // 前台公开接口（页脚动态配置等）
+                        "/api/public",
+                        "/api/public/**",
                         // Knife4j / Swagger 文档资源
                         "/doc.html",
                         "/webjars/**",

@@ -1354,3 +1354,33 @@ ALTER TABLE oj_problem ADD FULLTEXT INDEX ft_title_tags (title, tags);
 -- EXPLAIN SELECT * FROM oj_problem WHERE status = 'ACTIVE' ORDER BY created_at LIMIT 20 OFFSET 0;
 -- EXPLAIN SELECT * FROM oj_problem ORDER BY id LIMIT 20 OFFSET 0;
 -- EXPLAIN SELECT * FROM oj_problem ORDER BY created_at LIMIT 20 OFFSET 0;
+
+-- 14【更新日志表】：对应后台“客服工单 → 更新日志” + 前台 changelog.html
+-- 执行前请先确认数据库 algovize 已选择
+CREATE TABLE IF NOT EXISTS `changelog` (
+  `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
+  `version`         VARCHAR(32)     NOT NULL                 COMMENT '版本号，如 v1.2.3',
+  `type`            VARCHAR(16)     NOT NULL DEFAULT 'new'   COMMENT '更新类型：new=新增 optimize=优化 fix=修复 urgent=紧急更新',
+  `summary`         VARCHAR(255)    NOT NULL DEFAULT ''      COMMENT '更新摘要（卡片顶部的一句话）',
+  `release_date`    DATE            NOT NULL                 COMMENT '发布日期（YYYY-MM-DD）',
+  `modules`         TEXT            NULL                     COMMENT '功能模块标签，JSON 字符串数组：["用户中心","商品页面"]',
+  `details`         MEDIUMTEXT      NOT NULL                 COMMENT '完整更新说明，换行 \n 分隔（前端拆成 <li>）',
+  `known_issues`    VARCHAR(1000)   NOT NULL DEFAULT ''      COMMENT '已知问题 / 注意事项说明',
+  `issues_title`    VARCHAR(32)     NOT NULL DEFAULT '已知问题' COMMENT '红色框标题：已知问题 / 注意事项',
+  `status`          TINYINT(1)      NOT NULL DEFAULT 1       COMMENT '发布状态：0=草稿(不显示) 1=已发布',
+  `created_at`      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP  COMMENT '创建时间',
+  `updated_at`      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_version` (`version`),
+  KEY `idx_type_release_date` (`type`, `release_date`),
+  KEY `idx_status_release_date` (`status`, `release_date`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='更新日志表';
+
+-- （可选）把 changelog.html 现有的 5 条硬编码记录导入，方便你先看效果
+-- 审核后需要的话再执行
+ INSERT INTO `changelog` (`version`, `type`, `summary`, `release_date`, `modules`, `details`, `known_issues`, `issues_title`, `status`) VALUES
+('v1.2.3', 'new',      '新增个人中心页面，支持用户头像自定义和设置管理', '2024-04-22', '["个人中心","用户设置","头像系统"]', '新增个人中心页面，包含账号信息、订单、产品服务等功能\n支持18个默认头像选择，可切换使用\n支持上传本地图片作为头像\n新增设置功能，可修改姓名、性别、头像、密码\n集成商品页面和支付功能入口', '暂无已知问题', '已知问题', 1),
+('v1.2.2', 'optimize', '优化导航栏结构，新增商品展示页面', '2024-04-21', '["导航栏","商品页面","支付系统"]', '导航栏新增商品入口，支持快速访问商品页面\n新增商品分类功能，支持按笔记、教程、项目筛选\n实现支付模态框，支持微信和支付宝二维码展示\n优化页面响应式布局，适配移动端设备', '支付功能正在开发中，暂不支持真实支付', '注意事项', 1),
+('v1.2.1', 'new',      '新增数据结构独立页面，优化数据结构选择交互', '2024-04-20', '["数据结构","独立页面","数组可视化"]', '新增数组数据结构独立可视化页面\n数据结构选择区域居中显示，两行四列布局\n点击数据结构按钮跳转到对应独立页面\n新增查询、增加、删除、扩容操作按钮', '部分数据结构独立页面仍在开发中', '已知问题', 1),
+('v1.2.0', 'fix',      '修复多个可视化器初始化问题，优化页面加载性能', '2024-04-19', '["可视化器","页面加载","基础组件"]', '修复 Trie 可视化器 setData 方法缺失问题\n修复并查集可视化器初始化错误\n修复线段树可视化器数据加载问题\n优化页面加载速度，减少初始化时间', '暂无已知问题', '已知问题', 1),
+('v1.1.9', 'urgent',   '紧急修复暗色模式切换问题', '2024-04-18', '["暗色模式","主题切换"]', '紧急修复主题切换按钮样式异常问题\n修复 LocalStorage 主题保存失效问题\n优化主题切换动画效果', '请刷新页面以获取最新主题设置', '注意事项', 1);

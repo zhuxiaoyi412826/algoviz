@@ -132,6 +132,7 @@ const fullMenuList: MenuItem[] = [
     children: [
       { path: '/extension/announcement', name: 'Announcement', meta: { title: '公告管理' }, menuGroup: 'extension' },
       { path: '/extension/feedback', name: 'Feedback', meta: { title: '反馈管理' }, menuGroup: 'extension' },
+      { path: '/extension/changelog', name: 'Changelog', meta: { title: '更新日志' }, menuGroup: 'extension' },
       { path: '/extension/backup', name: 'Backup', meta: { title: '数据备份' }, menuGroup: 'extension' },
       { path: '/extension/third-party', name: 'ThirdParty', meta: { title: '第三方集成' }, menuGroup: 'extension' }
     ]

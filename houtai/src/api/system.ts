@@ -3,8 +3,32 @@ import type {
   User,
   LoginLog,
   OperationLog,
-  SystemConfig
+  SystemConfig,
+  Changelog
 } from '@/types'
+
+export const changelogApi = {
+  getPage: (params: {
+    page?: number
+    pageSize?: number
+    type?: string
+    status?: number
+    version?: string
+  }) =>
+    request.get<{ list: Changelog[]; total: number }>('/changelog', { params }),
+
+  getDetail: (id: number) =>
+    request.get<Changelog>(`/changelog/${id}`),
+
+  create: (data: Partial<Changelog>) =>
+    request.post<Changelog>('/changelog', data),
+
+  update: (id: number, data: Partial<Changelog>) =>
+    request.put<Changelog>(`/changelog/${id}`, data),
+
+  remove: (id: number) =>
+    request.delete<void>(`/changelog/${id}`)
+}
 
 export const adminApi = {
   getList: (params?: any) =>
@@ -53,5 +77,13 @@ export const systemConfigApi = {
     request.get<SystemConfig[]>('/system/config'),
 
   update: (data: Record<string, any>) =>
-    request.put<void>('/system/config', data)
+    request.put<void>('/system/config', data),
+
+  uploadLogo: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request.post<{ downloadUrl?: string; fileName?: string }>('/file/upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  }
 }
