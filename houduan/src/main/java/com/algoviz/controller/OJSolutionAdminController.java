@@ -56,6 +56,23 @@ public class OJSolutionAdminController {
         return InterviewResponse.ok("状态已更新");
     }
 
+    @Operation(summary = "题解详情（管理员编辑用，返回原文）")
+    @GetMapping("/{id}")
+    public InterviewResponse<OJSolution> getDetail(@PathVariable Long id) {
+        OJSolution s = solutionService.adminGetDetail(id);
+        if (s == null) {
+            return InterviewResponse.error(404, "题解不存在");
+        }
+        return InterviewResponse.ok(s);
+    }
+
+    @Operation(summary = "管理员编辑题解内容")
+    @PutMapping("/{id}")
+    public InterviewResponse<String> update(@PathVariable Long id, @RequestBody OJSolution input) {
+        boolean ok = solutionService.adminUpdate(id, input);
+        return ok ? InterviewResponse.ok("保存成功") : InterviewResponse.error("保存失败，题解不存在");
+    }
+
     // ==================== 评论审核 ====================
 
     @Operation(summary = "评论列表（含审核中）")

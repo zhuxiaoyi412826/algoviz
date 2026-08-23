@@ -65,19 +65,51 @@
     return 'https://' + v.replace(/^[^a-zA-Z0-9]+/, '')
   }
 
-  function tryGetRelativeRoot() {
+  function detectSiteRoot() {
+    // 根据 site-footer.js 自身的加载位置推断"站点根"（即 qianduan 目录的 URL 路径前缀）
+    // 原理：js/site-footer.js 一定位于 {站点根}/js/site-footer.js
+    // 找到脚本 src 去掉 /js/site-footer.js 后，剩余部分就是稳定的站点根（绝对路径）
+    var scriptSrc = ''
+    try {
+      if (document.currentScript && document.currentScript.src) {
+        scriptSrc = document.currentScript.src
+      } else {
+        var scripts = document.getElementsByTagName('script')
+        for (var i = 0; i < scripts.length; i++) {
+          var s = scripts[i].src || ''
+          if (s.indexOf('site-footer.js') !== -1) { scriptSrc = s; break }
+        }
+      }
+    } catch (e) { /* ignore */ }
+
+    if (scriptSrc) {
+      try {
+        var u = new URL(scriptSrc, window.location.href)
+        // 去掉 /js/site-footer.js（兼容 site-footer.js?v=xxx 的查询参数）
+        var p = u.pathname.replace(/[?#].*$/, '')
+        p = p.replace(/\/js\/site-footer\.js$/i, '/')
+        // 返回绝对路径（同域即可，不含 protocol//host）
+        return p.replace(/\/+$/, '/')
+      } catch (ue) { /* 解析失败继续走兜底 */ }
+    }
+
+    // ===== 兜底：按 pathname 层级计算相对根（兼容脚本被改名字的情况） =====
     // 推断当前 HTML 相对 qianduan 根目录的层级
     // 形如: pages/*.html → "../"    html/jiami/*.html → "../../"    index.html → ""
     var path = window.location.pathname
-    // 去除协议域名后，按文件名之前的 / 计数
     var parts = path.split('/').filter(Boolean)
-    // 去掉最后一项（文件名）
     parts.pop()
-    // 把所有目录替换为 "../"
-    if (parts.length === 0) return ''
+    if (parts.length === 0) return './'
     var up = ''
     for (var i = 0; i < parts.length; i++) up += '../'
     return up
+  }
+
+  var SITE_ROOT = detectSiteRoot()
+
+  function tryGetRelativeRoot() {
+    // 保留旧函数名做兼容兜底，但内部统一用 SITE_ROOT（绝对路径形式，不随当前页面目录深度变化）
+    return SITE_ROOT
   }
 
   function buildFooterHtml(cfg) {

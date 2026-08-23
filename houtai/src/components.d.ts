@@ -51,6 +51,7 @@ declare module 'vue' {
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ElUpload: typeof import('element-plus/es')['ElUpload']
     HelloWorld: typeof import('./components/HelloWorld.vue')['default']
+    MdSplitEditor: typeof import('./components/common/MdSplitEditor.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }

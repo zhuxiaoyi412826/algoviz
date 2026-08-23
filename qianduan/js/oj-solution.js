@@ -52,6 +52,7 @@
     const listPageSize = 10;
 
     async function loadList(problemId) {
+        destroyProcessVditor(); // 切回列表时先销毁 Vditor，释放 DOM/监听
         const c = container();
         if (!c) return;
         c.style.position = 'relative';
@@ -129,6 +130,7 @@
     // ==================== 题解详情 ====================
 
     async function loadDetail(id, problemId) {
+        destroyProcessVditor(); // 切到详情时也先销毁编辑器
         const c = container();
         if (!c) return;
         c.style.position = 'relative';
@@ -189,10 +191,10 @@
                 <span class="oj-sol-detail-comment-btn" style="cursor:pointer;color:#667eea;">💬 <span class="oj-sol-detail-comment-count">${s.commentCount || 0}</span> 评论</span>
             </div>`;
         const sections = [];
-        if (s.maskIdea) sections.push(renderSection('思路', s.maskIdea));
-        if (s.maskProcess) sections.push(renderSection('解题过程', s.maskProcess));
-        if (s.complexity) sections.push(renderSection('复杂度', esc(s.complexity)));
-        if (s.maskCode) sections.push(renderSection('代码', `<pre style="margin:0;background:#1e1e1e;padding:12px;border-radius:4px;overflow-x:auto;font-size:12px;"><code>${esc(s.maskCode)}</code></pre>`));
+        if (s.maskIdea) sections.push(renderSection('思路', s.maskIdea, { markdown: true }));
+        if (s.maskProcess) sections.push(renderSection('解题过程', s.maskProcess, { markdown: true }));
+        if (s.complexity) sections.push(renderSection('复杂度', esc(s.complexity), { markdown: false }));
+        if (s.maskCode) sections.push(renderSection('代码', `<pre style="margin:0;background:#1e1e1e;padding:12px;border-radius:4px;overflow-x:auto;font-size:12px;"><code>${esc(s.maskCode)}</code></pre>`, { markdown: false, raw: true }));
         const contentArea = `<div style="padding:12px 16px;">${sections.join('')}</div>`;
         const commentArea = `<div id="ojCommentArea" style="padding:12px 16px;border-top:1px solid #3c3c3c;"></div>`;
         return `
@@ -207,8 +209,44 @@
             </div>`;
     }
 
-    function renderSection(title, content) {
-        return `<div style="margin-bottom:16px;"><h4 style="font-size:14px;font-weight:600;color:#8585ff;margin:0 0 8px;">${title}</h4><div style="font-size:13px;color:#d4d4d4;line-height:1.7;">${content}</div></div>`;
+    /**
+     * 渲染题解详情的分节块
+     * @param {string} title    分节标题
+     * @param {string} content  内容：Markdown 字符串 或 已构造好的 HTML（代码段的 pre）
+     * @param {{markdown?:boolean,raw?:boolean}} options
+     *   - markdown: true → 用 marked 解析 md，再经 DOMPurify 安全过滤，外层挂 .vditor-reset 获得排版
+     *   - raw: true      → 内容已是安全 HTML，直接插入（如代码段 pre 包裹的内容）
+     *   - 默认           → 纯文本直接显示，保留 esc() 兜底
+     */
+    function renderSection(title, content, options) {
+        options = options || {};
+        let html = '';
+        if (options.markdown) {
+            const mdText = String(content || '');
+            let rendered = '';
+            try {
+                if (window.marked && typeof marked.parse === 'function') {
+                    rendered = marked.parse(mdText, { breaks: true, gfm: true });
+                } else {
+                    // marked 未加载兜底：换行转 <br/>，保留基本可读性
+                    rendered = esc(mdText).replace(/\n/g, '<br/>');
+                }
+                if (window.DOMPurify && typeof DOMPurify.sanitize === 'function') {
+                    rendered = DOMPurify.sanitize(rendered);
+                }
+            } catch (e) {
+                rendered = esc(mdText);
+            }
+            // 包 vditor-reset 获得 Markdown 排版样式（深色主题会继承 OJ 背景色）
+            html = `<div class="vditor-reset" style="background:transparent;padding:0;border:0;color:#d4d4d4;line-height:1.75;">${rendered}</div>`;
+        } else if (options.raw) {
+            // 代码段：调用方已手工拼好 pre+esc，直接用
+            html = String(content || '');
+        } else {
+            // 纯文本字段（复杂度标题等）
+            html = `<div style="font-size:13px;color:#d4d4d4;line-height:1.7;">${esc(content)}</div>`;
+        }
+        return `<div style="margin-bottom:16px;"><h4 style="font-size:14px;font-weight:600;color:#8585ff;margin:0 0 8px;">${title}</h4>${html}</div>`;
     }
 
     async function loadPrevNext(problemId, dir) {
@@ -493,37 +531,284 @@
     }
 
     // ==================== 发布/编辑题解 ====================
+    // 自建 Markdown 分屏编辑器：左原生 textarea（源码）+ 右预览 div + 原生 oninput 每键必触发 → 真正 0 延迟
+    // （不再依赖 Vditor sv 模式：其源码编辑区是 contenteditable，input 回调不稳定，导致右侧不更新）
+    let processVditor = null; // 对外接口不变：{ getValue, setValue, focus }
+    let _splitMoveHandler = null;
+    let _splitUpHandler = null;
+    let _syncLeftHandler = null;
+    let _syncRightHandler = null;
+    let _isSyncing = false;
+    let _toolbarBtnHandlers = [];
+
+    function destroyProcessVditor() {
+        if (_splitMoveHandler) { document.removeEventListener('mousemove', _splitMoveHandler); _splitMoveHandler = null; }
+        if (_splitUpHandler)   { document.removeEventListener('mouseup',   _splitUpHandler);   _splitUpHandler = null; }
+        if (processVditor && processVditor.textarea && _syncLeftHandler) {
+            try { processVditor.textarea.removeEventListener('scroll', _syncLeftHandler); } catch (e) {}
+        }
+        if (processVditor && processVditor.preview && _syncRightHandler) {
+            try { processVditor.preview.removeEventListener('scroll', _syncRightHandler); } catch (e) {}
+        }
+        _syncLeftHandler = _syncRightHandler = null;
+        for (const h of _toolbarBtnHandlers) { try { h.el.removeEventListener('click', h.fn); } catch (e) {} }
+        _toolbarBtnHandlers = [];
+        if (processVditor) {
+            try { if (processVditor.textarea) processVditor.textarea.oninput = null; } catch (e) {}
+            processVditor = null;
+        }
+    }
+
+    /** Markdown → 安全 HTML：marked.parse + DOMPurify */
+    function mdToHtml(md) {
+        md = String(md || '');
+        let html = '';
+        try {
+            if (window.marked && typeof marked.parse === 'function') {
+                html = marked.parse(md, { breaks: true, gfm: true, headerIds: false, mangle: false });
+            } else {
+                html = esc(md).replace(/\n/g, '<br/>');
+            }
+            if (window.DOMPurify && typeof DOMPurify.sanitize === 'function') {
+                html = DOMPurify.sanitize(html);
+            }
+        } catch (e) {
+            html = esc(md);
+        }
+        return html;
+    }
+
+    /* ========== Markdown 工具栏操作：操作选区/行首，完成后立刻触发 oninput 同步右侧 ========== */
+    function wrapSelection(ta, before, after) {
+        after = after || '';
+        const s = ta.selectionStart, e = ta.selectionEnd;
+        const v = ta.value;
+        const sel = v.slice(s, e);
+        ta.value = v.slice(0, s) + before + sel + after + v.slice(e);
+        ta.focus();
+        ta.setSelectionRange(s + before.length, e + before.length);
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    function prependLine(ta, prefix) {
+        const s = ta.selectionStart, e = ta.selectionEnd;
+        const v = ta.value;
+        const lineStart = v.lastIndexOf('\n', s - 1) + 1;
+        const lineEnd = v.indexOf('\n', e);
+        const sel = v.slice(lineStart, lineEnd === -1 ? v.length : lineEnd);
+        ta.value = v.slice(0, lineStart) + prefix + sel + (lineEnd === -1 ? '' : v.slice(lineEnd));
+        ta.focus();
+        ta.setSelectionRange(s + prefix.length, e + prefix.length);
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    function insertAtCursor(ta, snippet) {
+        const s = ta.selectionStart, e = ta.selectionEnd;
+        const v = ta.value;
+        ta.value = v.slice(0, s) + snippet + v.slice(e);
+        ta.focus();
+        const pos = s + snippet.length;
+        ta.setSelectionRange(pos, pos);
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    function buildMdToolbarDef() {
+        return [
+            { label: 'H1',  title: '一级标题',   act: (ta) => prependLine(ta, '# ') },
+            { label: 'H2',  title: '二级标题',   act: (ta) => prependLine(ta, '## ') },
+            { label: 'H3',  title: '三级标题',   act: (ta) => prependLine(ta, '### ') },
+            { sep: true },
+            { label: 'B',   title: '粗体',       act: (ta) => wrapSelection(ta, '**', '**') },
+            { label: 'I',   title: '斜体',       act: (ta) => wrapSelection(ta, '_', '_') },
+            { label: 'S',   title: '删除线',     act: (ta) => wrapSelection(ta, '~~', '~~') },
+            { sep: true },
+            { label: '•',   title: '无序列表',   act: (ta) => prependLine(ta, '- ') },
+            { label: '1.',  title: '有序列表',   act: (ta) => prependLine(ta, '1. ') },
+            { label: '❝',   title: '引用',       act: (ta) => prependLine(ta, '> ') },
+            { sep: true },
+            { label: '🔗',  title: '链接',       act: (ta) => wrapSelection(ta, '[', '](https://)') },
+            { label: '<>',  title: '行内代码',   act: (ta) => wrapSelection(ta, '`', '`') },
+            { label: '{ }', title: '代码块',     act: (ta) => { const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd) || 'java';
+                const block = sel.indexOf('\n') >= 0
+                    ? { b: '```\n', a: '\n```', mid: sel }
+                    : { b: '```' + sel + '\n', a: '\n```', mid: '' };
+                wrapSelection(ta, block.b, block.a);
+            } },
+            { sep: true },
+            { label: '⊞',   title: '表格',       act: (ta) => insertAtCursor(ta, '\n| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |\n') },
+            { label: '—',   title: '分割线',     act: (ta) => insertAtCursor(ta, '\n\n---\n\n') },
+            { sep: true },
+            { label: '↶',   title: '撤销',       act: (ta) => { try { document.execCommand('undo'); ta.dispatchEvent(new Event('input', { bubbles: true })); } catch (err) {} } },
+            { label: '↷',   title: '重做',       act: (ta) => { try { document.execCommand('redo'); ta.dispatchEvent(new Event('input', { bubbles: true })); } catch (err) {} } }
+        ];
+    }
+    function toolbarHtml(def) {
+        let html = '';
+        for (const b of def) {
+            if (b.sep) html += `<span class="md-tb-sep" style="display:inline-block;width:1px;height:16px;background:#3c3c3c;margin:0 4px;vertical-align:middle;"></span>`;
+            else html += `<button type="button" class="md-tb-btn" data-act="${esc(b.label)}" title="${esc(b.title)}" style="display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:26px;padding:0 6px;margin:0 1px;background:transparent;color:#d4d4d4;border:1px solid transparent;border-radius:3px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;box-sizing:border-box;vertical-align:middle;">${esc(b.label)}</button>`;
+        }
+        return html;
+    }
 
     async function openPublishForm(problemId) {
         const c = container();
         if (!c) return;
+        destroyProcessVditor();
         const u = getCurrentUser();
         c.style.position = 'relative';
         c.style.overflow = 'hidden';
         c.style.padding = '0';
-        c.innerHTML = renderPublishForm(u);
-        const form = c.querySelector('#ojSolPublishForm');
-        // 直接绑定发布按钮的 click，比 form submit 更可靠
-        c.querySelector('.oj-sol-submit-btn').addEventListener('click', async () => {
-            await submitPublish(problemId);
-        });
-        c.querySelector('.oj-sol-cancel-btn').addEventListener('click', () => loadList(problemId));
-        // 先查是否已有题解
+        const tbDef = buildMdToolbarDef();
+        c.innerHTML = renderPublishForm(u, toolbarHtml(tbDef));
+
+        const wrap = document.getElementById('ojSolSplitWrap');
+        const leftPane = wrap ? wrap.querySelector('.split-left') : null;
+        const rightPane = wrap ? wrap.querySelector('.split-right') : null;
+        const resizer = wrap ? wrap.querySelector('.split-resizer') : null;
+        const previewBox = rightPane ? rightPane.querySelector('.oj-sol-preview') : null;
+        const textarea = leftPane ? leftPane.querySelector('textarea[name="process"]') : null;
+        const toolbar = leftPane ? leftPane.querySelector('.md-toolbar') : null;
+        if (!wrap || !textarea || !previewBox) return;
+
+        /* ===== 右侧实时渲染 + 滚动位置比例保留 ===== */
+        function renderNow(md) {
+            previewBox.innerHTML = mdToHtml(md);
+            if (!_isSyncing) {
+                const r = textarea.scrollHeight - textarea.clientHeight;
+                const ratio = r > 0 ? textarea.scrollTop / r : 0;
+                const rr = previewBox.scrollHeight - previewBox.clientHeight;
+                previewBox.scrollTop = rr * ratio;
+            }
+        }
+
+        /* ===== 核心：原生 textarea.oninput，保证每次击键/工具栏操作后立刻同步右侧，0 延迟 ===== */
+        textarea.oninput = function () { renderNow(textarea.value); };
+
+        /* ===== 工具栏按钮绑定：每操作一次都 dispatch input 事件 ===== */
+        const actMap = {};
+        for (const b of tbDef) { if (!b.sep) actMap[b.label] = b; }
+        if (toolbar) {
+            const btns = toolbar.querySelectorAll('.md-tb-btn');
+            btns.forEach(btn => {
+                const lab = btn.getAttribute('data-act') || btn.textContent;
+                const b = actMap[lab];
+                if (!b || !b.act) return;
+                const fn = (ev) => {
+                    ev.preventDefault();
+                    textarea.focus();
+                    b.act(textarea);
+                };
+                btn.addEventListener('click', fn);
+                btn.addEventListener('mouseenter', () => { btn.style.background = '#3c3c3c'; btn.style.color = '#ffffff'; });
+                btn.addEventListener('mouseleave', () => { btn.style.background = 'transparent'; btn.style.color = '#d4d4d4'; });
+                _toolbarBtnHandlers.push({ el: btn, fn });
+            });
+        }
+
+        /* ===== 对外统一接口（保持 processVditor 旧名，提交流程零改动）===== */
+        processVditor = {
+            textarea,
+            toolbar,
+            preview: previewBox,
+            getValue() { return textarea.value; },
+            setValue(v) { textarea.value = String(v || ''); renderNow(textarea.value); },
+            focus() { textarea.focus(); }
+        };
+
+        /* ===== 左右滚动双向按比例同步 ===== */
+        _syncLeftHandler = function () {
+            if (_isSyncing) return;
+            _isSyncing = true;
+            const lmax = textarea.scrollHeight - textarea.clientHeight;
+            const rmax = previewBox.scrollHeight - previewBox.clientHeight;
+            if (lmax > 0 && rmax > 0) previewBox.scrollTop = (textarea.scrollTop / lmax) * rmax;
+            requestAnimationFrame(() => { _isSyncing = false; });
+        };
+        _syncRightHandler = function () {
+            if (_isSyncing) return;
+            _isSyncing = true;
+            const lmax = textarea.scrollHeight - textarea.clientHeight;
+            const rmax = previewBox.scrollHeight - previewBox.clientHeight;
+            if (lmax > 0 && rmax > 0) textarea.scrollTop = (previewBox.scrollTop / rmax) * lmax;
+            requestAnimationFrame(() => { _isSyncing = false; });
+        };
+        textarea.addEventListener('scroll', _syncLeftHandler, { passive: true });
+        previewBox.addEventListener('scroll', _syncRightHandler, { passive: true });
+
+        /* ===== 拖拽分隔条（15%~85%）===== */
+        if (resizer) {
+            let startX = 0, startL = 0, totalW = 0;
+            resizer.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                startX = e.clientX;
+                totalW = wrap.clientWidth - resizer.clientWidth;
+                startL = leftPane.getBoundingClientRect().width;
+                _splitMoveHandler = function (ev) {
+                    const delta = ev.clientX - startX;
+                    let percent = ((startL + delta) / totalW) * 100;
+                    if (percent < 15) percent = 15;
+                    if (percent > 85) percent = 85;
+                    leftPane.style.flex = `0 0 ${percent}%`;
+                    leftPane.style.width = percent + '%';
+                    rightPane.style.flex = '1 1 auto';
+                };
+                _splitUpHandler = function () {
+                    document.removeEventListener('mousemove', _splitMoveHandler);
+                    document.removeEventListener('mouseup', _splitUpHandler);
+                    _splitMoveHandler = _splitUpHandler = null;
+                };
+                document.addEventListener('mousemove', _splitMoveHandler);
+                document.addEventListener('mouseup', _splitUpHandler);
+            });
+        }
+
+        /* ===== 取消/发布按钮 ===== */
+        const submitBtn = c.querySelector('.oj-sol-submit-btn');
+        const cancelBtn = c.querySelector('.oj-sol-cancel-btn');
+        if (submitBtn) submitBtn.addEventListener('click', async () => { await submitPublish(problemId); });
+        if (cancelBtn) cancelBtn.addEventListener('click', () => { destroyProcessVditor(); loadList(problemId); });
+
+        /* ===== 回显已有题解 / 默认 placeholder 预览 ===== */
         try {
             const r = await apiGet(`${API_BASE}/solutions/my?problemId=${problemId}`);
             if (r.data) {
                 const s = r.data;
-                c.querySelector('[name="idea"]').value = s.idea || '';
-                c.querySelector('[name="process"]').value = s.process || '';
-                c.querySelector('[name="complexity"]').value = s.complexity || '';
-                c.querySelector('[name="codeLang"]').value = s.codeLang || 'java';
-                c.querySelector('[name="code"]').value = s.code || '';
+                const ideaEl = c.querySelector('[name="idea"]');
+                const compEl = c.querySelector('[name="complexity"]');
+                const langEl = c.querySelector('[name="codeLang"]');
+                const codeEl = c.querySelector('[name="code"]');
+                if (ideaEl) ideaEl.value = s.idea || '';
+                if (compEl) compEl.value = s.complexity || '';
+                if (langEl) langEl.value = s.codeLang || 'java';
+                if (codeEl) codeEl.value = s.code || '';
+                processVditor.setValue(s.process || '');
+            } else {
+                const placeholder = `> 左侧开始输入 Markdown 源码，这里**即时**渲染预览。
+
+## 算法思路
+…描述核心算法…
+
+## 解题步骤
+1. 第一步
+2. 第二步
+
+\`\`\`java
+class Solution {
+    public void solve() {
+        // your code
+    }
+}
+\`\`\`
+`;
+                textarea.placeholder = '## 算法思路\n……\n\n## 解题步骤\n1. ……\n\n```java\nclass Solution { }\n```';
+                renderNow(placeholder);
             }
-        } catch (e) {}
+        } catch (e) {
+            renderNow('> 左侧开始输入 Markdown 源码，这里 **即时** 渲染预览。');
+        }
     }
 
-    function renderPublishForm(u) {
+    function renderPublishForm(u, toolbarHtmlStr) {
         const problemTitle = (OJState.currentProblem && OJState.currentProblem.title) || '';
+        toolbarHtmlStr = toolbarHtmlStr || '';
         return `
             <div style="display:flex;flex-direction:column;position:absolute;top:0;left:0;right:0;bottom:0;">
                 <div style="padding:10px 16px;border-bottom:1px solid #3c3c3c;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
@@ -542,13 +827,66 @@
                         <input type="hidden" name="format" value="" />
                         <div>
                             <label style="font-size:13px;color:#858585;display:block;margin-bottom:4px;">思路</label>
-                            <textarea name="idea" rows="4" placeholder="描述你的解题思路..."
+                            <textarea name="idea" rows="3" placeholder="一句话或简要点明核心思路，纯文本/Markdown均可"
                                 style="width:100%;padding:8px 12px;background:#1e1e1e;border:1px solid #3c3c3c;border-radius:4px;color:#d4d4d4;font-size:13px;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
                         </div>
+                        <!-- 解题过程：自建分屏（左 textarea + 工具栏 + 右预览），确保输入后右侧立即渲染 Markdown -->
                         <div>
-                            <label style="font-size:13px;color:#858585;display:block;margin-bottom:4px;">解题过程</label>
-                            <textarea name="process" rows="5" placeholder="详细描述解题步骤..."
-                                style="width:100%;padding:8px 12px;background:#1e1e1e;border:1px solid #3c3c3c;border-radius:4px;color:#d4d4d4;font-size:13px;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
+                            <label style="font-size:13px;color:#858585;display:block;margin-bottom:6px;">
+                                解题过程 <span style="color:#667eea;font-size:12px;">· 左侧 Markdown 源码 / 右侧每击一键即时渲染 · 存入原始 md 字符串</span>
+                            </label>
+                            <div id="ojSolSplitWrap" style="height:520px;display:flex;border:1px solid #3c3c3c;border-radius:6px;overflow:hidden;background:#1e1e1e;color:#d4d4d4;">
+                                <div class="split-left" style="flex:0 0 50%;width:50%;height:100%;display:flex;flex-direction:column;background:#1e1e1e;border-right:1px solid #3c3c3c;min-width:0;">
+                                    <div class="md-toolbar" style="flex-shrink:0;background:#252526;border-bottom:1px solid #3c3c3c;padding:4px 6px;white-space:nowrap;overflow-x:auto;">${toolbarHtmlStr}</div>
+                                    <textarea name="process" spellcheck="false" autocorrect="off" autocomplete="off"
+                                        style="flex:1 1 auto;min-height:0;width:100%;resize:none;padding:10px 12px;background:#1e1e1e;border:0;color:#d4d4d4;caret-color:#d4d4d4;font-family:'Fira Code',Consolas,monospace;font-size:13px;line-height:1.6;outline:none;box-sizing:border-box;"
+                                        placeholder="## 算法思路&#10;……&#10;&#10;## 解题步骤&#10;1. ……&#10;&#10;&#96;&#96;&#96;java&#10;class Solution { }&#10;&#96;&#96;&#96;"></textarea>
+                                </div>
+                                <div class="split-resizer" style="width:6px;background:#3c3c3c;cursor:col-resize;flex-shrink:0;user-select:none;transition:background .15s;"
+                                     onmouseenter="this.style.background='#667eea';" onmouseleave="this.style.background='#3c3c3c';"></div>
+                                <div class="split-right" style="flex:1 1 auto;height:100%;overflow:auto;background:#1e1e1e;padding:12px 16px;box-sizing:border-box;min-width:0;">
+                                    <div class="oj-sol-preview vditor-reset" style="background:transparent;border:0;padding:0;color:#d4d4d4;line-height:1.75;font-size:13px;"></div>
+                                </div>
+                            </div>
+                            <style>
+                                /* 预览排版（深色 #1e1e1e / #3c3c3c / #d4d4d4，与下方代码 textarea 完全一致）*/
+                                #ojSolSplitWrap .oj-sol-preview pre,
+                                #ojSolSplitWrap .oj-sol-preview code {
+                                    background:#1e1e1e !important; color:#d4d4d4 !important;
+                                    border:1px solid #3c3c3c !important; border-radius:4px !important;
+                                }
+                                #ojSolSplitWrap .oj-sol-preview pre { padding:12px !important; overflow-x:auto; font-family:'Fira Code',Consolas,monospace; font-size:12px;}
+                                #ojSolSplitWrap .oj-sol-preview :not(pre) > code { padding:1px 5px; font-family:'Fira Code',Consolas,monospace; }
+                                #ojSolSplitWrap .oj-sol-preview h1,
+                                #ojSolSplitWrap .oj-sol-preview h2,
+                                #ojSolSplitWrap .oj-sol-preview h3,
+                                #ojSolSplitWrap .oj-sol-preview h4,
+                                #ojSolSplitWrap .oj-sol-preview h5,
+                                #ojSolSplitWrap .oj-sol-preview h6 { color:#ffffff; margin:0.8em 0 0.4em; line-height:1.35; }
+                                #ojSolSplitWrap .oj-sol-preview h1 { font-size:20px; border-bottom:1px solid #3c3c3c; padding-bottom:6px;}
+                                #ojSolSplitWrap .oj-sol-preview h2 { font-size:17px; border-bottom:1px solid #3c3c3c; padding-bottom:4px;}
+                                #ojSolSplitWrap .oj-sol-preview h3 { font-size:15px; }
+                                #ojSolSplitWrap .oj-sol-preview p  { margin:0.4em 0; }
+                                #ojSolSplitWrap .oj-sol-preview ul,
+                                #ojSolSplitWrap .oj-sol-preview ol { margin:0.4em 0 0.4em 1.6em; padding:0; }
+                                #ojSolSplitWrap .oj-sol-preview li { margin:2px 0; }
+                                #ojSolSplitWrap .oj-sol-preview a  { color:#667eea; text-decoration:none; }
+                                #ojSolSplitWrap .oj-sol-preview a:hover { text-decoration:underline; }
+                                #ojSolSplitWrap .oj-sol-preview hr { border:0; border-top:1px solid #3c3c3c; margin:12px 0; }
+                                #ojSolSplitWrap .oj-sol-preview img { max-width:100%; border-radius:4px; }
+                                #ojSolSplitWrap .oj-sol-preview table { border-collapse:collapse; margin:0.4em 0; }
+                                #ojSolSplitWrap .oj-sol-preview th,
+                                #ojSolSplitWrap .oj-sol-preview td {
+                                    border:1px solid #3c3c3c !important; padding:6px 10px;
+                                    background:#1e1e1e !important; color:#d4d4d4 !important;
+                                }
+                                #ojSolSplitWrap .oj-sol-preview th { background:#252526 !important; font-weight:600; }
+                                #ojSolSplitWrap .oj-sol-preview blockquote {
+                                    border-left:4px solid #667eea !important; background:#252526 !important;
+                                    color:#d4d4d4 !important; padding:8px 12px; margin:8px 0;
+                                    border-radius:0 4px 4px 0 !important;
+                                }
+                            </style>
                         </div>
                         <div>
                             <label style="font-size:13px;color:#858585;display:block;margin-bottom:4px;">复杂度</label>
@@ -568,8 +906,8 @@
                         </div>
                         <div>
                             <label style="font-size:13px;color:#858585;display:block;margin-bottom:4px;">代码</label>
-                            <textarea name="code" rows="10" placeholder="粘贴你的代码..."
-                                style="width:100%;padding:8px 12px;background:#1e1e1e;border:1px solid #3c3c3c;border-radius:4px;color:#d4d4d4;font-family:'Fira Code',monospace;font-size:12px;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
+                            <textarea name="code" rows="10" placeholder="粘贴可运行的完整代码（非 Markdown，纯代码文本）"
+                                style="width:100%;padding:8px 12px;background:#1e1e1e;border:1px solid #3c3c3c;border-radius:4px;color:#d4d4d4;font-family:'Fira Code',Consolas,monospace;font-size:12px;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
                         </div>
                     </form>
                 </div>
@@ -579,6 +917,20 @@
     async function submitPublish(problemId) {
         const form = document.getElementById('ojSolPublishForm');
         if (!form) return;
+        // 优先走 processVditor.getValue（现在是自建 textarea 封装，100% 可靠）
+        let processMd = '';
+        if (processVditor && typeof processVditor.getValue === 'function') {
+            try { processMd = processVditor.getValue() || ''; } catch (e) { processMd = ''; }
+        }
+        if (!processMd) {
+            const fallback = form.querySelector && form.querySelector('[name="process"]');
+            if (fallback) processMd = fallback.value || '';
+        }
+        if (!processMd.trim()) {
+            alert('请填写解题过程（Markdown）');
+            if (processVditor && processVditor.focus) { try { processVditor.focus(); } catch (e) {} }
+            return;
+        }
         const u = getCurrentUser();
         const body = {
             problemId: problemId,
@@ -588,7 +940,7 @@
             title: form.title.value,
             format: form.format.value,
             idea: form.idea.value,
-            process: form.process.value,
+            process: processMd,          // 原始 Markdown 字符串，后端存入 TEXT 字段
             complexity: form.complexity.value,
             codeLang: form.codeLang.value,
             code: form.code.value
@@ -596,6 +948,7 @@
         try {
             const r = await apiPost(`${API_BASE}/solutions`, body);
             if (r.success) {
+                destroyProcessVditor();
                 alert(r.message || '发布成功');
                 await loadList(problemId);
             } else {

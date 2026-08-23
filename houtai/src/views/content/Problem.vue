@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue'
 import {
   ElTable, ElTableColumn, ElButton, ElTag, ElDialog, ElForm, ElFormItem,
   ElInput, ElSelect, ElOption, ElMessage, ElMessageBox, ElPagination,
@@ -87,7 +87,22 @@ const pagedProblems = computed(() => {
 
 onMounted(() => {
   loadData()
+  window.addEventListener('message', handleEditorMessage)
 })
+
+onBeforeUnmount(() => {
+  window.removeEventListener('message', handleEditorMessage)
+})
+
+function handleEditorMessage(ev: MessageEvent) {
+  if (ev.origin !== window.location.origin) return
+  const payload = ev.data || {}
+  if (payload.__from !== 'problem-editor') return
+  if (payload.type === 'saved') {
+    ElMessage.success(payload.message || '已保存，列表已刷新')
+    loadData()
+  }
+}
 
 const loadData = async () => {
   loading.value = true
@@ -202,40 +217,15 @@ const toggleSortBy = () => {
 }
 
 const handleAdd = () => {
-  dialogTitle.value = '新增题目'
-  dialogFullscreen.value = false
-  Object.keys(formData).forEach(key => {
-    if (key === 'difficulty') (formData as any)[key] = 'medium'
-    else if (key === 'tags') (formData as any)[key] = []
-    else if (key === 'template') (formData as any)[key] = { java: '' }
-    else if (key === 'templateLang') (formData as any)[key] = 'java'
-    else if (key === 'status') (formData as any)[key] = 'offline'
-    else (formData as any)[key] = ''
-  })
-  dialogVisible.value = true
+  const base = (import.meta as any).env?.BASE_URL || '/'
+  const path = `${base.replace(/\/$/, '')}/problem/new`
+  window.open(path, '_blank')
 }
 
 const handleEdit = (row: OJProblem) => {
-  dialogTitle.value = '编辑题目'
-  dialogFullscreen.value = false
-  Object.assign(formData, row)
-  // 确保 template 是对象格式，且有默认语言键
-  if (!formData.template || typeof formData.template !== 'object') {
-    ;(formData as any).template = { java: formData.template || '' }
-  }
-  // 确定当前模板语言（优先 java，否则取第一个有内容的语言）
-  const tpl = formData.template as Record<string, string>
-  if (tpl.java) {
-    ;(formData as any).templateLang = 'java'
-  } else {
-    const firstLang = Object.keys(tpl).find(k => tpl[k]) || 'java'
-    ;(formData as any).templateLang = firstLang
-  }
-  // 确保当前语言键存在
-  if (!tpl[(formData as any).templateLang]) {
-    tpl[(formData as any).templateLang] = ''
-  }
-  dialogVisible.value = true
+  const base = (import.meta as any).env?.BASE_URL || '/'
+  const path = `${base.replace(/\/$/, '')}/problem/edit/${row.id}`
+  window.open(path, '_blank')
 }
 
 const handleView = (row: OJProblem) => {

@@ -523,12 +523,14 @@ onMounted(() => {
   loadData()
   // 全局绑定刷新 / 关闭标签页拦截
   window.addEventListener('beforeunload', handleBeforeUnload)
+  window.addEventListener('message', handleEditorMessage)
 })
 
 onBeforeUnmount(() => {
   // 离开页面时清理进度轮询定时器，避免内存泄漏
   stopAllProgressTimers()
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  window.removeEventListener('message', handleEditorMessage)
   // 页面卸载前仍在跑的导入 → 直接 abort（不弹 warning，避免提示风暴）
   if (importAbortController) {
     try { importAbortController.abort() } catch { /* noop */ }
@@ -636,30 +638,25 @@ const handleReset = () => {
 }
 
 const handleAdd = () => {
-  dialogTitle.value = '新增面试题'
-  dialogFullscreen.value = false
-  Object.assign(formData, {
-    id: undefined,
-    problemNo: '',
-    title: '',
-    difficulty: 'medium',
-    tags: [],
-    category: '',
-    description: '',
-    inputFormat: '',
-    outputFormat: '',
-    solution: '',
-    isFrequent: false,
-    status: 'offline'
-  })
-  dialogVisible.value = true
+  const base = (import.meta as any).env?.BASE_URL || '/'
+  const path = `${base.replace(/\/$/, '')}/interview-problem/new`
+  window.open(path, '_blank')
 }
 
 const handleEdit = (row: InterviewProblem) => {
-  dialogTitle.value = '编辑面试题'
-  dialogFullscreen.value = false
-  Object.assign(formData, JSON.parse(JSON.stringify(row)))
-  dialogVisible.value = true
+  const base = (import.meta as any).env?.BASE_URL || '/'
+  const path = `${base.replace(/\/$/, '')}/interview-problem/edit/${row.id}`
+  window.open(path, '_blank')
+}
+
+function handleEditorMessage(ev: MessageEvent) {
+  if (ev.origin !== window.location.origin) return
+  const payload = ev.data || {}
+  if (payload.__from !== 'interview-editor') return
+  if (payload.type === 'saved') {
+    ElMessage.success(payload.message || '已保存，列表已刷新')
+    loadData()
+  }
 }
 
 const handleView = (row: InterviewProblem) => {

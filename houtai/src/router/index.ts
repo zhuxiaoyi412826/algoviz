@@ -23,6 +23,39 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/extension/ChangelogEdit.vue'),
     meta: { title: '编辑更新日志', hidden: true, standalone: true }
   },
+  // 算法题目独立编辑器：新窗口打开，复用 MdSplitEditor
+  {
+    path: '/problem/new',
+    name: 'ProblemCreateStandalone',
+    component: () => import('@/views/content/ProblemEdit.vue'),
+    meta: { title: '新增算法题目', hidden: true, standalone: true }
+  },
+  {
+    path: '/problem/edit/:id',
+    name: 'ProblemEditStandalone',
+    component: () => import('@/views/content/ProblemEdit.vue'),
+    meta: { title: '编辑算法题目', hidden: true, standalone: true }
+  },
+  // 面试题目独立编辑器
+  {
+    path: '/interview-problem/new',
+    name: 'InterviewProblemCreateStandalone',
+    component: () => import('@/views/content/InterviewProblemEdit.vue'),
+    meta: { title: '新增面试题目', hidden: true, standalone: true }
+  },
+  {
+    path: '/interview-problem/edit/:id',
+    name: 'InterviewProblemEditStandalone',
+    component: () => import('@/views/content/InterviewProblemEdit.vue'),
+    meta: { title: '编辑面试题目', hidden: true, standalone: true }
+  },
+  // 题解独立编辑器（管理员编辑题解内容）
+  {
+    path: '/solution/edit/:id',
+    name: 'SolutionEditStandalone',
+    component: () => import('@/views/audit/SolutionEdit.vue'),
+    meta: { title: '编辑题解', hidden: true, standalone: true }
+  },
   {
     path: '/',
     component: () => import('@/layout/index.vue'),

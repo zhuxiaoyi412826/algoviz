@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ElButton, ElTag, ElTable, ElTableColumn,
   ElPagination, ElInput, ElSelect, ElOption, ElTabs, ElTabPane,
   ElDialog, ElEmpty
 } from 'element-plus'
-import { Refresh, Check, Close, View } from '@element-plus/icons-vue'
+import { Refresh, Check, Close, View, Edit } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
 const solLoading = ref(false)
@@ -128,7 +128,28 @@ const handleCmtSearch = () => {
 
 onMounted(() => {
   loadSolutions()
+  window.addEventListener('message', handleEditorMessage)
 })
+
+onBeforeUnmount(() => {
+  window.removeEventListener('message', handleEditorMessage)
+})
+
+function handleEditorMessage(ev: MessageEvent) {
+  if (ev.origin !== window.location.origin) return
+  const payload = ev.data || {}
+  if (payload.__from !== 'solution-editor') return
+  if (payload.type === 'saved') {
+    ElMessage.success(payload.message || '已保存，列表已刷新')
+    loadSolutions()
+  }
+}
+
+function openEdit(row: any) {
+  const base = (import.meta as any).env?.BASE_URL || '/'
+  const path = `${base.replace(/\/$/, '')}/solution/edit/${row.id}`
+  window.open(path, '_blank')
+}
 </script>
 
 <template>
@@ -165,9 +186,10 @@ onMounted(() => {
           <el-table-column prop="likeCount" label="👍" width="60" />
           <el-table-column prop="viewCount" label="👁" width="60" />
           <el-table-column prop="commentCount" label="💬" width="60" />
-          <el-table-column label="操作" width="200" fixed="right">
+          <el-table-column label="操作" width="260" fixed="right">
             <template #default="{ row }">
               <el-button size="small" :icon="View" @click="showDetail(row)">查看</el-button>
+              <el-button size="small" type="primary" :icon="Edit" @click="openEdit(row)">编辑题解</el-button>
               <el-button size="small" type="success" :icon="Check" @click="passSolution(row.id)">通过</el-button>
               <el-button size="small" type="danger" :icon="Close" @click="rejectSolution(row.id)">驳回</el-button>
             </template>

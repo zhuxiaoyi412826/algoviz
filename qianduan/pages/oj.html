@@ -12,6 +12,8 @@
     <!-- CodeMirror CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
+    <!-- Vditor Markdown 编辑器（发布/编辑用户题解用，深色主题+左右分屏） -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vditor@3.10.4/dist/index.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -427,6 +429,10 @@
 
     <!-- marked.js for Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- DOMPurify：Markdown 渲染前做安全过滤（展示端/预览端通用） -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <!-- Vditor Markdown 编辑器：发布/编辑用户题解用，提供左右分屏（mode=sv）+ 原始 md 存取 -->
+    <script src="https://cdn.jsdelivr.net/npm/vditor@3.10.4/dist/index.min.js"></script>
 
     <script src="../js/oj.js"></script>
     <script src="../js/oj-solution.js"></script>

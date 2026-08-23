@@ -206,6 +206,47 @@ public class OJSolutionService {
         return true;
     }
 
+    // ==================== 后台：题解详情 + 编辑 ====================
+
+    /** 后台获取题解详情（原文，不屏蔽，不增加浏览数） */
+    public OJSolution adminGetDetail(Long id) {
+        return solutionMapper.selectById(id);
+    }
+
+    /** 后台管理员编辑题解内容 —— 重新走审核检测，更新可写字段 */
+    @Transactional
+    public boolean adminUpdate(Long id, OJSolution input) {
+        OJSolution existing = solutionMapper.selectById(id);
+        if (existing == null) return false;
+
+        // 覆盖可写字段（管理员允许修改的业务字段）
+        existing.setTitle(input.getTitle());
+        existing.setFormat(input.getFormat());
+        existing.setIdea(input.getIdea());
+        existing.setProcess(input.getProcess());
+        existing.setComplexity(input.getComplexity());
+        existing.setCodeLang(input.getCodeLang());
+        existing.setCode(input.getCode());
+
+        // 重新做审核检测（标题 + 思路 + 过程 + 代码）
+        String fullText = safe(existing.getTitle()) + "\n" + safe(existing.getIdea()) + "\n"
+                + safe(existing.getProcess()) + "\n" + safe(existing.getCode());
+        DetectResult d = auditDetectService.detect("OJ_SOL", safe(existing.getCodeLang()),
+                existing.getTitle(), fullText);
+
+        // BLOCK 级也允许保存，但写入 blocked 状态，前台不显示
+        existing.setAuditStatus(d.getAuditStatus());
+        existing.setRiskLevel(d.getRiskLevel());
+        existing.setDetectSummary(buildSummary(d));
+        if ("BLOCK".equals(d.getPreCheck())) {
+            existing.setStatus("HIDDEN");
+        }
+
+        solutionMapper.updateById(existing);
+        logAudit(existing, d, d.getAuditStatus());
+        return true;
+    }
+
     // ==================== 屏蔽工具 ====================
 
     /** 对题解字段做敏感词屏蔽替换 */
