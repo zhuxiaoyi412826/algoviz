@@ -49,6 +49,123 @@
   var API_BASE = detectApiBase()
   var FOOTER_SELECTOR = 'footer.footer, footer#site-footer'
 
+  // ---------- 配置变更自动刷新（轻量轮询） ----------
+  // 1) 首次加载：拉全量 /api/public/site-config 渲染页脚，并记录 version
+  // 2) 之后每 POLL_INTERVAL_MS 拉一次  /api/public/site-config/version（只有几十字节）
+  //    - version 一样 → 啥也不做
+  //    - version 变了 → 再拉一次全量，对比后有变化才重新渲染（避免抖动）
+  // 3) 页面切到后台（tab 不可见）自动暂停轮询，切回立即补一次检查
+  var POLL_INTERVAL_MS = 30000 // 30 秒；如果觉得慢可以调 10000
+  var currentVersion = ''
+  var pollTimer = null
+  var pollStarted = false
+
+  function fetchJson(url, timeout, cb) {
+    try {
+      var xhr = new XMLHttpRequest()
+      xhr.open('GET', url, true)
+      xhr.timeout = timeout || 5000
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState !== 4) return
+        try {
+          if (xhr.status === 200) {
+            var json = JSON.parse(xhr.responseText)
+            var data = (json && (json.data || json.result || json.body)) || {}
+            if (typeof data === 'object' && data.data && typeof data.data === 'object') {
+              try {
+                if (!('siteName' in data) && ('siteName' in data.data)) data = data.data
+                else if (!('version' in data) && ('version' in data.data)) data = data.data
+              } catch (e) { /* 兼容兜底：保持原 data */ }
+            }
+            cb(null, data)
+          } else {
+            cb(new Error('status_' + xhr.status), null)
+          }
+        } catch (parseErr) {
+          cb(parseErr, null)
+        }
+      }
+      xhr.onerror = function () { cb(new Error('xhr_err'), null) }
+      xhr.ontimeout = function () { cb(new Error('xhr_timeout'), null) }
+      xhr.send()
+    } catch (e) {
+      cb(e, null)
+    }
+  }
+
+  function applyFullConfigToFooter(data, opts) {
+    if (!data) return false
+    var footer = document.querySelector(FOOTER_SELECTOR)
+    if (!footer) return false
+    var next = {
+      siteName: data.siteName,
+      siteLogo: data.siteLogo,
+      icpNumber: data.icpNumber,
+      copyright: data.copyright,
+      githubLink: data.githubLink,
+      siteSlogan: data.siteSlogan
+    }
+    var newHtml = buildFooterHtml(next)
+    // 只有内容真的变了才重写 innerHTML（防止抖动/刷新样式闪烁）
+    if (footer.innerHTML !== newHtml) {
+      footer.innerHTML = newHtml
+      if (opts && opts.onUpdated) opts.onUpdated()
+      return true
+    }
+    return false
+  }
+
+  function startPolling() {
+    if (pollStarted) return
+    pollStarted = true
+
+    function scheduleNext() {
+      if (pollTimer) clearTimeout(pollTimer)
+      pollTimer = setTimeout(tick, POLL_INTERVAL_MS)
+    }
+
+    function tick() {
+      // 标签不可见时跳过（节省 CPU/流量），scheduleNext 由 visibility 事件重启
+      if (typeof document.hidden !== 'undefined' && document.hidden) {
+        scheduleNext()
+        return
+      }
+      var vurl = API_BASE.replace(/\/$/, '') + '/api/public/site-config/version?_=' + Date.now()
+      fetchJson(vurl, 3000, function (err, data) {
+        if (err) {
+          // 版本轮询失败不打扰用户，下次重试
+          scheduleNext()
+          return
+        }
+        var v = (data && data.version) ? String(data.version) : ''
+        if (!v || !currentVersion || v === currentVersion) {
+          scheduleNext()
+          return
+        }
+        // 版本变了 → 拉全量并重渲染
+        var furl = API_BASE.replace(/\/$/, '') + '/api/public/site-config?_=' + Date.now()
+        fetchJson(furl, 5000, function (e2, full) {
+          if (e2 || !full) { scheduleNext(); return }
+          currentVersion = String(full.version || v)
+          applyFullConfigToFooter(full)
+          scheduleNext()
+        })
+      })
+    }
+
+    // 标签页可见性：隐藏时暂停（不发请求也不走 setTimeout），显示时立即查一次
+    try {
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+          if (pollTimer) { clearTimeout(pollTimer); pollTimer = null }
+          tick()
+        }
+      })
+    } catch (e) { /* ignore */ }
+
+    scheduleNext()
+  }
+
   function escapeHtml(s) {
     if (s == null) return ''
     return String(s)
@@ -190,41 +307,23 @@
 
   function render() {
     var footer = document.querySelector(FOOTER_SELECTOR)
-    if (!footer) return
-    var url = API_BASE.replace(/\/$/, '') + '/api/public/site-config'
-    // 加个小随机数防止浏览器强缓存
-    if (url.indexOf('?') === -1) url += '?_=' + Date.now()
-    try {
-      var xhr = new XMLHttpRequest()
-      xhr.open('GET', url, true)
-      xhr.timeout = 5000
-      xhr.onreadystatechange = function () {
-        if (xhr.readyState !== 4) return
-        try {
-          if (xhr.status === 200) {
-            var json = JSON.parse(xhr.responseText)
-            var data = (json && (json.data || json.result || json.body)) || {}
-            // 兼容：如果 data 还是被再包一层（某些 axios拦截器已经解包）
-            if (typeof data === 'object' && data.data && !('siteName' in data) && ('siteName' in data.data)) {
-              data = data.data
-            }
-            footer.innerHTML = buildFooterHtml({
-              siteName: data.siteName,
-              siteLogo: data.siteLogo,
-              icpNumber: data.icpNumber,
-              copyright: data.copyright,
-              githubLink: data.githubLink,
-              siteSlogan: data.siteSlogan
-            })
-          }
-        } catch (ignore) {
-          // 解析失败时保留旧 footer，不给用户报错
-        }
-      }
-      xhr.send()
-    } catch (ignore) {
-      // 极端失败也不影响页面
+    if (!footer) {
+      // 没有 footer 元素的独立子页（如排序算法详情页）不启用轮询
+      return
     }
+    var url = API_BASE.replace(/\/$/, '') + '/api/public/site-config'
+    if (url.indexOf('?') === -1) url += '?_=' + Date.now()
+    fetchJson(url, 5000, function (err, data) {
+      if (!err && data) {
+        if (typeof data === 'object' && data.data && !('siteName' in data) && ('siteName' in data.data)) {
+          data = data.data
+        }
+        applyFullConfigToFooter(data)
+        if (data.version) currentVersion = String(data.version)
+      }
+      // 无论首次成功/失败，都启动后台版本轮询（管理员保存后，已打开页面 30s 内自动更新）
+      startPolling()
+    })
   }
 
   if (document.readyState === 'loading') {

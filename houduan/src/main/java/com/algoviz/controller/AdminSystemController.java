@@ -12,6 +12,9 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -228,12 +231,20 @@ public class AdminSystemController {
         return ApiResponse.success(null);
     }
 
-    /**
-     * 前台公开接口：获取站点基础配置（不鉴权，页脚用）
-     * 返回: { siteName, siteLogo, icpNumber, copyright, githubLink, siteSlogan }
-     */
-    @GetMapping("/public/site-config")
-    public ApiResponse<Map<String, String>> getPublicSiteConfig() {
+    private static final List<String> BASIC_KEYS_ORDERED;
+
+    static {
+        List<String> keys = new ArrayList<>();
+        keys.add(KEY_SITE_NAME);
+        keys.add(KEY_SITE_LOGO);
+        keys.add(KEY_ICP_NUMBER);
+        keys.add(KEY_COPYRIGHT);
+        keys.add(KEY_GITHUB_LINK);
+        keys.add(KEY_SITE_SLOGAN);
+        BASIC_KEYS_ORDERED = Collections.unmodifiableList(keys);
+    }
+
+    private Map<String, String> buildBasicConfigMap() {
         Map<String, String> res = new HashMap<>();
         res.put("siteName", valueOrDefault(KEY_SITE_NAME, "AlgoViz"));
         res.put("siteLogo", valueOrDefault(KEY_SITE_LOGO, ""));
@@ -241,6 +252,59 @@ public class AdminSystemController {
         res.put("copyright", valueOrDefault(KEY_COPYRIGHT, "© 2026 AlgoViz"));
         res.put("githubLink", valueOrDefault(KEY_GITHUB_LINK, ""));
         res.put("siteSlogan", valueOrDefault(KEY_SITE_SLOGAN, "AlgoViz - 数据结构与算法可视化学习平台 · 让学习变得更有趣"));
+        return res;
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            int v = b & 0xFF;
+            if (v < 16) sb.append('0');
+            sb.append(Integer.toHexString(v));
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 根据当前 system_config 的基础配置 value 计算 version（16 位 MD5 前缀）。
+     * 任何一个 value 变化都会导致 version 不同；无需数据库改表即可实现版本号比对。
+     */
+    private String computeConfigVersion() {
+        try {
+            StringBuilder sb = new StringBuilder();
+            for (String k : BASIC_KEYS_ORDERED) {
+                sb.append(k).append('=').append(valueOrDefault(k, "")).append('\n');
+            }
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return bytesToHex(digest).substring(0, 16);
+        } catch (Exception e) {
+            // 兜底：用 values 的 hashCode 十六进制，任何 value 变化仍能区分
+            int h = 0;
+            for (String k : BASIC_KEYS_ORDERED) h = 31 * h + valueOrDefault(k, "").hashCode();
+            return String.format("%016x", (long) h & 0xFFFFFFFFL);
+        }
+    }
+
+    /**
+     * 前台公开接口：获取站点基础配置（不鉴权，页脚用）
+     * 返回: { version, siteName, siteLogo, icpNumber, copyright, githubLink, siteSlogan }
+     */
+    @GetMapping("/public/site-config")
+    public ApiResponse<Map<String, String>> getPublicSiteConfig() {
+        Map<String, String> res = buildBasicConfigMap();
+        res.put("version", computeConfigVersion());
+        return ApiResponse.success(res);
+    }
+
+    /**
+     * 前台公开接口：只返回配置版本号（轻量轮询用，几十字节，避免频繁拉全量数据）。
+     * 返回: { version: "xxxxxxxxxxxxxxxx" }
+     */
+    @GetMapping("/public/site-config/version")
+    public ApiResponse<Map<String, String>> getPublicSiteConfigVersion() {
+        Map<String, String> res = new HashMap<>(2);
+        res.put("version", computeConfigVersion());
         return ApiResponse.success(res);
     }
 

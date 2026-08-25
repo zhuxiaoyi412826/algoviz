@@ -28,9 +28,9 @@ public class OJSolutionAdminController {
     @Operation(summary = "题解列表（含审核中）")
     @GetMapping
     public InterviewResponse<PageResult<OJSolution>> list(@RequestParam(required = false) String keyword,
-                                     @RequestParam(required = false) String auditStatus,
-                                     @RequestParam(defaultValue = "1") int page,
-                                     @RequestParam(defaultValue = "20") int pageSize) {
+            @RequestParam(required = false) String auditStatus,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
         PageResult<OJSolution> r = solutionService.adminList(keyword, auditStatus, page, pageSize);
         return InterviewResponse.ok(r);
     }
@@ -61,7 +61,7 @@ public class OJSolutionAdminController {
     public InterviewResponse<OJSolution> getDetail(@PathVariable Long id) {
         OJSolution s = solutionService.adminGetDetail(id);
         if (s == null) {
-            return InterviewResponse.error(404, "题解不存在");
+            return InterviewResponse.fail(404, "题解不存在");
         }
         return InterviewResponse.ok(s);
     }
@@ -70,7 +70,7 @@ public class OJSolutionAdminController {
     @PutMapping("/{id}")
     public InterviewResponse<String> update(@PathVariable Long id, @RequestBody OJSolution input) {
         boolean ok = solutionService.adminUpdate(id, input);
-        return ok ? InterviewResponse.ok("保存成功") : InterviewResponse.error("保存失败，题解不存在");
+        return ok ? InterviewResponse.ok("保存成功") : InterviewResponse.fail("保存失败，题解不存在");
     }
 
     // ==================== 评论审核 ====================
@@ -78,9 +78,9 @@ public class OJSolutionAdminController {
     @Operation(summary = "评论列表（含审核中）")
     @GetMapping("/comments")
     public InterviewResponse<PageResult<OJSolutionComment>> commentList(@RequestParam(required = false) String keyword,
-                                            @RequestParam(required = false) String auditStatus,
-                                            @RequestParam(defaultValue = "1") int page,
-                                            @RequestParam(defaultValue = "20") int pageSize) {
+            @RequestParam(required = false) String auditStatus,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
         PageResult<OJSolutionComment> r = commentService.adminList(keyword, auditStatus, page, pageSize);
         return InterviewResponse.ok(r);
     }
