@@ -784,37 +784,53 @@
             // 列表项
             s = s.replace(/(\s)-\s+/g, '\n- ');
             // 有序列表：把 "1. xxx 2. yyy 3. zzz" 这种无换行的编号文本拆成每项单独一行
-            // 先处理字符串/段落开头的编号项
-            s = s.replace(/(^|\n)([ \t]*)(\d{1,3})\.\s+/gm, function (m, prefix, sp, num) {
+            // 先处理字符串/段落开头的编号项 —— 无论 1. 后面有没有空格，统一补一个空格，避免 "1.xxx" 连写导致缩进识别失败
+            s = s.replace(/(^|\n)([ \t]*)(\d{1,3})\.\s*/gm, function (m, prefix, sp, num) {
                 return (prefix || '') + '\n' + num + '. ';
             });
-            // 夹在文本中间的 " 2. " / "。3. "（前面是字/标点）也要拆成新的一行
-            s = s.replace(/([\u4e00-\u9fa5A-Za-z0-9，。,.!?；;）)\]】])\s*(\d{1,3})\.\s+/g, function (m, before, num) {
+            // 夹在文本中间的 " 2. " / "。3."（前面是字/标点，有无空格都算）也要拆成新的一行
+            s = s.replace(/([\u4e00-\u9fa5A-Za-z0-9，。,.!?；;）)\]】])\s*(\d{1,3})\.\s*/g, function (m, before, num) {
                 return before + '\n' + num + '. ';
             });
             // 无序列表同样：夹在文本中间的 " - " 也要拆行
-            s = s.replace(/([\u4e00-\u9fa5A-Za-z0-9，。,.!?；;）)\]】])\s+-\s+/g, '$1\n- ');
+            s = s.replace(/([\u4e00-\u9fa5A-Za-z0-9，。,.!?；;）)\]】])\s*-\s+/g, '$1\n- ');
 
             // ===== 圈号/特殊序号：①②③…⑳ / ⑴⑵⑶…⒇ / ⅠⅡⅢ…Ⅻ / ⅰⅱⅲ…ⅻ / ㈠㈡㈢…㈩ =====
-            // 每遇到一个序号字符，若它不在"代码块占位符/反引号"上下文中，则前面补 \n 保证独占一行
+            // 要求：每一条序号字符（无论它出现在段首、冒号后、分号后、句号后、逗号后）都"独占一行"
             //   圈 1-20:           ①-⑳   U+2460..U+2473
             //   括号 1-20:         ⑴-⒇   U+2474..U+2487
             //   罗马大写 1-12:      Ⅰ-Ⅻ    U+2160..U+216B
             //   罗马小写 1-12:      ⅰ-ⅻ    U+2170..U+217B
             //   中文全角括号 1-10:  ㈠-㈩    U+3220..U+3229
-            var CIRCLED = '[\\u2460-\\u2473\\u2474-\\u2487\\u2160-\\u216B\\u2170-\\u217B\\u3220-\\u3229]';
-            var CIRCLED_RE = new RegExp(CIRCLED);
-            // 行首/段首 + 序号字符 → 前面补换行（确保序号作为列表项开头）
-            s = s.replace(new RegExp('(^|\\n)([ \\t]*)(' + CIRCLED + ')', 'gm'), function (m, prefix, sp, marker) {
-                return (prefix || '') + '\n' + marker;
-            });
-            // 文本中间的序号（前面是字/标点/空白，后面跟内容/冒号/空格）→ 在序号前换行（例如"任务ID。①Read View"）
+            var CIR = '[\\u2460-\\u2473\\u2474-\\u2487\\u2160-\\u216B\\u2170-\\u217B\\u3220-\\u3229]';
+            // 1) 冒号/分号/句号/逗号/顿号/问号/感叹号 后面直接跟圈号：强制换行
+            //    典型场景 "垃圾回收算法：①标记-清除：xxx；②复制算法：yyy"
             s = s.replace(new RegExp(
-                '([\\u4e00-\\u9fa5A-Za-z0-9，。,.!?；;）)\\]】\\s])\\s*(' + CIRCLED + ')(?=[\\s：:、\\u4e00-\\u9fa5A-Za-z0-9])',
+                '([：:；;，。、.?!？！…·~\\-—])([ \\t]*)(' + CIR + ')',
+                'g'
+            ), function (m, sep, sp, marker) {
+                return sep + '\n' + marker;
+            });
+            // 2) 更通用：只要圈号"还不是在行首"（前面不是 ^ / \n），就把它前面拆成 \n
+            //    这一步兜底，避免上面枚举的分隔符有遗漏（比如用户写"xxx①xxx"这种没有标准分隔符的）
+            //    lookbehind 要兼容老浏览器 → 不用 (?<!\n)，改用"捕获前面 1 个非换行字符 + 替换时拼回去"
+            s = s.replace(new RegExp(
+                '([^\\n])(' + CIR + ')(?=[^\\n])',
                 'g'
             ), function (m, before, marker) {
+                // 防止把上一步刚拆出的 "：\n①" 再当成"①前不是换行"反复插入
+                if (before === '\n') return m;
+                // 前一个字符是空格/tab/缩进：不硬拆（避免把同一条项号前面的空格破坏，交给上面行首逻辑管）
+                if (before === ' ' || before === '\t') return m;
                 return before + '\n' + marker;
             });
+            // 3) 行首/段首已经出现圈号时，确保它和上一段之间至少隔 1 个 \n（但不要叠 2 个空行）
+            s = s.replace(new RegExp('(^|\\n)([ \\t]*)(' + CIR + ')', 'gm'), function (m, prefix, sp, marker) {
+                return (prefix || '') + '\n' + marker;
+            });
+            // 4) 缩进：如果 ①②… 这种圈号项"挂在某一条 1. 2. 3. 编号下面"，则它们整体向右缩进 2 个空格
+            //    规则：遇到行首数字编号 `\d+. ` 时，开启"后继圈号缩进"；下一个同级数字编号 / 一级标题 / 空段落块（两空行以上，后续没圈号）才重置
+            s = indentCircledAfterNumbered(s, CIR);
             // 在 `` 行内代码 `` 前后加空格
             s = s.replace(/(\S)(`[^`]+`)/g, '$1 $2');
             s = s.replace(/(`[^`]+`)(\S)/g, '$1 $2');
@@ -828,6 +844,46 @@
             s = s.replace(/\n{3,}/g, '\n\n');
 
             return s;
+        }
+
+        /**
+         * 对"数字编号（1. 2. 3. …）下面出现的圈号项"做 4 字符缩进。
+         * 关键实现点（对应之前踩过的"浏览器不显示缩进 + marked 误识别成代码块"两个坑）：
+         *   · 不用普通空格 U+0020：浏览器渲染 HTML 段落时会 collapse 连续空格，页面上看不到任何缩进；
+         *   · 不用 4 × U+0020：Markdown 里"4 普通空格起头"会被 marked 识别成「缩进式代码块」包进 <pre>，
+         *     然后被工具栏/code-wrap 二次包裹 → 整个圈号段变代码框，彻底乱；
+         *   · 改用 4 × U+00A0（&nbsp; 非断行空格）：浏览器按实际字符宽度显示，不会被吞，也不会触发
+         *     marked 的"缩进代码块"规则（规则只认 U+0020 / Tab）。
+         * 规则：
+         *   · 遇到行首 `\d{1,3}. xxx` 的编号行 / markdown 标题 → 开启 inSub=true，自身不缩进
+         *   · 在 inSub=true 状态下：仅对「行首是圈号字符」的行，前面补 4 个 U+00A0
+         *   · 其他说明行 / 普通文本不缩
+         */
+        function indentCircledAfterNumbered(s, CIR_RE_CLASS) {
+            if (!s) return s;
+            var lines = String(s).split(/\n/);
+            var RE_NUM = /^\s*\d{1,3}\.\s*/;      // 行首数字编号，允许 "1.xxx"(无空格) 兜底
+            var RE_HDG = /^\s*#{1,6}\s/;          // markdown 标题
+            var CIR_LINE = new RegExp('^\\s*(' + (CIR_RE_CLASS || '[\\u2460-\\u2473\\u2474-\\u2487\\u2160-\\u216B\\u2170-\\u217B\\u3220-\\u3229]') + ')');
+            var NBSP = '\u00a0\u00a0\u00a0\u00a0'; // 缩进 4 字符（&nbsp;，浏览器不折叠，marked 不识别为代码块）
+            var inSub = false;
+            var out = [];
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                var trim = line.replace(/^[ \t]+/, '');
+                if (RE_NUM.test(line) || RE_HDG.test(line)) {
+                    inSub = true;                       // 新的"编号段"开始：后继圈号缩进
+                    out.push(line);
+                    continue;
+                }
+                if (inSub && CIR_LINE.test(line)) {
+                    // 圈号行 → 行首补 4 个 &nbsp;（去掉之前残留的 U+0020 缩进，统一成 NBSP）
+                    out.push(NBSP + trim);
+                    continue;
+                }
+                out.push(line);
+            }
+            return out.join('\n');
         }
 
         /**

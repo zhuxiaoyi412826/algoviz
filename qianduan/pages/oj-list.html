@@ -376,22 +376,52 @@
             flex-wrap: wrap;
         }
         .oj-page-btn {
-            padding: 6px 14px;
+            min-width: 36px;
+            height: 36px;
+            padding: 0 12px;
             background: var(--btn-bg);
             border: 1px solid var(--btn-border);
-            border-radius: 6px;
+            border-radius: 8px;
             color: var(--text-primary);
             font-size: 13px;
             cursor: pointer;
             transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            white-space: nowrap;
         }
-        .oj-page-btn:hover:not(:disabled) {
+        .oj-page-btn:hover:not(:disabled):not(.active) {
             background: rgba(102, 126, 234, 0.20);
             border-color: rgba(102, 126, 234, 0.5);
+            color: #667eea;
         }
         .oj-page-btn:disabled {
             opacity: 0.4;
             cursor: not-allowed;
+        }
+        .oj-page-btn.active {
+            background: #667eea;
+            border-color: #667eea;
+            color: #fff;
+            font-weight: 700;
+            box-shadow: 0 4px 14px rgba(102,126,234,0.28);
+        }
+        .oj-page-ellipsis {
+            min-width: 28px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            user-select: none;
+        }
+        .oj-page-numbers {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
         .oj-page-info {
             color: var(--text-muted);
@@ -400,6 +430,31 @@
         .oj-page-info strong {
             color: #667eea;
             font-weight: 600;
+        }
+        .oj-page-jump {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-left: 4px;
+        }
+        .oj-page-jump input {
+            width: 60px;
+            height: 32px;
+            padding: 0 10px;
+            background: var(--btn-bg);
+            border: 1px solid var(--btn-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .oj-page-jump input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
         }
         .oj-sort-btn {
             display: flex;
@@ -573,8 +628,13 @@
                     <option value="100">100 条/页</option>
                 </select>
                 <button class="oj-page-btn" id="ojPrevPage" onclick="changePage(-1)">← 上一页</button>
-                <span class="oj-page-info">第 <strong id="ojCurrentPage">1</strong> / <strong id="ojTotalPages">1</strong> 页</span>
+                <div class="oj-page-numbers" id="ojPageNumbers"></div>
                 <button class="oj-page-btn" id="ojNextPage" onclick="changePage(1)">下一页 →</button>
+                <span class="oj-page-info">共 <strong id="ojTotalPages">1</strong> 页 / <strong id="ojTotalCountTop">0</strong> 个，跳至</span>
+                <span class="oj-page-jump">
+                    <input type="number" min="1" step="1" id="ojJumpPageInput" placeholder="页" />
+                    <span>页</span>
+                </span>
             </div>
         </div>
     </div>
@@ -751,10 +811,15 @@
             const pageStartEl = document.getElementById('ojPageStart');
             const pageEndEl = document.getElementById('ojPageEnd');
             const pageTotalEl = document.getElementById('ojPageTotal');
+            const totalCountTopEl = document.getElementById('ojTotalCountTop');
+            
+            window._ojLastTotal = total || 0;
+            window._ojLastTotalPages = totalPages || 1;
             
             if (curPageEl) curPageEl.textContent = currentPage;
             if (totalPagesEl) totalPagesEl.textContent = totalPages;
             if (totalCountEl) totalCountEl.textContent = total;
+            if (totalCountTopEl) totalCountTopEl.textContent = total;
             
             // 更新分页范围显示
             if (pageStartEl) pageStartEl.textContent = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -766,9 +831,18 @@
                 paginationBar.style.display = 'flex';
             }
             
+            // 渲染数字按钮 + 省略号
+            try {
+                ojRenderPageNumbers(totalPages, currentPage);
+                ojBindJumpInput();
+            } catch (_) {}
+
             // 更新按钮状态
             if (prevBtn) prevBtn.disabled = currentPage <= 1;
             if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+
+            // 写持久化（成功点）
+            ojSaveState();
         }
 
         function showError(title, message) {
@@ -833,10 +907,147 @@
         }
 
         function changePage(delta) {
+            var totalPages = Math.max(1, Math.ceil((window._ojLastTotal || 0) / pageSize));
             currentPage += delta;
             if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
             // 直接调用 loadProblems 从后端获取指定页的数据
             loadProblems();
+        }
+
+        function jumpToPage(page) {
+            var totalPages = Math.max(1, Math.ceil((window._ojLastTotal || 0) / pageSize));
+            var n = parseInt(page, 10);
+            if (isNaN(n) || n < 1) n = 1;
+            if (n > totalPages) n = totalPages;
+            if (n === currentPage) return;
+            currentPage = n;
+            loadProblems();
+        }
+
+        // ========== 分页工具函数：数字按钮 + 省略号 ==========
+        function ojBuildPageNumbers(total, current) {
+            total = Math.max(1, parseInt(total) || 1);
+            current = Math.max(1, Math.min(total, parseInt(current) || 1));
+            var WINDOW_LEFT = 2;
+            var WINDOW_RIGHT = 2;
+            var pages = [];
+            var pushPage = function (p, opts) {
+                opts = opts || {};
+                pages.push({ type: 'page', value: p, label: p, current: (p === current) });
+            };
+            var pushEllipsis = function () {
+                var last = pages[pages.length - 1];
+                if (!last || last.type !== 'ellipsis') {
+                    pages.push({ type: 'ellipsis' });
+                }
+            };
+            if (total <= 8) {
+                for (var i = 1; i <= total; i++) pushPage(i);
+                return pages;
+            }
+            var leftHeadEnd = 7;               // 默认头 7 页
+            var rightTailStart = total - 6;    // 默认尾 7 页起始
+            var windowStart = Math.max(1, current - WINDOW_LEFT);
+            var windowEnd = Math.min(total, current + WINDOW_RIGHT);
+            // 判断当前是否在头 7 页或尾 7 页区域；优先尾 7 区（N 较小重叠时不漏末区）
+            var showFullHead = (current <= 7);
+            var showFullTail = (current >= total - 6);
+            if (showFullTail) {
+                pushPage(1);
+                pushEllipsis();
+                for (var j = total - 6; j <= total; j++) pushPage(j);
+                return pages;
+            }
+            if (showFullHead) {
+                for (var i = 1; i <= 7; i++) pushPage(i);
+                pushEllipsis();
+                pushPage(total);
+                return pages;
+            }
+            // 中间模式：1 … [cur-2, cur-1, cur, cur+1, cur+2] … 末
+            pushPage(1);
+            if (windowStart > 2) pushEllipsis();
+            for (var k = windowStart; k <= windowEnd; k++) pushPage(k);
+            if (windowEnd < total - 1) pushEllipsis();
+            pushPage(total);
+            return pages;
+        }
+
+        function ojRenderPageNumbers(totalPages, current) {
+            var container = document.getElementById('ojPageNumbers');
+            if (!container) return;
+            var nums = ojBuildPageNumbers(totalPages, current);
+            container.innerHTML = '';
+            nums.forEach(function (item) {
+                if (item.type === 'ellipsis') {
+                    var span = document.createElement('span');
+                    span.className = 'oj-page-ellipsis';
+                    span.textContent = '…';
+                    container.appendChild(span);
+                    return;
+                }
+                var btn = document.createElement('button');
+                btn.className = 'oj-page-btn' + (item.current ? ' active' : '');
+                btn.textContent = String(item.label);
+                btn.type = 'button';
+                if (item.current) {
+                    btn.setAttribute('aria-current', 'page');
+                }
+                (function (v) {
+                    btn.addEventListener('click', function () { jumpToPage(v); });
+                })(item.value);
+                container.appendChild(btn);
+            });
+            var jumpInput = document.getElementById('ojJumpPageInput');
+            if (jumpInput) {
+                jumpInput.value = '';
+                jumpInput.placeholder = String(currentPage);
+            }
+        }
+
+        // ========== oj 列表持久化 ==========
+        var OJ_PERSIST_KEY = 'algovize:oj-list.state';
+        function ojSaveState() {
+            try {
+                var searchEl = document.getElementById('ojSearchInput');
+                var diffEl = document.getElementById('ojDifficultyFilter');
+                var tagEl = document.getElementById('ojTagFilter');
+                var szEl = document.getElementById('ojPageSizeSelect');
+                var payload = {
+                    page: parseInt(currentPage) || 1,
+                    pageSize: parseInt(pageSize) || 20,
+                    sortBy: String(sortBy || 'id'),
+                    sortState: String(sortState || 'asc'),
+                    timeSortState: String(timeSortState || 'asc'),
+                    search: searchEl ? searchEl.value : '',
+                    difficulty: diffEl ? diffEl.value : '',
+                    tag: tagEl ? tagEl.value : '',
+                    updatedAt: Date.now()
+                };
+                localStorage.setItem(OJ_PERSIST_KEY, JSON.stringify(payload));
+            } catch (e) {}
+        }
+        function ojLoadState() {
+            try {
+                var raw = localStorage.getItem(OJ_PERSIST_KEY);
+                if (!raw) return null;
+                return JSON.parse(raw);
+            } catch (e) { return null; }
+        }
+
+        function ojBindJumpInput() {
+            var jump = document.getElementById('ojJumpPageInput');
+            if (!jump || jump.dataset.bound === '1') return;
+            jump.dataset.bound = '1';
+            jump.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter') return;
+                var rawVal = String(jump.value || '').trim();
+                if (!rawVal) return;
+                var n = parseInt(rawVal, 10);
+                if (isNaN(n) || n < 1) { jump.value = ''; jump.select(); return; }
+                jumpToPage(n);
+            });
         }
 
         function showEmpty(message) {
@@ -875,7 +1086,52 @@
             loadProblems();
         });
 
-        loadProblems();
+        // ========== 持久化恢复：静默塞筛选值到 DOM，然后按恢复页码发请求 ==========
+        (function ojRestoreStateBeforeLoad() {
+            var saved = ojLoadState();
+            if (!saved || typeof saved !== 'object') {
+                loadProblems();
+                return;
+            }
+            try {
+                var searchEl = document.getElementById('ojSearchInput');
+                var diffEl = document.getElementById('ojDifficultyFilter');
+                var tagEl = document.getElementById('ojTagFilter');
+                var szEl = document.getElementById('ojPageSizeSelect');
+                if (searchEl && typeof saved.search === 'string') searchEl.value = saved.search;
+                if (diffEl && typeof saved.difficulty === 'string') diffEl.value = saved.difficulty;
+                if (tagEl && typeof saved.tag === 'string') tagEl.value = saved.tag;
+                if (szEl && saved.pageSize && [20,50,100].indexOf(parseInt(saved.pageSize)) !== -1) {
+                    pageSize = parseInt(saved.pageSize);
+                    szEl.value = String(pageSize);
+                }
+                if (saved.sortBy === 'id' || saved.sortBy === 'createdAt') sortBy = saved.sortBy;
+                if (saved.sortState === 'asc' || saved.sortState === 'desc') sortState = saved.sortState;
+                if (saved.timeSortState === 'asc' || saved.timeSortState === 'desc') timeSortState = saved.timeSortState;
+                // 根据 sortBy/sortState 同步 UI 高亮（如果有排序按钮）
+                try { syncSortButtonsUi(); } catch (_) {}
+
+                currentPage = (typeof saved.page === 'number' && saved.page >= 1) ? saved.page : 1;
+            } catch (_) {}
+            loadProblems();
+        })();
+
+        function syncSortButtonsUi() {
+            var btn = document.getElementById('ojSortBtn');
+            var icon = document.getElementById('ojSortIcon');
+            var text = document.getElementById('ojSortText');
+            if (btn) btn.classList.toggle('active', sortBy === 'id');
+            if (btn) btn.classList.toggle('desc', sortState === 'desc');
+            if (icon) icon.textContent = sortState === 'desc' ? '⬇️' : '⬆️';
+            if (text) text.textContent = 'ID ' + (sortState === 'desc' ? '降序' : '升序');
+            var tBtn = document.getElementById('ojTimeSortBtn');
+            var tIcon = document.getElementById('ojTimeSortIcon');
+            var tText = document.getElementById('ojTimeSortText');
+            if (tBtn) tBtn.classList.toggle('active', sortBy === 'createdAt');
+            if (tBtn) tBtn.classList.toggle('desc', timeSortState === 'desc');
+            if (tIcon) tIcon.textContent = timeSortState === 'desc' ? '⬇️' : '⬆️';
+            if (tText) tText.textContent = '时间 ' + (timeSortState === 'desc' ? '降序' : '升序');
+        }
     </script>
 </body>
 </html>

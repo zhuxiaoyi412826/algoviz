@@ -407,7 +407,7 @@
         }
         .list-empty-icon { font-size: 48px; margin-bottom: 16px; }
 
-        /* ========== 分页 ========== */
+        /* ========== 分页（升级版）========== */
         .pagination-bar {
             display: flex;
             justify-content: space-between;
@@ -435,22 +435,48 @@
             flex-wrap: wrap;
         }
         .page-btn {
-            padding: 6px 14px;
+            min-width: 36px;
+            height: 36px;
+            padding: 0 12px;
             background: var(--bg-card-hover);
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: 8px;
             color: var(--text-primary);
             font-size: 13px;
             cursor: pointer;
             transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            white-space: nowrap;
         }
-        .page-btn:hover:not(:disabled) {
-            background: rgba(102, 126, 234, 0.2);
+        .page-btn:hover:not(:disabled):not(.active) {
+            background: rgba(102, 126, 234, 0.14);
             border-color: rgba(102, 126, 234, 0.5);
+            color: var(--primary);
         }
         .page-btn:disabled {
             opacity: 0.4;
             cursor: not-allowed;
+        }
+        .page-btn.active {
+            background: var(--primary, #667eea);
+            border-color: var(--primary, #667eea);
+            color: #fff;
+            font-weight: 700;
+            box-shadow: 0 4px 14px rgba(102,126,234,0.28);
+        }
+        /* 省略号按钮：不可点 */
+        .page-ellipsis {
+            min-width: 28px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+            user-select: none;
         }
         .page-info {
             color: var(--text-secondary);
@@ -459,6 +485,43 @@
         .page-info strong {
             color: var(--primary);
             font-weight: 600;
+        }
+        /* 跳至输入框 + 页号 */
+        .page-jump {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-left: 4px;
+        }
+        .page-jump input {
+            width: 60px;
+            height: 32px;
+            padding: 0 10px;
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .page-jump input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
+        }
+        .page-total-note {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .page-total-note strong { color: var(--primary); font-weight: 700; }
+        /* 页码容器（装数字按钮+省略号） */
+        .page-numbers {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         /* ========== 响应式 ========== */
@@ -553,8 +616,14 @@
                     <option value="100">100 条/页</option>
                 </select>
                 <button class="page-btn" id="prevPageBtn">← 上一页</button>
-                <span class="page-info">第 <strong id="currentPage">1</strong> / <strong id="totalPages">1</strong> 页</span>
+                <!-- 数字页号（JS 动态渲染） -->
+                <div class="page-numbers" id="pageNumbers"></div>
                 <button class="page-btn" id="nextPageBtn">下一页 →</button>
+                <span class="page-info">共 <strong id="totalPages">1</strong> 页 / <strong id="totalCountTop">0</strong> 个，跳至</span>
+                <span class="page-jump">
+                    <input type="number" min="1" step="1" id="jumpPageInput" placeholder="页" />
+                    <span>页</span>
+                </span>
             </div>
         </div>
     </div>
@@ -741,12 +810,7 @@
             filteredProblems = esSearchResults.slice(start, end);
             totalCount = esSearchResults.length;
             render();
-            document.getElementById('pageStart').textContent = esSearchResults.length === 0 ? 0 : start + 1;
-            document.getElementById('pageEnd').textContent = end;
-            document.getElementById('pageTotal').textContent = esSearchResults.length;
-            document.getElementById('currentPage').textContent = currentPage;
-            document.getElementById('totalPages').textContent = totalPages;
-            document.getElementById('paginationBar').style.display = '';
+            saveListState();
         }
 
         // ========== 做题状态 ==========
@@ -822,14 +886,43 @@
             var themeBtn = document.getElementById('themeToggle');
             if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
-            // 并行加载：标签列表 + 统计数据 + 第一页题目
+            // ========== 持久化恢复：只把值塞到筛选控件里，不触发任何 onChange/loadPage ==========
+            var saved = loadListState();
+            var startPage = 1;
+            if (saved && typeof saved === 'object') {
+                if (saved.pageSize && [20, 50, 100].indexOf(parseInt(saved.pageSize)) !== -1) {
+                    pageSize = parseInt(saved.pageSize);
+                    var sz = document.getElementById('pageSizeSelect');
+                    if (sz) sz.value = String(pageSize);
+                }
+                if (typeof saved.page === 'number' && saved.page >= 1) {
+                    startPage = Math.max(1, saved.page);
+                }
+                try {
+                    var searchEl = document.getElementById('searchInput');
+                    if (searchEl && typeof saved.search === 'string') searchEl.value = saved.search;
+                    var diffEl = document.getElementById('difficultyFilter');
+                    if (diffEl && typeof saved.difficulty === 'string') diffEl.value = saved.difficulty;
+                    var tagEl = document.getElementById('tagFilter');
+                    // 注意：tagFilter options 此时还没 build，下面 buildTagFilterFromList 之后再回写
+                    var sortEl = document.getElementById('sortSelect');
+                    if (sortEl && typeof saved.sortBy === 'string') sortEl.value = saved.sortBy;
+                } catch (_) {}
+            }
+            currentPage = startPage;
+
+            // 并行加载：标签列表 + 统计数据 + 指定页题目
             var tagsPromise = fetchTags();
             var statsPromise = fetchStats();
-            var pagePromise = loadPage(1);
+            var pagePromise = loadPage(startPage);
 
             // 构建标签筛选器
             var tags = await tagsPromise;
             buildTagFilterFromList(tags);
+            if (saved && saved.tag) {
+                var tagEl = document.getElementById('tagFilter');
+                if (tagEl) tagEl.value = saved.tag; // build 之后回填 tag 选中
+            }
 
             // 更新统计（优先用后端 stats 接口）
             var stats = await statsPromise;
@@ -837,7 +930,7 @@
                 updateStatsFromBackend(stats);
             }
 
-            // 等待第一页数据加载完成
+            // 等待指定页数据加载完成
             await pagePromise;
 
             // 绑定筛选事件（搜索框用 debounce 避免频繁请求）
@@ -871,9 +964,37 @@
                 if (currentPage > 1) { currentPage--; loadPage(currentPage); }
             });
             document.getElementById('nextPageBtn').addEventListener('click', function() {
-                var tp = Math.ceil(totalCount / pageSize);
+                var tp = Math.max(1, Math.ceil(totalCount / pageSize));
                 if (currentPage < tp) { currentPage++; loadPage(currentPage); }
             });
+
+            // 跳至输入框：回车跳转；非法/超限值自动钳制；输入框自动显示当前页
+            var jump = document.getElementById('jumpPageInput');
+            if (jump) {
+                // 当前页改变后更新输入框 placeholder（避免用户猜）
+                var syncJumpPlaceholder = function () { jump.value = ''; jump.placeholder = String(currentPage); };
+                syncJumpPlaceholder();
+                var oldRenderPageNumbers = window.renderPageNumbers;
+                jump.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        var rawVal = String(jump.value || '').trim();
+                        if (!rawVal) return;
+                        var n = parseInt(rawVal, 10);
+                        if (isNaN(n) || n < 1) { jump.value = ''; jump.select(); return; }
+                        var tp = Math.max(1, Math.ceil(totalCount / pageSize));
+                        if (n > tp) n = tp;
+                        jump.value = '';
+                        if (n !== currentPage) loadPage(n);
+                    }
+                });
+                // 每次渲染页码后都同步 placeholder
+                var origRenderPageNumbers = renderPageNumbers;
+                renderPageNumbers = function (totalPages, cur) {
+                    origRenderPageNumbers(totalPages, cur);
+                    try { syncJumpPlaceholder(); } catch (_) {}
+                };
+                window.renderPageNumbers = renderPageNumbers;
+            }
 
             // 绑定语义搜索
             document.getElementById('semanticSearchBtn').addEventListener('click', semanticSearch);
@@ -884,31 +1005,154 @@
             });
         }
 
+        // ========== 分页工具函数（渲染数字按钮 + 省略号 + 跳至输入框回车跳转）==========
+        //   当前页 <= 7 时：显示 1..7（头 7 页）+ ... + 末页（若 末页>7）
+        //   当前页 > 7  时：显示 1 + ... + [cur-2, cur-1, cur, cur+1, cur+2] + ... + 末页
+        //   末页与当前窗口重叠时自动合并，避免出现 "1 ... 4" 这种尴尬
+        function buildPageNumbers(total, current, onJump) {
+            total = Math.max(1, parseInt(total) || 1);
+            current = Math.max(1, Math.min(total, parseInt(current) || 1));
+            var WINDOW_LEFT = 2;
+            var WINDOW_RIGHT = 2;
+            var pages = [];
+            var pushPage = function (p, opts) {
+                opts = opts || {};
+                if (p < 1 || p > total) return;
+                pages.push({ type: 'page', value: p, label: String(p), current: (p === current), disabled: !!opts.disabled });
+            };
+            var pushEllipsis = function (side) {
+                if (pages.length === 0) return;
+                var last = pages[pages.length - 1];
+                if (last && last.type === 'ellipsis' && last.side === side) return;
+                pages.push({ type: 'ellipsis', side: side, label: '…' });
+            };
+            // 1) 总页数 <= 8：全显示（1..N）
+            if (total <= 8) {
+                for (var i = 1; i <= total; i++) pushPage(i);
+                return pages;
+            }
+            // 2) 总页数 > 8：先判断「尾 7 区」再判断「头 7 区」，
+            //    避免总页数较少时（如 N=9~13）cur 在重叠区时漏掉末页附近的按钮
+            pushPage(1); // 首页永远在
+            if (current >= total - 6) {
+                // 当前页在末尾 7 页范围内：1 + ... + (total-6..total)
+                pushEllipsis('left');
+                for (var i = total - 6; i <= total; i++) pushPage(i);
+                return pages;
+            }
+            if (current <= 7) {
+                // 默认显示"头 7 页"
+                for (var i = 2; i <= 7; i++) pushPage(i);
+                pushEllipsis('right');
+                pushPage(total);
+                return pages;
+            }
+            // 3) 中间区：1 + ... + [cur-2, cur-1, cur, cur+1, cur+2] + ... + total
+            pushEllipsis('left');
+            for (var i = current - WINDOW_LEFT; i <= current + WINDOW_RIGHT; i++) pushPage(i);
+            pushEllipsis('right');
+            pushPage(total);
+            return pages;
+        }
+
+        // 把 buildPageNumbers 输出的数组渲染成 HTML，并对每个按钮绑定 onclick = onJump(page)
+        function renderPagerHtml(pagerData, onJump) {
+            var html = '';
+            for (var i = 0; i < pagerData.length; i++) {
+                var it = pagerData[i];
+                if (it.type === 'ellipsis') {
+                    html += '<span class="page-ellipsis" aria-hidden="true">…</span>';
+                } else if (it.type === 'page') {
+                    var cls = 'page-btn';
+                    if (it.current) cls += ' active';
+                    var disabled = (it.disabled ? ' disabled' : '');
+                    html += '<button type="button" class="' + cls + '" data-page="' + it.value + '"' + disabled + ' onclick="(' + onJump.toString() + ')(' + it.value + ')">' + it.label + '</button>';
+                }
+            }
+            return html;
+        }
+
+        // interview-list：把页号按钮写到 #pageNumbers 容器里；每个按钮点击 = loadPage(v)
+        function renderPageNumbers(totalPages, current) {
+            var container = document.getElementById('pageNumbers');
+            if (!container) return;
+            var data = buildPageNumbers(totalPages, current);
+            var html = '';
+            for (var i = 0; i < data.length; i++) {
+                var it = data[i];
+                if (it.type === 'ellipsis') {
+                    html += '<span class="page-ellipsis" aria-hidden="true">…</span>';
+                    continue;
+                }
+                var cls = 'page-btn' + (it.current ? ' active' : '');
+                var disabled = it.disabled ? ' disabled' : '';
+                html += '<button type="button" class="' + cls + '" data-page="' + it.value + '"' + disabled + '>' + it.label + '</button>';
+            }
+            container.innerHTML = html;
+            // 绑定：每个数字按钮点击 → loadPage(value)
+            var btns = container.querySelectorAll('button[data-page]');
+            for (var k = 0; k < btns.length; k++) {
+                (function (btn) {
+                    btn.addEventListener('click', function () {
+                        var v = parseInt(btn.getAttribute('data-page'), 10);
+                        if (!isNaN(v) && v !== currentPage) {
+                            loadPage(v);
+                        }
+                    });
+                })(btns[k]);
+            }
+        }
+
+        // interview-list：持久化（刷新/返回题库时自动还原上次页 + 筛选）
+        // 单一真源 key：algovize:interview-list.state
+        var PERSIST_KEY = 'algovize:interview-list.state';
+        function saveListState() {
+            try {
+                var payload = {
+                    page: currentPage || 1,
+                    pageSize: pageSize || 20,
+                    search: (document.getElementById('searchInput') || {}).value || '',
+                    difficulty: (document.getElementById('difficultyFilter') || {}).value || '',
+                    tag: (document.getElementById('tagFilter') || {}).value || '',
+                    sortBy: (document.getElementById('sortSelect') || {}).value || '',
+                    updatedAt: Date.now()
+                };
+                localStorage.setItem(PERSIST_KEY, JSON.stringify(payload));
+            } catch (_) { /* localStorage 不可用（隐私模式）忽略 */ }
+        }
+        function loadListState() {
+            try {
+                var raw = localStorage.getItem(PERSIST_KEY);
+                if (!raw) return null;
+                return JSON.parse(raw);
+            } catch (_) { return null; }
+        }
+
         // ========== 后端分页加载 ==========
         var currentPageData = []; // 当前页数据
 
         async function loadPage(page) {
-            currentPage = page;
+            currentPage = Math.max(1, parseInt(page) || 1);
             var content = document.getElementById('listContent');
             content.innerHTML = '<div class="list-loading"><div class="list-spinner"></div><div>加载中...</div></div>';
 
             try {
                 var result;
                 if (isSemanticMode) {
-                    // 语义搜索模式：前端分页（语义搜索结果在前端切片）
                     renderSemanticPage();
                     return;
                 }
                 if (isEsSearchMode) {
-                    // ES 搜索模式：前端分页
                     renderEsSearchPage();
                     return;
                 }
-                result = await fetchPage(page, pageSize);
+                result = await fetchPage(currentPage, pageSize);
                 currentPageData = result.list;
                 totalCount = result.total;
                 filteredProblems = result.list;
                 render();
+                // 稳定点：只有"加载成功并且渲染完成"后，才写缓存（避免页码/筛选 读-写竞争）
+                saveListState();
             } catch (e) {
                 console.error('[分页] 加载失败:', e);
                 content.innerHTML = '<div class="list-empty"><div class="list-empty-icon">⚠️</div><div>加载失败，请刷新重试</div></div>';
@@ -937,6 +1181,7 @@
             filteredProblems = semanticResults.slice(start, end);
             totalCount = semanticResults.length;
             render();
+            saveListState(); // 语义搜索模式也要缓存页码
         }
 
         // ========== 标签筛选器 ==========
@@ -1027,14 +1272,20 @@
             html += '</tbody></table>';
             content.innerHTML = html;
 
-            // 分页
+            // 分页基础信息（范围 / 总页码 / 总数 / 上下一页禁用）
             document.getElementById('pageStart').textContent = totalCount === 0 ? 0 : start + 1;
             document.getElementById('pageEnd').textContent = start + pageData.length;
             document.getElementById('pageTotal').textContent = totalCount;
-            document.getElementById('currentPage').textContent = currentPage;
+            // 兼容旧节点：currentPage（已经不存在，但仍保留写安全 fallback）
+            var curPageEl = document.getElementById('currentPage');
+            if (curPageEl) curPageEl.textContent = currentPage;
             document.getElementById('totalPages').textContent = totalPages;
+            var totalCountTop = document.getElementById('totalCountTop');
+            if (totalCountTop) totalCountTop.textContent = totalCount;
             document.getElementById('prevPageBtn').disabled = currentPage <= 1;
             document.getElementById('nextPageBtn').disabled = currentPage >= totalPages;
+            // 新版：动态渲染数字按钮（头 7 / 左 2 右 2 / 首 1 + … + 尾 1）
+            renderPageNumbers(totalPages, currentPage);
             bar.style.display = 'flex';
         }
 
