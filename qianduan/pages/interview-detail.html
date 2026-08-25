@@ -175,6 +175,32 @@
         }
 
         /* Markdown rendered content */
+        /* 先定义本页主题变量，跟随全局 html[data-theme] 切换 */
+        html[data-theme="light"] {
+            --md-bg-code: #f6f8fa;
+            --md-bg-pre:  #f6f8fa;
+            --md-bg-inline: #f3f4f6;
+            --md-text-code: #667eea;
+            --md-border-code: #e5e7eb;
+            --md-text-inline: #4f46e5;
+        }
+        html[data-theme="dark"] {
+            --md-bg-code: #13132a;
+            --md-bg-pre:  #13132a;
+            --md-bg-inline: #16213e;
+            --md-text-code: #a5b4fc;
+            --md-border-code: #2a2a50;
+            --md-text-inline: #c7d2fe;
+        }
+        /* 兜底（head 防闪烁脚本写入之前的瞬间） */
+        :root {
+            --md-bg-code: #f6f8fa;
+            --md-bg-pre:  #f6f8fa;
+            --md-bg-inline: #f3f4f6;
+            --md-text-code: #667eea;
+            --md-border-code: #e5e7eb;
+            --md-text-inline: #4f46e5;
+        }
         .markdown-body {
             font-size: 15px;
             line-height: 1.8;
@@ -191,35 +217,144 @@
         .markdown-body h4 { font-size: 1.05em; }
         .markdown-body p { margin: 8px 0; }
         .markdown-body ul, .markdown-body ol {
-            padding-left: 24px;
-            margin: 8px 0;
+            padding-left: 28px;
+            margin: 10px 0;
+            list-style-position: outside;
         }
-        .markdown-body li { margin: 4px 0; }
-        .markdown-body ul li { list-style: disc; }
-        .markdown-body ol li { list-style: decimal; }
+        .markdown-body ul { list-style-type: disc; }
+        .markdown-body ol { list-style-type: decimal; }
+        .markdown-body li {
+            display: list-item;
+            margin: 6px 0;
+            line-height: 1.75;
+        }
+        /* 防止 Markdown 把相邻编号项误合并到一个 <p> 里导致视觉上挤在同一行：每个编号项独立一行 */
+        .markdown-body ol li::marker {
+            color: var(--brand, #667eea);
+            font-weight: 600;
+        }
+        .markdown-body ul li + li, .markdown-body ol li + li {
+            margin-top: 6px;
+        }
         .markdown-body code {
-            background: var(--bg-dark, #0f0f23);
-            color: var(--primary-light, #8b9aff);
+            background: var(--md-bg-inline, #f3f4f6);
+            color: var(--md-text-inline, #4f46e5);
             padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Fira Code', Consolas, monospace;
-            font-size: 0.9em;
+            border-radius: 5px;
+            border: 1px solid transparent;
+            font-family: 'Fira Code', Consolas, 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 0.88em;
+            word-break: break-word;
         }
-        .markdown-body pre {
-            background: var(--bg-dark, #0f0f23);
-            padding: 14px 16px;
+        /* ===== 代码框（含工具栏/语言牌/复制按钮）===== */
+        /* 外层包装：含"顶栏 + 代码区"，pre code 直接包不住按钮 */
+        .markdown-body .code-wrap {
+            position: relative;
+            margin: 14px 0;
+            border-radius: 12px;
+            border: 1px solid var(--md-border-code, #e5e7eb);
+            background: var(--md-bg-pre, #f6f8fa);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            overflow: hidden;
+            max-height: 560px;
+        }
+        html[data-theme="dark"] .markdown-body .code-wrap {
+            box-shadow: 0 2px 12px rgba(0,0,0,0.45);
+        }
+        /* 顶部工具栏 */
+        .markdown-body .code-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            background: rgba(102,126,234,0.06);
+            border-bottom: 1px solid var(--md-border-code, #e5e7eb);
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        html[data-theme="dark"] .markdown-body .code-toolbar {
+            background: rgba(102,126,234,0.12);
+        }
+        .markdown-body .code-lang {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: rgba(102,126,234,0.18);
+            color: var(--md-text-inline, #4f46e5);
+        }
+        .markdown-body .code-lang::before {
+            content: "";
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.85;
+        }
+        /* 复制按钮 */
+        .markdown-body .code-copy {
+            appearance: none;
+            border: 1px solid var(--md-border-code, #e5e7eb);
+            background: transparent;
+            color: var(--md-text-code, #4f46e5);
+            cursor: pointer;
+            padding: 5px 12px;
             border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.18s ease;
+            user-select: none;
+        }
+        .markdown-body .code-copy:hover {
+            background: var(--md-text-inline, #667eea);
+            color: #fff;
+            border-color: var(--md-text-inline, #667eea);
+            transform: translateY(-1px);
+        }
+        .markdown-body .code-copy.copied {
+            background: #16a34a !important;
+            border-color: #16a34a !important;
+            color: #fff !important;
+        }
+        .markdown-body .code-copy:active { transform: translateY(0); }
+        /* 代码块本体（pre） */
+        .markdown-body pre {
+            margin: 0 !important;              /* 外层由 .code-wrap 承担间距 */
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            max-height: none;
+            padding: 16px 18px !important;
             overflow-x: auto;
-            margin: 12px 0;
-            border: 1px solid var(--border-light, #2d2d4a);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            border-radius: 0 0 12px 12px;
         }
         .markdown-body pre code {
             background: none;
             padding: 0;
-            color: var(--text-primary);
-            font-size: 0.9em;
-            line-height: 1.6;
+            margin: 0;
+            border: 0;
+            color: var(--text-primary, #1a202c);
+            font-family: 'Fira Code', Consolas, 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 0.88em;
+            line-height: 1.7;
+            display: block;
+            /* 自动换行：长行折成多行显示（用户要求的"多行显示"） */
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            tab-size: 4;
         }
+        /* 语言牌：pre[data-lang] 的 ::before 用于旧场景（没有 .code-wrap 时），保留兼容 */
+        .markdown-body pre[data-lang]::before { display: none; }
         .markdown-body blockquote {
             border-left: 4px solid var(--primary, #667eea);
             padding: 8px 16px;
@@ -521,6 +656,8 @@
             html += '</div>';
 
             document.getElementById('contentArea').innerHTML = html;
+            // 代码框一键复制按钮绑定（每次插入内容后重新绑定新增的）
+            try { bindCopyButtons(); } catch (_) {}
         }
 
         // 切换答案显示/隐藏
@@ -608,7 +745,7 @@
                 .replace(/'/g, '&#39;');
         }
 
-        // Markdown 预处理：修复数据库中无换行的单行 Markdown 数据
+        // Markdown 预处理：修复数据库中无换行的单行 Markdown 数据，并自动包裹代码
         function preprocessMarkdown(str) {
             if (!str) return '';
             var s = String(str);
@@ -616,9 +753,23 @@
             // 统一换行
             s = s.replace(/\r\n?/g, '\n');
 
+            // 代码框识别：在"拆行/清理"之前执行，避免被编号拆行逻辑切坏代码内部结构
+            // 技巧：先把数据库里已经存在的 ```...``` 片段占位（防止重复包裹）
+            var preserved = [];
+            s = s.replace(/```[\s\S]*?```/g, function (m) {
+                preserved.push(m);
+                return '\x01PRES' + (preserved.length - 1) + '\x01';
+            });
+
+            // ===== 代码片段自动加 ``` 围栏（仅对未被 ``` 包裹的正文生效） =====
+            // 1) 先按 "1. 标题：/2. 标题：" 之类的编号项切成若干"编号片段"，识别每个片段里的"代码:"段
+            s = wrapCodeFragments(s);
+
             // 步骤1: 在关键分隔符前插入换行（仅对非代码块区域生效）
-            // 先提取代码块占位，避免误处理
+            // 先提取所有代码块（包括上面新加的和原本就有的 PRES 还原回来的）占位，避免误处理
             var codeBlocks = [];
+            // 先还原 PRES，统一再做一次 ``` 占位
+            s = s.replace(/\x01PRES(\d+)\x01/g, function (m, i) { return preserved[i]; });
             s = s.replace(/```[\s\S]*?```/g, function(m) {
                 codeBlocks.push(m);
                 return '\x00CODEBLOCK' + (codeBlocks.length - 1) + '\x00';
@@ -632,26 +783,134 @@
             s = s.replace(/(\S)\s+(?=\|[-\s])/g, '$1\n');
             // 列表项
             s = s.replace(/(\s)-\s+/g, '\n- ');
-            s = s.replace(/(\s)(\d+)\.\s+(?=\d+\.)/g, '\n$2. ');
+            // 有序列表：把 "1. xxx 2. yyy 3. zzz" 这种无换行的编号文本拆成每项单独一行
+            // 先处理字符串/段落开头的编号项
+            s = s.replace(/(^|\n)([ \t]*)(\d{1,3})\.\s+/gm, function (m, prefix, sp, num) {
+                return (prefix || '') + '\n' + num + '. ';
+            });
+            // 夹在文本中间的 " 2. " / "。3. "（前面是字/标点）也要拆成新的一行
+            s = s.replace(/([\u4e00-\u9fa5A-Za-z0-9，。,.!?；;）)\]】])\s*(\d{1,3})\.\s+/g, function (m, before, num) {
+                return before + '\n' + num + '. ';
+            });
+            // 无序列表同样：夹在文本中间的 " - " 也要拆行
+            s = s.replace(/([\u4e00-\u9fa5A-Za-z0-9，。,.!?；;）)\]】])\s+-\s+/g, '$1\n- ');
+
+            // ===== 圈号/特殊序号：①②③…⑳ / ⑴⑵⑶…⒇ / ⅠⅡⅢ…Ⅻ / ⅰⅱⅲ…ⅻ / ㈠㈡㈢…㈩ =====
+            // 每遇到一个序号字符，若它不在"代码块占位符/反引号"上下文中，则前面补 \n 保证独占一行
+            //   圈 1-20:           ①-⑳   U+2460..U+2473
+            //   括号 1-20:         ⑴-⒇   U+2474..U+2487
+            //   罗马大写 1-12:      Ⅰ-Ⅻ    U+2160..U+216B
+            //   罗马小写 1-12:      ⅰ-ⅻ    U+2170..U+217B
+            //   中文全角括号 1-10:  ㈠-㈩    U+3220..U+3229
+            var CIRCLED = '[\\u2460-\\u2473\\u2474-\\u2487\\u2160-\\u216B\\u2170-\\u217B\\u3220-\\u3229]';
+            var CIRCLED_RE = new RegExp(CIRCLED);
+            // 行首/段首 + 序号字符 → 前面补换行（确保序号作为列表项开头）
+            s = s.replace(new RegExp('(^|\\n)([ \\t]*)(' + CIRCLED + ')', 'gm'), function (m, prefix, sp, marker) {
+                return (prefix || '') + '\n' + marker;
+            });
+            // 文本中间的序号（前面是字/标点/空白，后面跟内容/冒号/空格）→ 在序号前换行（例如"任务ID。①Read View"）
+            s = s.replace(new RegExp(
+                '([\\u4e00-\\u9fa5A-Za-z0-9，。,.!?；;）)\\]】\\s])\\s*(' + CIRCLED + ')(?=[\\s：:、\\u4e00-\\u9fa5A-Za-z0-9])',
+                'g'
+            ), function (m, before, marker) {
+                return before + '\n' + marker;
+            });
             // 在 `` 行内代码 `` 前后加空格
             s = s.replace(/(\S)(`[^`]+`)/g, '$1 $2');
             s = s.replace(/(`[^`]+`)(\S)/g, '$1 $2');
 
-            // 步骤2: 恢复代码块
+            // 步骤2: 恢复代码块（不要 trim，保持原结构）
             s = s.replace(/\x00CODEBLOCK(\d+)\x00/g, function(m, idx) {
                 return '\n' + codeBlocks[parseInt(idx)] + '\n';
             });
 
-            // 步骤3: 清理代码块内的格式（确保代码标记独占一行）
-            s = s.replace(/\n```\s*\n/g, '\n```\n');
-            s = s.replace(/\n```([\s\S]*?)```\n/g, function(m, code) {
-                return '\n```\n' + code.trim() + '\n```\n';
-            });
-
-            // 步骤4: 清理多余空行
+            // 步骤3: 清理多余空行
             s = s.replace(/\n{3,}/g, '\n\n');
 
             return s;
+        }
+
+        /**
+         * 自动识别正文里的"代码：xxx ... 优点："之类无围栏代码，用 ```java ``` 包起来。
+         * 仅在非 ``` 块上下文中生效。
+         */
+        function wrapCodeFragments(s) {
+            if (!s) return s;
+            // 典型代码关键字（命中任何一个即判定为代码片段）
+            var CODE_KW = /(public\s+|private\s+|protected\s+|static\s+|class\s+\w|void\s+\w|String\s*\[\]|synchronized|import\s+|package\s+|function\s+\w|const\s+\w+|let\s+\w+|var\s+\w+|def\s+\w+|if\s*\(|for\s*\(|while\s*\(|return\s+|SELECT\s+|INSERT\s+|UPDATE\s+|DELETE\s+|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+|new\s+\w+|\([^)]*\)\s*\{|\{[^}]*\})/i;
+            // 分隔符：代码正文"结束后"进入自然语言的标志（编号开头/中文编号/一级中文小标题）
+            // 兼容行中间出现（如"...对象。实现2：静态内部类：代码：..."），边界符允许在 标点/空白/行首
+            // 圈号（①②…）/括号序号（⑴⑵…）/罗马数字（ⅠⅡ…）/全角括号序号（㈠㈡…）也作为 STOP 边界
+            var CIR_STOP = '[\\u2460-\\u2473\\u2474-\\u2487\\u2160-\\u216B\\u2170-\\u217B\\u3220-\\u3229]';
+            var STOP = new RegExp(
+                '(^|[\\s，。,.!?；;）)\\]】])(\\d{1,3}\\.\\s+[^\\n：:]{0,30}[：:]|[一二三四五六七八九十]+[、.]|(优点|缺点|示例|说明|注意|总结)[:：]|#{1,6}\\s|' + CIR_STOP + ')',
+                'm'
+            );
+
+            // 先按"编号 开头的段落"粗切成段
+            var parts = s.split(/(?=(?:^|\n)\s*\d{1,3}\.\s+)/m);
+            var out = [];
+            for (var i = 0; i < parts.length; i++) {
+                var p = parts[i];
+                if (!p) continue;
+                out.push(wrapInSection(p, CODE_KW, STOP));
+            }
+            return out.join('');
+        }
+        function wrapInSection(section, CODE_KW, STOP) {
+            // 只识别"明确标明是代码"的锚点（代码：/示例：/Java:/SQL: 等），
+            // 不碰"实现1：/优点：/缺点：/场景："这种中文冒号（之前误把说明文字当代码全进代码框）
+            var re = /(\s*)(代码|示例代码|Code|输入|输出|SQL|Java|JS|JavaScript|Python|C\+\+|Cpp|Go|Kotlin|TypeScript|TS|C#|Shell|Bash)\s*[:：]\s*/gi;
+            var lastIdx = 0;
+            var result = '';
+            var m;
+            while ((m = re.exec(section)) !== null) {
+                var anchorName = m[2]; // 这次一定非空，因为正则要求第 2 组必须命中具体名词（无空）
+                if (!anchorName) continue;
+                // 先把锚点之前的纯文本原样 append
+                result += section.slice(lastIdx, m.index);
+                // 锚点本身（比如 "代码："）要保留
+                result += m[0];
+                lastIdx = m.index + m[0].length;
+
+                // 从 lastIdx 开始截代码正文，直到 STOP 匹配
+                var rest = section.slice(lastIdx);
+                var stopMatch = rest.match(STOP);
+                var codeEnd = stopMatch ? stopMatch.index : rest.length;
+                var codeText = rest.slice(0, codeEnd);
+
+                if (codeText && CODE_KW.test(codeText)) {
+                    var lang = detectLang(codeText, anchorName);
+                    var code = codeText.replace(/^\s+/, '').replace(/\s+$/g, '');
+                    // 把"优点：/缺点：/实现X："这类中文分隔开头的正文裁掉（防止跟代码混写）
+                    // 只在 STOP 命中时需要，因为 STOP 已经命中时 codeEnd 就停在 STOP 之前了
+                    var tailCleanMatch = code.match(/^(.*[{};)\]a-zA-Z0-9"'`])[，。,.!?；;]*?$/);
+                    if (tailCleanMatch) code = tailCleanMatch[1];
+                    result += '\n```' + lang + '\n' + code + '\n```\n';
+                    lastIdx += codeEnd;
+                }
+                // 没命中关键字：不包，继续走普通流程
+            }
+            result += section.slice(lastIdx);
+            return result;
+        }
+        function detectLang(code, hint) {
+            if (!hint) hint = '';
+            var h = hint.toLowerCase();
+            if (/java/.test(h)) return 'java';
+            if (/python|py/.test(h)) return 'python';
+            if (/js|javascript/.test(h)) return 'javascript';
+            if (/ts|typescript/.test(h)) return 'typescript';
+            if (/c\+\+|cpp/.test(h)) return 'cpp';
+            if (/go/.test(h)) return 'go';
+            if (/sql/.test(h)) return 'sql';
+            if (/kotlin/.test(h)) return 'kotlin';
+            // 无 hint 时按关键字猜
+            if (/\bpublic\s+class\b|\bpublic\s+static\s+void\b|\bsynchronized\b|\bimport\s+java\.|package\s+[a-zA-Z0-9.]/.test(code)) return 'java';
+            if (/\bdef\s+\w+\s*\(|^\s*(from|import)\s+\w+/m.test(code)) return 'python';
+            if (/\bfunction\s+\w+\s*\(|const\s+\w+\s*=|=>\s*\{/.test(code)) return 'javascript';
+            if (/SELECT\s+|INSERT\s+INTO|UPDATE\s+\w+|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+/i.test(code)) return 'sql';
+            return '';
         }
 
         // 配置 marked
@@ -676,12 +935,97 @@
             if (typeof marked !== 'undefined') {
                 try {
                     setupMarked();
-                    return marked.parse(processed);
+                    var html = marked.parse(processed);
+                    // 1) 给 marked 生成的 <pre> 加 data-lang（角标数据）
+                    html = html.replace(/<pre\b([^>]*)>\s*<code\s+class="([^"]*)"/gi, function (m, preAttrs, codeClass) {
+                        var m2 = String(codeClass).match(/language-([\w+#-]+)/i);
+                        var lang = m2 ? m2[1] : '';
+                        return '<pre' + (preAttrs || '') + (lang ? ' data-lang="' + lang + '"' : '') + '><code class="' + codeClass + '"';
+                    });
+                    // 2) 把每个 <pre…>…</pre> 包一层"工具栏 + 一键复制"的 div.code-wrap
+                    html = html.replace(/<pre\b([^>]*)>([\s\S]*?)<\/pre>/gi, function (m, preAttrs, inner) {
+                        var langMatch = String(preAttrs).match(/data-lang="([^"]*)"/i);
+                        var lang = langMatch ? langMatch[1] : '';
+                        var langDisplay = (lang || 'CODE').toUpperCase();
+                        // SVG：复制图标 (clipboard) + 已完成 (check)
+                        var iconCopy = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+                        var iconCheck = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                        return '' +
+                            '<div class="code-wrap" data-lang="' + escapeHtml(lang) + '">' +
+                                '<div class="code-toolbar">' +
+                                    '<span class="code-lang">' + escapeHtml(langDisplay) + '</span>' +
+                                    '<button type="button" class="code-copy" aria-label="复制代码" title="一键复制">' +
+                                        '<span class="code-copy-ic">' + iconCopy + '</span>' +
+                                        '<span class="code-copy-tx">复制</span>' +
+                                        '<span class="code-copy-done" style="display:none;">' + iconCheck + '<span style="margin-left:4px;">已复制</span></span>' +
+                                    '</button>' +
+                                '</div>' +
+                                '<pre' + preAttrs + '>' + inner + '</pre>' +
+                            '</div>';
+                    });
+                    return html;
                 } catch (e) {
                     console.warn('Markdown 解析失败，使用原始文本:', e);
                 }
             }
             return '<p>' + escapeHtml(str) + '</p>';
+        }
+
+        /**
+         * 给所有代码块的「一键复制」按钮绑定 click。
+         * 在每次把 renderMarkdown() 结果 innerHTML 插入页面之后调用。
+         */
+        function bindCopyButtons() {
+            var wraps = document.querySelectorAll('.markdown-body .code-wrap');
+            for (var i = 0; i < wraps.length; i++) {
+                var wrap = wraps[i];
+                if (wrap.dataset.copyBound === '1') continue;
+                var btn = wrap.querySelector('.code-copy');
+                var pre = wrap.querySelector('pre');
+                if (!btn || !pre) continue;
+                wrap.dataset.copyBound = '1';
+                btn.addEventListener('click', (function (b, p) {
+                    return function () {
+                        var text = (p.innerText != null) ? p.innerText : (p.textContent || '');
+                        var doCopy = function (txt) {
+                            var tx = b.querySelector('.code-copy-tx');
+                            var ic = b.querySelector('.code-copy-ic');
+                            var done = b.querySelector('.code-copy-done');
+                            b.classList.add('copied');
+                            if (tx) tx.style.display = 'none';
+                            if (ic) ic.style.display = 'none';
+                            if (done) done.style.display = 'inline-flex';
+                            setTimeout(function () {
+                                b.classList.remove('copied');
+                                if (tx) tx.style.display = '';
+                                if (ic) ic.style.display = '';
+                                if (done) done.style.display = 'none';
+                            }, 1600);
+                        };
+                        var failed = function (err) {
+                            try {
+                                // HTTP 非安全上下文 navigator.clipboard 未定义时，fallback 用 textarea 复制
+                                var ta = document.createElement('textarea');
+                                ta.value = text;
+                                ta.style.position = 'fixed';
+                                ta.style.left = '-99999px';
+                                ta.style.top = '0';
+                                document.body.appendChild(ta);
+                                ta.select();
+                                try { document.execCommand('copy'); doCopy(text); } catch (e2) { console.warn('复制失败', e2); }
+                                document.body.removeChild(ta);
+                            } catch (e3) { console.warn('复制失败', err || e3); }
+                        };
+                        if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                            try {
+                                navigator.clipboard.writeText(text).then(function () { doCopy(text); }).catch(failed);
+                            } catch (e) { failed(e); }
+                        } else {
+                            failed();
+                        }
+                    };
+                })(btn, pre));
+            }
         }
 
         // 启动

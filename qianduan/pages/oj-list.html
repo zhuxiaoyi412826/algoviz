@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -11,10 +11,55 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-body: #f5f7fa;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --card-bg: #ffffff;
+            --card-border: #e2e8f0;
+            --card-head: #f8fafc;
+            --input-bg: #ffffff;
+            --input-border: #cbd5e1;
+            --btn-bg: #f1f5f9;
+            --btn-border: #e2e8f0;
+            --brand: #667eea;
+            --title: #0f172a;
+            --secondary-btn-bg: #f1f5f9;
+            --secondary-btn-border: #e2e8f0;
+            --spinner-border: #e2e8f0;
+            --tag-bg: rgba(102, 126, 234, 0.10);
+            --tag-color: #667eea;
+            --row-hover: rgba(102, 126, 234, 0.08);
+            --err-card: #ffffff;
+        }
+        html[data-theme="dark"] {
+            --bg-body: #0f0f23;
+            --text-primary: #e2e8f0;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --card-bg: #1a1a2e;
+            --card-border: #2d2d4e;
+            --card-head: #16213e;
+            --input-bg: #1a1a2e;
+            --input-border: #2d2d4e;
+            --btn-bg: #2d2d4e;
+            --btn-border: #3c3c5c;
+            --brand: #667eea;
+            --title: #ffffff;
+            --secondary-btn-bg: #2d2d4e;
+            --secondary-btn-border: #3c3c5c;
+            --spinner-border: #2d2d4e;
+            --tag-bg: rgba(102, 126, 234, 0.15);
+            --tag-color: #a5b4fc;
+            --row-hover: rgba(102, 126, 234, 0.10);
+            --err-card: #1a1a2e;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
-            background: #0f0f23;
-            color: #e2e8f0;
+            background: var(--bg-body);
+            color: var(--text-primary);
             min-height: 100vh;
         }
         .oj-list-container {
@@ -33,7 +78,7 @@
         .oj-list-title {
             font-size: 24px;
             font-weight: 700;
-            color: #fff;
+            color: var(--title);
             display: flex;
             align-items: center;
             gap: 10px;
@@ -53,10 +98,10 @@
         .oj-search-box input {
             width: 280px;
             padding: 10px 14px 10px 38px;
-            background: #1a1a2e;
-            border: 1px solid #2d2d4e;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
             border-radius: 8px;
-            color: #e2e8f0;
+            color: var(--text-primary);
             font-size: 14px;
             outline: none;
             transition: border-color 0.2s;
@@ -65,7 +110,7 @@
             border-color: #667eea;
         }
         .oj-search-box input::placeholder {
-            color: #64748b;
+            color: var(--text-muted);
         }
         .oj-search-box::before {
             content: '🔍';
@@ -77,10 +122,10 @@
         }
         .oj-filter-select {
             padding: 10px 14px;
-            background: #1a1a2e;
-            border: 1px solid #2d2d4e;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
             border-radius: 8px;
-            color: #e2e8f0;
+            color: var(--text-primary);
             font-size: 14px;
             outline: none;
             cursor: pointer;
@@ -90,11 +135,11 @@
             border-color: #667eea;
         }
         .oj-filter-select option {
-            background: #1a1a2e;
-            color: #e2e8f0;
+            background: var(--card-bg);
+            color: var(--text-primary);
         }
         .oj-list-stats {
-            color: #94a3b8;
+            color: var(--text-muted);
             font-size: 13px;
             margin-bottom: 16px;
         }
@@ -106,35 +151,35 @@
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
-            background: #1a1a2e;
+            background: var(--card-bg);
             border-radius: 12px;
             overflow: hidden;
-            border: 1px solid #2d2d4e;
+            border: 1px solid var(--card-border);
         }
         .oj-problem-table thead {
-            background: #16213e;
+            background: var(--card-head);
         }
         .oj-problem-table th {
             padding: 14px 16px;
             text-align: left;
             font-size: 12px;
             font-weight: 600;
-            color: #94a3b8;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            border-bottom: 1px solid #2d2d4e;
+            border-bottom: 1px solid var(--card-border);
         }
         .oj-problem-table td {
             padding: 14px 16px;
             font-size: 14px;
-            border-bottom: 1px solid rgba(45, 45, 78, 0.4);
+            border-bottom: 1px solid rgba(148,163,184,0.25);
         }
         .oj-problem-table tbody tr {
             cursor: pointer;
             transition: background 0.15s;
         }
         .oj-problem-table tbody tr:hover {
-            background: rgba(102, 126, 234, 0.1);
+            background: var(--row-hover);
         }
         .oj-problem-table tbody tr:last-child td {
             border-bottom: none;
@@ -145,7 +190,7 @@
             font-family: 'Fira Code', monospace;
         }
         .oj-problem-name {
-            color: #e2e8f0;
+            color: var(--text-primary);
             font-weight: 500;
         }
         .oj-problem-name:hover {
@@ -173,8 +218,8 @@
         .oj-tag {
             display: inline-block;
             padding: 2px 8px;
-            background: rgba(102, 126, 234, 0.15);
-            color: #a5b4fc;
+            background: var(--tag-bg);
+            color: var(--tag-color);
             border-radius: 10px;
             font-size: 11px;
             margin-right: 4px;
@@ -183,12 +228,12 @@
         .oj-list-loading {
             text-align: center;
             padding: 60px 20px;
-            color: #94a3b8;
+            color: var(--text-muted);
         }
         .oj-list-loading .oj-spinner {
             width: 32px;
             height: 32px;
-            border: 3px solid #2d2d4e;
+            border: 3px solid var(--spinner-border);
             border-top-color: #667eea;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
@@ -200,7 +245,7 @@
         .oj-list-empty {
             text-align: center;
             padding: 60px 20px;
-            color: #64748b;
+            color: var(--text-muted);
         }
         .oj-list-empty-icon {
             font-size: 48px;
@@ -211,7 +256,7 @@
             align-items: center;
             gap: 6px;
             padding: 8px 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--brand) 0%, #764ba2 100%);
             border: none;
             border-radius: 8px;
             color: white;
@@ -225,8 +270,26 @@
             opacity: 0.9;
         }
         .oj-list-nav-btn-secondary {
-            background: #2d2d4e;
-            border: 1px solid #3c3c5c;
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            color: #0f172a !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        html[data-theme="dark"] .oj-list-nav-btn-secondary {
+            background: #262645;
+            border: 1px solid #4a4a80;
+            color: #ffffff !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.45);
+        }
+        .oj-list-nav-btn-secondary:hover {
+            background: #eef2ff;
+            border-color: #667eea;
+            color: #4338ca !important;
+        }
+        html[data-theme="dark"] .oj-list-nav-btn-secondary:hover {
+            background: #303058;
+            border-color: #818cf8;
+            color: #c7d2fe !important;
         }
         @media (max-width: 768px) {
             .oj-list-header {
@@ -247,7 +310,7 @@
         .oj-list-error {
             text-align: center;
             padding: 60px 20px;
-            background: #1a1a2e;
+            background: var(--card-bg);
             border-radius: 12px;
             border: 1px solid rgba(239, 68, 68, 0.3);
         }
@@ -262,14 +325,14 @@
             margin-bottom: 8px;
         }
         .oj-list-error-message {
-            color: #94a3b8;
+            color: var(--text-muted);
             margin-bottom: 20px;
             font-size: 14px;
         }
         .oj-list-retry-btn {
             display: inline-block;
             padding: 10px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--brand) 0%, #764ba2 100%);
             border: none;
             border-radius: 8px;
             color: white;
@@ -283,7 +346,7 @@
             opacity: 0.9;
         }
         .oj-list-error-hint {
-            color: #64748b;
+            color: var(--text-muted);
             font-size: 12px;
         }
         .oj-pagination-bar {
@@ -292,14 +355,14 @@
             align-items: center;
             margin-top: 16px;
             padding: 12px 16px;
-            background: #1a1a2e;
+            background: var(--card-bg);
             border-radius: 10px;
-            border: 1px solid #2d2d4e;
+            border: 1px solid var(--card-border);
             flex-wrap: wrap;
             gap: 10px;
         }
         .oj-pagination-info {
-            color: #94a3b8;
+            color: var(--text-muted);
             font-size: 13px;
         }
         .oj-pagination-info strong {
@@ -314,16 +377,16 @@
         }
         .oj-page-btn {
             padding: 6px 14px;
-            background: #2d2d4e;
-            border: 1px solid #3c3c5c;
+            background: var(--btn-bg);
+            border: 1px solid var(--btn-border);
             border-radius: 6px;
-            color: #e2e8f0;
+            color: var(--text-primary);
             font-size: 13px;
             cursor: pointer;
             transition: all 0.2s;
         }
         .oj-page-btn:hover:not(:disabled) {
-            background: rgba(102, 126, 234, 0.2);
+            background: rgba(102, 126, 234, 0.20);
             border-color: rgba(102, 126, 234, 0.5);
         }
         .oj-page-btn:disabled {
@@ -331,7 +394,7 @@
             cursor: not-allowed;
         }
         .oj-page-info {
-            color: #94a3b8;
+            color: var(--text-muted);
             font-size: 13px;
         }
         .oj-page-info strong {
@@ -343,17 +406,17 @@
             align-items: center;
             gap: 6px;
             padding: 10px 14px;
-            background: #1a1a2e;
-            border: 1px solid #2d2d4e;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
             border-radius: 8px;
-            color: #e2e8f0;
+            color: var(--text-primary);
             font-size: 14px;
             cursor: pointer;
             transition: all 0.2s;
         }
         .oj-sort-btn:hover {
             border-color: #667eea;
-            background: rgba(102, 126, 234, 0.1);
+            background: var(--row-hover);
         }
         .oj-sort-btn .sort-icon {
             font-size: 12px;
@@ -366,9 +429,80 @@
             opacity: 0.6;
             border-color: #2d2d4e;
         }
+
+        /* 悬浮返回 / 主题切换按钮（与 encryption.html 一致）*/
+        .float-theme-btn {
+            position: fixed;
+            top: 12px;
+            z-index: 50;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.55rem 0.95rem;
+            border-radius: 999px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            box-shadow: 0 3px 14px rgba(0,0,0,0.10);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .float-theme-btn { right: 16px; padding: 0.55rem 0.75rem; }
+        .float-theme-btn:hover {
+            border-color: var(--brand);
+            color: var(--brand);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        .float-theme-btn:active { transform: translateY(0); }
+        html[data-theme="dark"] .float-theme-btn { box-shadow: 0 4px 18px rgba(0,0,0,0.45); }
     </style>
 </head>
 <body>
+    <!-- 悬浮主题切换按钮（右上角） -->
+    <button id="miniThemeToggle" class="float-theme-btn" aria-label="切换主题">
+        <span class="mini-theme-icon">☀️</span>
+    </button>
+
+    <script>
+        (function () {
+            function setTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('algoviz-theme', theme);
+                var icon = document.querySelector('.mini-theme-icon');
+                if (icon) icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+                // 读取 CSS 变量作为 body 背景，不走写死字符串，保证和 html[data-theme=xxx] 变量体系完全一致
+                var bgVal = getComputedStyle(document.documentElement).getPropertyValue('--bg-body').trim();
+                if (bgVal) document.body.style.background = bgVal;
+            }
+            function toggleTheme() {
+                var current = document.documentElement.getAttribute('data-theme') || 'light';
+                var next = current === 'dark' ? 'light' : 'dark';
+                setTheme(next);
+            }
+            window.initTheme = function () {
+                var saved = localStorage.getItem('algoviz-theme') || 'light';  // 默认亮色
+                setTheme(saved);
+                var btn = document.getElementById('miniThemeToggle');
+                if (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleTheme();
+                    });
+                }
+            };
+            window.toggleTheme = toggleTheme;
+            // DOMContentLoaded 后再绑事件，兼容按钮位于脚本后/位于脚本前两种情况
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', window.initTheme);
+            } else {
+                window.initTheme();
+            }
+        })();
+    </script>
     <div class="oj-list-container">
         <div class="oj-list-header">
             <div class="oj-list-title">

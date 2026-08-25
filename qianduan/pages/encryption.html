@@ -289,73 +289,70 @@
         .footer {
             margin-top: 3rem;
         }
+
+        /* 悬浮返回按钮（左上角） + 悬浮主题按钮（右上角） */
+        .float-back-btn, .float-theme-btn {
+            position: fixed;
+            top: 12px;
+            z-index: 50;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.55rem 0.95rem;
+            border-radius: 999px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            box-shadow: 0 3px 14px rgba(0,0,0,0.10);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .float-back-btn { left: 16px; }
+        .float-theme-btn { right: 16px; padding: 0.55rem 0.75rem; }
+        .float-back-btn:hover, .float-theme-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        .float-back-btn:active, .float-theme-btn:active { transform: translateY(0); }
+        body[data-theme="dark"] .float-back-btn,
+        body[data-theme="dark"] .float-theme-btn { box-shadow: 0 4px 18px rgba(0,0,0,0.45); }
     </style>
 </head>
 
 <body onload="initTheme()">
-    <nav class="nav">
-        <div class="nav-container">
-            <a href="../index.html" class="nav-logo">
-                <span class="nav-logo-icon">📊</span>
-                <span class="text-gradient">AlgoVize</span>
-            </a>
-            <div class="nav-links">
-                <a href="../index.html" class="nav-link">首页</a>
-                <a href="../pages/datastructures.html" class="nav-link">数据结构</a>
-                <a href="../pages/algorithms.html" class="nav-link active">算法演示</a>
-                <a href="../pages/oj-list.html" class="nav-link">在线OJ</a>
-                <a href="../pages/interview-list.html" class="nav-link">面试题目</a>
-                <a href="../pages/products.html" class="nav-link">商品</a>
-                <a href="../pages/ai.html" class="nav-link ai-link">
-                    <span>✨</span> AI助手
-                </a>
-            </div>
-            <div class="nav-actions">
-                <div class="visit-counter">访问量: <span id="visitCount">0</span></div>
-                <button id="themeToggle" class="theme-switch" aria-label="切换主题">
-                    <div class="theme-switch-handle">
-                        <span class="theme-icon">☀️</span>
-                    </div>
-                </button>
-                <a href="javascript:void(0)" class="nav-link" id="profileLink">
-                    <span class="nav-avatar" id="navAvatar">👤</span>
-                </a>
-            </div>
-        </div>
-    </nav>
-
+    <!-- 悬浮返回按钮（左上角） -->
+    <button class="float-back-btn" onclick="goBackPage()" aria-label="返回上一页">
+        <span>←</span><span>返回</span>
+    </button>
+    <!-- 悬浮主题切换按钮（右上角） -->
+    <button id="miniThemeToggle" class="float-theme-btn" aria-label="切换主题">
+        <span class="mini-theme-icon">☀️</span>
+    </button>
     <script>
         (function () {
             function setTheme(theme) {
                 document.documentElement.setAttribute('data-theme', theme);
                 localStorage.setItem('algoviz-theme', theme);
-                var btn = document.getElementById('themeToggle');
-                if (btn) {
-                    var icon = btn.querySelector('.theme-icon');
-                    if (icon) {
-                        icon.textContent = theme === 'dark' ? '🌙' : '☀️';
-                    }
-                }
+                var icon = document.querySelector('.mini-theme-icon');
+                if (icon) icon.textContent = theme === 'dark' ? '🌙' : '☀️';
                 document.body.style.background = theme === 'dark' ? '#0f0f23' : '#f5f7fa';
             }
-
             function toggleTheme() {
                 var current = document.documentElement.getAttribute('data-theme') || 'light';
                 var next = current === 'dark' ? 'light' : 'dark';
                 setTheme(next);
             }
-
             window.initTheme = function () {
                 var saved = localStorage.getItem('algoviz-theme') || 'light';
                 setTheme(saved);
-                var btn = document.getElementById('themeToggle');
-                if (btn) {
-                    btn.addEventListener('click', toggleTheme);
-                }
-                checkLoginStatus();
+                var btn = document.getElementById('miniThemeToggle');
+                if (btn) btn.addEventListener('click', toggleTheme);
                 updateVisitCount();
             };
-
             function updateVisitCount() {
                 var count = localStorage.getItem('visitCount') || 0;
                 var hasVisited = localStorage.getItem('hasVisitedUnique');
@@ -364,31 +361,27 @@
                     localStorage.setItem('visitCount', count);
                     localStorage.setItem('hasVisitedUnique', 'true');
                 }
-                var el = document.getElementById('visitCount');
-                if (el) el.textContent = count;
             }
-
-            function checkLoginStatus() {
-                var isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-                var navAvatar = document.getElementById('navAvatar');
-                var profileLink = document.getElementById('profileLink');
-                if (isLoggedIn) {
-                    var userAvatar = localStorage.getItem('userAvatar') || '👤';
-                    navAvatar.textContent = userAvatar;
-                    profileLink.href = 'profile.html';
-                } else {
-                    navAvatar.textContent = '👨';
-                    profileLink.href = 'login.html';
-                }
-            }
-
             window.toggleTheme = toggleTheme;
             setTheme(localStorage.getItem('algoviz-theme') || 'light');
         })();
+
+        /** 返回上一页：优先 history.back()，无历史时回退到加密入口页 */
+        function goBackPage() {
+            try {
+                if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    window.location.href = '../pages/encryption.html';
+                }
+            } catch (e) {
+                window.location.href = '../pages/encryption.html';
+            }
+        }
     </script>
 
-    <main class="main">
-        <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+    <main class="main" style="padding-top: 0;">
+        <div class="container" style="padding-top: 45px; padding-bottom: 2rem;">
             <!-- 页面头部 -->
             <div class="page-header">
                 <h1>🔐 加密算法全景指南</h1>
@@ -1068,31 +1061,6 @@
                 </div>
             </section>
         </div>
-
-        <footer class="footer">
-            <div class="container">
-                <div class="footer-content">
-                    <div class="footer-slogan">AlgoViz - 数据结构与算法可视化学习平台 · 让学习变得更有趣</div>
-                    <div class="footer-bottom-row">
-                        <span>AlgoViz © 2026</span>
-                        <span class="footer-divider">|</span>
-                        <span class="footer-icp">ICP备案：<a href="https://beian.miit.gov.cn/" target="_blank">豫ICP备12345678号</a></span>
-                        <span class="footer-divider">|</span>
-                        <a href="https://github.com/zhuxiaoyi412826/AlgoViz" target="_blank" class="footer-github" title="查看 GitHub 源码">
-                            <svg height="16" aria-hidden="true" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" fill="currentColor">
-                                <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
-                            </svg>
-                            GitHub
-                        </a>
-                        <span class="footer-divider">|</span>
-                        <a href="../pages/changelog.html" class="footer-link">更新日志</a>
-                        <span class="footer-divider">|</span>
-                        <a href="../pages/suggestion.html" class="footer-link">建议我</a>
-                    </div>
-                </div>
-            </div>
-        </footer>
-    <script src="../js/site-footer.js" defer></script>
     </main>
 </body>
 
