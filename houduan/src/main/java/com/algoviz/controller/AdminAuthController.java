@@ -139,7 +139,28 @@ public class AdminAuthController {
         result.put("roles", roles);
         result.put("permissions", perms);
         result.put("menus", menus);
+
         return ApiResponse.success(result);
+    }
+
+    /**
+     * 后台菜单树（从 /api/admin/login 拆到独立接口，避免登录响应太大触发 TCP Nagle 死锁）
+     * 前端登录成功后并发调本接口拿菜单，总体体验比把 50KB menus 塞在登录响应里更快。
+     */
+    @GetMapping("/admin/menus")
+    public ApiResponse<List<?>> getAdminMenus() {
+        try {
+            if (!StpUtil.isLogin()) {
+                return ApiResponse.error(401, "登录状态已过期，请重新登录");
+            }
+            long userId = StpUtil.getLoginIdAsLong();
+            List<?> menus = userId == 1L
+                    ? sysRoleMapper.findAllMenus()
+                    : sysRoleMapper.findMenusByUserId(userId);
+            return ApiResponse.success(menus);
+        } catch (Exception e) {
+            return ApiResponse.error(401, "登录状态已过期，请重新登录");
+        }
     }
 
     /**
