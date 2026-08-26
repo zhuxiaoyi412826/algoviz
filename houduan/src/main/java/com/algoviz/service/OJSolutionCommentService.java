@@ -14,13 +14,17 @@ import com.algoviz.mapper.OJSolutionCommentMapper;
 import com.algoviz.mapper.OJSolutionLikeMapper;
 import com.algoviz.mapper.OJSolutionMapper;
 import com.algoviz.common.util.DebugLogger;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -40,6 +44,30 @@ public class OJSolutionCommentService {
     private final AuditDetectService auditDetectService;
     private final AuditLogService auditLogService;
     private final SensitiveWordService wordService;
+    private final StringRedisTemplate redis;
+    private final ObjectMapper objectMapper;
+
+    // ==================== 后台审核列表 Redis 缓存（TTL=2h，与 Sa-Token 同步过期） ====================
+    private static final String CMT_CACHE_PREFIX = "algovize:admin:cmt:list";
+    private static final long CMT_CACHE_TTL_HOURS = 2;
+
+    private String buildCmtCacheKey(String keyword, String auditStatus, int page, int pageSize) {
+        String kw  = (keyword == null || keyword.isEmpty()) ? "_" : keyword;
+        String as  = (auditStatus == null || auditStatus.isEmpty()) ? "_" : auditStatus;
+        return CMT_CACHE_PREFIX + ":" + kw + ":" + as + ":" + page + ":" + pageSize;
+    }
+
+    /** 清除所有评论列表缓存（审核通过/驳回后调用） */
+    private void evictCmtListCache() {
+        try {
+            Set<String> keys = redis.keys(CMT_CACHE_PREFIX + ":*");
+            if (keys != null && !keys.isEmpty()) {
+                redis.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("评论列表缓存清除失败", e);
+        }
+    }
 
     // ==================== DFA 屏蔽缓存（避免对相同评论内容反复扫描） ====================
     // LRU 风格：使用 ConcurrentHashMap，控制最多 2000 条；评论内容不会太长，几千条只占 MB 级别
@@ -257,16 +285,38 @@ public class OJSolutionCommentService {
     // ==================== 后台审核 ====================
 
     public PageResult<OJSolutionComment> adminList(String keyword, String auditStatus, int page, int pageSize) {
+        // ① 先查 Redis 缓存
+        String key = buildCmtCacheKey(keyword, auditStatus, page, pageSize);
+        try {
+            String cached = redis.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, new TypeReference<PageResult<OJSolutionComment>>() {});
+            }
+        } catch (Exception e) {
+            log.warn("评论列表缓存读取失败，降级查DB", e);
+        }
+
+        // ② 缓存未命中 → 查 DB
         int total = commentMapper.countByPage(keyword, auditStatus);
         List<OJSolutionComment> list = commentMapper.selectByPage(keyword, auditStatus,
                 (page - 1) * pageSize, pageSize);
-        return PageResult.of(list, total, page, pageSize);
+        PageResult<OJSolutionComment> result = PageResult.of(list, total, page, pageSize);
+
+        // ③ 写入缓存（TTL=2h）
+        try {
+            redis.opsForValue().set(key, objectMapper.writeValueAsString(result),
+                    CMT_CACHE_TTL_HOURS, TimeUnit.HOURS);
+        } catch (Exception e) {
+            log.warn("评论列表缓存写入失败", e);
+        }
+        return result;
     }
 
     @Transactional
     public boolean adminPassAudit(Long id) {
         commentMapper.updateAuditStatus(id, "passed", "NONE", null);
         commentMapper.updateStatus(id, "PUBLISHED");
+        evictCmtListCache();
         return true;
     }
 
@@ -274,6 +324,7 @@ public class OJSolutionCommentService {
     public boolean adminRejectAudit(Long id) {
         commentMapper.updateAuditStatus(id, "rejected", "NONE", null);
         commentMapper.updateStatus(id, "HIDDEN");
+        evictCmtListCache();
         return true;
     }
 

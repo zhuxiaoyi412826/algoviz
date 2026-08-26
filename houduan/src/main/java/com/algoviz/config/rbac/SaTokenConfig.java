@@ -22,6 +22,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
         registry.addInterceptor(new SaInterceptor(handle -> {
             // 只匹配需要认证的后台接口
             SaRouter.match(
+                            "/api/admin/**",                   // 后台管理全量接口（题解/评论审核等）
                             "/api/system/admin/**",
                             "/api/system/profile",
                             "/api/system/system-config",

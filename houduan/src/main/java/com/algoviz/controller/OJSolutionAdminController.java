@@ -6,6 +6,7 @@ import com.algoviz.entity.OJSolution;
 import com.algoviz.entity.OJSolutionComment;
 import com.algoviz.service.OJSolutionCommentService;
 import com.algoviz.service.OJSolutionService;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class OJSolutionAdminController {
     // ==================== 题解审核 ====================
 
     @Operation(summary = "题解列表（含审核中）")
+    @SaCheckPermission("oj:solution:audit")
     @GetMapping
     public InterviewResponse<PageResult<OJSolution>> list(@RequestParam(required = false) String keyword,
             @RequestParam(required = false) String auditStatus,
@@ -36,6 +38,7 @@ public class OJSolutionAdminController {
     }
 
     @Operation(summary = "审核通过")
+    @SaCheckPermission("oj:solution:audit")
     @PutMapping("/{id}/pass")
     public InterviewResponse<String> pass(@PathVariable Long id) {
         solutionService.adminPassAudit(id);
@@ -43,6 +46,7 @@ public class OJSolutionAdminController {
     }
 
     @Operation(summary = "审核驳回（下架）")
+    @SaCheckPermission("oj:solution:audit")
     @PutMapping("/{id}/reject")
     public InterviewResponse<String> reject(@PathVariable Long id) {
         solutionService.adminRejectAudit(id);
@@ -50,6 +54,7 @@ public class OJSolutionAdminController {
     }
 
     @Operation(summary = "上架/下架题解")
+    @SaCheckPermission("oj:solution:audit")
     @PutMapping("/{id}/status")
     public InterviewResponse<String> updateStatus(@PathVariable Long id, @RequestParam String status) {
         solutionService.adminUpdateStatus(id, status);
@@ -57,6 +62,7 @@ public class OJSolutionAdminController {
     }
 
     @Operation(summary = "题解详情（管理员编辑用，返回原文）")
+    @SaCheckPermission("oj:solution:audit")
     @GetMapping("/{id}")
     public InterviewResponse<OJSolution> getDetail(@PathVariable Long id) {
         OJSolution s = solutionService.adminGetDetail(id);
@@ -67,6 +73,7 @@ public class OJSolutionAdminController {
     }
 
     @Operation(summary = "管理员编辑题解内容")
+    @SaCheckPermission("oj:solution:audit")
     @PutMapping("/{id}")
     public InterviewResponse<String> update(@PathVariable Long id, @RequestBody OJSolution input) {
         boolean ok = solutionService.adminUpdate(id, input);
@@ -76,6 +83,7 @@ public class OJSolutionAdminController {
     // ==================== 评论审核 ====================
 
     @Operation(summary = "评论列表（含审核中）")
+    @SaCheckPermission("oj:solution:comment:audit")
     @GetMapping("/comments")
     public InterviewResponse<PageResult<OJSolutionComment>> commentList(@RequestParam(required = false) String keyword,
             @RequestParam(required = false) String auditStatus,
@@ -86,6 +94,7 @@ public class OJSolutionAdminController {
     }
 
     @Operation(summary = "评论审核通过")
+    @SaCheckPermission("oj:solution:comment:audit")
     @PutMapping("/comments/{id}/pass")
     public InterviewResponse<String> commentPass(@PathVariable Long id) {
         commentService.adminPassAudit(id);
@@ -93,6 +102,7 @@ public class OJSolutionAdminController {
     }
 
     @Operation(summary = "评论审核驳回（隐藏）")
+    @SaCheckPermission("oj:solution:comment:audit")
     @PutMapping("/comments/{id}/reject")
     public InterviewResponse<String> commentReject(@PathVariable Long id) {
         commentService.adminRejectAudit(id);

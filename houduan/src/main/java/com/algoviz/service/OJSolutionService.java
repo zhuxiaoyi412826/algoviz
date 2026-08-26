@@ -14,13 +14,18 @@ import com.algoviz.mapper.OJSolutionLikeMapper;
 import com.algoviz.mapper.OJSolutionMapper;
 import com.algoviz.mapper.SubmissionMapper;
 import com.algoviz.common.util.DebugLogger;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * OJ 题解服务：
@@ -39,6 +44,30 @@ public class OJSolutionService {
     private final AuditDetectService auditDetectService;
     private final AuditLogService auditLogService;
     private final SensitiveWordService wordService;
+    private final StringRedisTemplate redis;
+    private final ObjectMapper objectMapper;
+
+    // ==================== 后台审核列表 Redis 缓存（TTL=2h，与 Sa-Token 同步过期） ====================
+    private static final String SOL_CACHE_PREFIX = "algovize:admin:sol:list";
+    private static final long SOL_CACHE_TTL_HOURS = 2;
+
+    private String buildSolCacheKey(String keyword, String auditStatus, int page, int pageSize) {
+        String kw  = (keyword == null || keyword.isEmpty()) ? "_" : keyword;
+        String as  = (auditStatus == null || auditStatus.isEmpty()) ? "_" : auditStatus;
+        return SOL_CACHE_PREFIX + ":" + kw + ":" + as + ":" + page + ":" + pageSize;
+    }
+
+    /** 清除所有题解列表缓存（审核通过/驳回后调用） */
+    private void evictSolListCache() {
+        try {
+            Set<String> keys = redis.keys(SOL_CACHE_PREFIX + ":*");
+            if (keys != null && !keys.isEmpty()) {
+                redis.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("题解列表缓存清除失败", e);
+        }
+    }
 
     // ==================== 发布题解 ====================
 
@@ -180,22 +209,46 @@ public class OJSolutionService {
     // ==================== 后台审核 ====================
 
     public PageResult<OJSolution> adminList(String keyword, String auditStatus, int page, int pageSize) {
+        // ① 先查 Redis 缓存
+        String key = buildSolCacheKey(keyword, auditStatus, page, pageSize);
+        try {
+            String cached = redis.opsForValue().get(key);
+            if (cached != null) {
+                return objectMapper.readValue(cached, new TypeReference<PageResult<OJSolution>>() {});
+            }
+        } catch (Exception e) {
+            log.warn("题解列表缓存读取失败，降级查DB", e);
+        }
+
+        // ② 缓存未命中 → 查 DB
         int total = solutionMapper.countByPage(keyword, auditStatus);
         List<OJSolution> list = solutionMapper.selectByPage(keyword, auditStatus,
                 (page - 1) * pageSize, pageSize);
+        PageResult<OJSolution> result = PageResult.of(list, total, page, pageSize);
+
+        // ③ 写入缓存（TTL=2h）
+        try {
+            redis.opsForValue().set(key, objectMapper.writeValueAsString(result),
+                    SOL_CACHE_TTL_HOURS, TimeUnit.HOURS);
+        } catch (Exception e) {
+            log.warn("题解列表缓存写入失败", e);
+        }
         // 后台返回原文，不做屏蔽
-        return PageResult.of(list, total, page, pageSize);
+        return result;
     }
 
     @Transactional
     public boolean adminUpdateStatus(Long id, String status) {
-        return solutionMapper.updateStatus(id, status) > 0;
+        boolean ok = solutionMapper.updateStatus(id, status) > 0;
+        if (ok) evictSolListCache();
+        return ok;
     }
 
     @Transactional
     public boolean adminPassAudit(Long id) {
         solutionMapper.updateAuditStatus(id, "passed", "NONE", null);
         solutionMapper.updateStatus(id, "PUBLISHED");
+        evictSolListCache();
         return true;
     }
 
@@ -203,6 +256,7 @@ public class OJSolutionService {
     public boolean adminRejectAudit(Long id) {
         solutionMapper.updateAuditStatus(id, "rejected", "NONE", null);
         solutionMapper.updateStatus(id, "HIDDEN");
+        evictSolListCache();
         return true;
     }
 
