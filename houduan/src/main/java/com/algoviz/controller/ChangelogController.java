@@ -3,6 +3,7 @@ package com.algoviz.controller;
 import com.algoviz.dto.ApiResponse;
 import com.algoviz.entity.Changelog;
 import com.algoviz.mapper.ChangelogMapper;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +31,7 @@ public class ChangelogController {
     // ======================== 管理后台：分页 + 分类查询 ========================
 
     @GetMapping("/changelog")
+    @Operation(summary = "分页查询更新日志", description = "按类型、状态、版本分页查询更新日志列表与总数")
     public ApiResponse<Map<String, Object>> getPage(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
@@ -46,6 +48,7 @@ public class ChangelogController {
     }
 
     @GetMapping("/changelog/{id}")
+    @Operation(summary = "查询更新日志详情", description = "根据ID查询更新日志详情，不存在时返回错误")
     public ApiResponse<Changelog> getDetail(@PathVariable Long id) {
         Changelog c = changelogMapper.findById(id);
         if (c == null) return ApiResponse.error(40404, "记录不存在");
@@ -53,6 +56,7 @@ public class ChangelogController {
     }
 
     @PostMapping("/changelog")
+    @Operation(summary = "新增更新日志", description = "新增一条更新日志，包含基础校验与默认值填充")
     public ApiResponse<Changelog> create(@RequestBody Changelog dto) {
         // 基础校验与默认值
         if (dto.getVersion() == null || dto.getVersion().isBlank()) {
@@ -77,6 +81,7 @@ public class ChangelogController {
     }
 
     @PutMapping("/changelog/{id}")
+    @Operation(summary = "更新更新日志", description = "根据ID更新更新日志，仅覆盖传入的非空字段")
     public ApiResponse<Changelog> update(@PathVariable Long id, @RequestBody Changelog dto) {
         Changelog existed = changelogMapper.findById(id);
         if (existed == null) return ApiResponse.error(40404, "记录不存在");
@@ -94,6 +99,7 @@ public class ChangelogController {
     }
 
     @DeleteMapping("/changelog/{id}")
+    @Operation(summary = "删除更新日志", description = "根据ID删除更新日志，不存在时返回错误")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         Changelog existed = changelogMapper.findById(id);
         if (existed == null) return ApiResponse.error(40404, "记录不存在");
@@ -104,6 +110,7 @@ public class ChangelogController {
     // ======================== 前台公开接口：只返回已发布记录 ========================
 
     @GetMapping("/public/changelog")
+    @Operation(summary = "前台查询已发布更新日志", description = "前台公开接口，按类型、排序字段与方向查询已发布的更新日志")
     public ApiResponse<List<Changelog>> getPublic(
             @RequestParam(defaultValue = "all") String type,
             @RequestParam(defaultValue = "release_date") String orderBy,

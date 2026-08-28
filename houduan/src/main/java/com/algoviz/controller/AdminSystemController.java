@@ -7,6 +7,7 @@ import com.algoviz.entity.SystemConfig;
 import com.algoviz.mapper.LoginLogMapper;
 import com.algoviz.mapper.OperationLogMapper;
 import com.algoviz.mapper.SystemConfigMapper;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,6 +76,7 @@ public class AdminSystemController {
     }
 
     @GetMapping("/system/login-log")
+    @Operation(summary = "查询登录日志", description = "分页查询登录日志，支持按用户名、状态、日期范围筛选")
     public ApiResponse<Map<String, Object>> getLoginLog(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
@@ -124,6 +126,7 @@ public class AdminSystemController {
     }
 
     @GetMapping("/system/login-log/stats")
+    @Operation(summary = "查询登录日志统计", description = "统计今日、本周登录次数及成功/失败次数和失败率")
     public ApiResponse<Map<String, Object>> getLoginLogStats() {
         Map<String, Object> result = new HashMap<>();
         int failCount = loginLogMapper.countFailed();
@@ -139,11 +142,13 @@ public class AdminSystemController {
     }
 
     @GetMapping("/system/login-log/{id}")
+    @Operation(summary = "查询登录日志详情", description = "根据ID查询登录日志详情")
     public ApiResponse<LoginLog> getLoginLogDetail(@PathVariable String id) {
         return ApiResponse.success(loginLogMapper.findById(id));
     }
 
     @GetMapping("/system/operation-log")
+    @Operation(summary = "查询操作日志", description = "分页查询操作日志，支持按用户名、模块、动作、日期范围筛选")
     public ApiResponse<Map<String, Object>> getOperationLog(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
@@ -192,6 +197,7 @@ public class AdminSystemController {
     }
 
     @GetMapping("/system/operation-log/{id}")
+    @Operation(summary = "查询操作日志详情", description = "根据ID查询操作日志详情")
     public ApiResponse<OperationLog> getOperationLogDetail(@PathVariable String id) {
         return ApiResponse.success(operationLogMapper.findById(id));
     }
@@ -200,16 +206,19 @@ public class AdminSystemController {
      * 操作日志 - 去重操作人下拉（供前端选择筛选）
      */
     @GetMapping("/system/operation-log/operators")
+    @Operation(summary = "查询操作人列表", description = "查询去重后的操作人列表，供前端筛选下拉使用")
     public ApiResponse<List<String>> getOperationLogOperators() {
         return ApiResponse.success(operationLogMapper.findAllOperators());
     }
 
     @GetMapping("/system/config")
+    @Operation(summary = "查询系统配置", description = "查询系统全部配置项列表")
     public ApiResponse<List<SystemConfig>> getSystemConfig() {
         return ApiResponse.success(systemConfigMapper.findAll());
     }
 
     @PutMapping("/system/config")
+    @Operation(summary = "更新系统配置", description = "批量更新系统配置项，不存在的键自动新增")
     public ApiResponse<Void> updateSystemConfig(@RequestBody Map<String, Object> data) {
         for (Map.Entry<String, Object> entry : data.entrySet()) {
             if (entry.getValue() == null) continue;
@@ -291,6 +300,7 @@ public class AdminSystemController {
      * 返回: { version, siteName, siteLogo, icpNumber, copyright, githubLink, siteSlogan }
      */
     @GetMapping("/public/site-config")
+    @Operation(summary = "获取站点基础配置", description = "前台公开接口，获取站点名称、Logo、备案号等基础配置及版本号")
     public ApiResponse<Map<String, String>> getPublicSiteConfig() {
         Map<String, String> res = buildBasicConfigMap();
         res.put("version", computeConfigVersion());
@@ -302,6 +312,7 @@ public class AdminSystemController {
      * 返回: { version: "xxxxxxxxxxxxxxxx" }
      */
     @GetMapping("/public/site-config/version")
+    @Operation(summary = "获取站点配置版本号", description = "前台公开接口，仅返回配置版本号供前端轻量轮询")
     public ApiResponse<Map<String, String>> getPublicSiteConfigVersion() {
         Map<String, String> res = new HashMap<>(2);
         res.put("version", computeConfigVersion());

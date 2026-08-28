@@ -6,6 +6,7 @@ import com.algoviz.entity.LoginLog;
 import com.algoviz.mapper.AppUserMapper;
 import com.algoviz.mapper.LoginLogMapper;
 import com.algoviz.common.util.ExportUtil;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,7 @@ public class AdminExportController {
     private LoginLogMapper loginLogMapper;
 
     @GetMapping("/export/users")
+    @Operation(summary = "导出用户数据", description = "按指定格式（excel/csv/json）导出全部用户数据")
     public void exportUsers(@RequestParam(defaultValue = "excel") String format,
                             HttpServletResponse response) throws IOException {
         List<AppUser> users = appUserMapper.findAll();
@@ -46,6 +48,7 @@ public class AdminExportController {
     }
 
     @GetMapping("/export/logs")
+    @Operation(summary = "导出登录日志", description = "按指定格式（excel/csv/json）导出全部登录日志数据")
     public void exportLogs(@RequestParam(defaultValue = "excel") String format,
                            HttpServletResponse response) throws IOException {
         List<LoginLog> logs = loginLogMapper.findAll();

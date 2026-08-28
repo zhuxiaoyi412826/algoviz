@@ -4,6 +4,7 @@ import com.algoviz.dto.ApiResponse;
 import com.algoviz.entity.FileStorage;
 import com.algoviz.mapper.FileStorageMapper;
 import com.algoviz.common.util.FileUploadUtil;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,7 @@ public class AdminFileController {
     private FileStorageMapper fileStorageMapper;
 
     @PostMapping("/file/upload")
+    @Operation(summary = "上传文件", description = "上传文件并保存文件记录，返回文件 ID 与下载地址")
     public ApiResponse<Map<String, Object>> uploadFile(@RequestParam("file") MultipartFile file,
                                                        @RequestHeader(value = "X-User-Id", required = false) String userId) throws IOException {
         String filePath = FileUploadUtil.saveFile(file);
@@ -52,6 +54,7 @@ public class AdminFileController {
     }
 
     @GetMapping("/file/list")
+    @Operation(summary = "查询文件列表", description = "分页查询已上传文件列表")
     public ApiResponse<Map<String, Object>> getFileList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -66,6 +69,7 @@ public class AdminFileController {
     }
 
     @GetMapping("/file/download/{id}")
+    @Operation(summary = "下载文件", description = "根据文件 ID 下载文件内容")
     public void downloadFile(@PathVariable String id, HttpServletResponse response) throws IOException {
         FileStorage file = fileStorageMapper.findById(id);
         if (file != null) {
@@ -86,6 +90,7 @@ public class AdminFileController {
     }
 
     @DeleteMapping("/file/{id}")
+    @Operation(summary = "删除文件", description = "根据文件 ID 删除文件记录与物理文件")
     public ApiResponse<Void> deleteFile(@PathVariable String id) throws IOException {
         FileStorage file = fileStorageMapper.findById(id);
         if (file != null) {
@@ -96,6 +101,7 @@ public class AdminFileController {
     }
 
     @GetMapping("/file/stats")
+    @Operation(summary = "查询文件统计", description = "统计文件总数与占用空间")
     public ApiResponse<Map<String, Object>> getFileStats() {
         Map<String, Object> result = new HashMap<>();
         result.put("totalFiles", fileStorageMapper.count());

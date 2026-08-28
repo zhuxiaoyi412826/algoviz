@@ -13,6 +13,8 @@ import com.algoviz.mapper.rbac.SysUserMapper;
 import com.algoviz.common.util.IpLocationUtil;
 import com.algoviz.common.util.PasswordEncoderUtil;
 import com.algoviz.service.LoginLockService;
+
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +55,7 @@ public class AdminAuthController {
      *  返回：Sa-Token Token 字符串 + 用户信息 + 角色列表
      */
     @PostMapping("/admin/login")
+    @Operation(summary = "管理员登录", description = "账号密码登录，返回Sa‑Token令牌")
     public ApiResponse<Map<String, Object>> adminLogin(@RequestBody AdminLoginRequest request,
                                                         HttpServletRequest httpRequest) {
         String ip = httpRequest.getRemoteAddr();
@@ -148,6 +151,7 @@ public class AdminAuthController {
      * 前端登录成功后并发调本接口拿菜单，总体体验比把 50KB menus 塞在登录响应里更快。
      */
     @GetMapping("/admin/menus")
+    @Operation(summary = "获取菜单树", description = "登录后获取后台菜单树")
     public ApiResponse<List<?>> getAdminMenus() {
         try {
             if (!StpUtil.isLogin()) {
@@ -168,6 +172,7 @@ public class AdminAuthController {
      * 如果未登录或 token 无效，返回 401 错误（前端据此跳转登录页）
      */
     @GetMapping("/admin/info")
+    @Operation(summary = "获取管理员信息", description = "根据当前 Token 获取管理员信息、角色与权限")
     public ApiResponse<Map<String, Object>> getAdminInfo() {
         try {
             if (!StpUtil.isLogin()) {
@@ -198,12 +203,14 @@ public class AdminAuthController {
     }
 
     @PostMapping("/admin/logout")
+    @Operation(summary = "退出登录", description = "注销当前管理员登录状态")
     public ApiResponse<Void> adminLogout() {
         StpUtil.logout();
         return ApiResponse.success(null);
     }
 
     @GetMapping("/system/admin")
+    @Operation(summary = "管理员列表", description = "分页查询管理员账号列表")
     public ApiResponse<Map<String, Object>> getAdminList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -249,6 +256,7 @@ public class AdminAuthController {
      */
     @PostMapping("/system/admin")
     @LogOperation(module = "用户管理", action = "新增", detail = "创建管理员账号")
+    @Operation(summary = "新增管理员", description = "创建管理员账号并分配角色")
     public ApiResponse<Map<String, Object>> createAdmin(@RequestBody Map<String, Object> body) {
         long currentUserId = StpUtil.getLoginIdAsLong();
         List<String> currentUserRoles = sysUserMapper.findRoleCodesByUserId(currentUserId);
@@ -316,6 +324,7 @@ public class AdminAuthController {
 
     @PutMapping("/system/admin/{id}")
     @LogOperation(module = "用户管理", action = "编辑", detail = "修改管理员信息")
+    @Operation(summary = "编辑管理员", description = "修改管理员基本信息与密码")
     public ApiResponse<SysUser> updateAdmin(@PathVariable Long id, @RequestBody SysUser user) {
         if (user.getPassword() != null && !user.getPassword().isEmpty()) {
             // 更新密码也走 BCrypt（超级管理员密码仅允许 id=1 自己改 Argon2id，这里通用 BCrypt 覆盖）
@@ -332,6 +341,7 @@ public class AdminAuthController {
 
     @DeleteMapping("/system/admin/{id}")
     @LogOperation(module = "用户管理", action = "删除", detail = "删除管理员账号")
+    @Operation(summary = "删除管理员", description = "按 ID 删除管理员账号（超级管理员除外）")
     public ApiResponse<Void> deleteAdmin(@PathVariable Long id) {
         if (id == 1L) {
             return ApiResponse.error("超级管理员不可删除");
@@ -343,6 +353,7 @@ public class AdminAuthController {
 
     @PostMapping("/system/admin/{id}/reset-password")
     @LogOperation(module = "用户管理", action = "重置密码", detail = "重置管理员密码")
+    @Operation(summary = "重置密码", description = "重置指定管理员的登录密码")
     public ApiResponse<Void> resetPassword(@PathVariable Long id) {
         // 超级管理员保持 Argon2id（algovize123），其他管理员重置为 BCrypt(admin123)
         String encoded;
@@ -357,6 +368,7 @@ public class AdminAuthController {
 
     @PutMapping("/system/admin/{id}/status")
     @LogOperation(module = "用户管理", action = "编辑", detail = "变更管理员状态")
+    @Operation(summary = "变更管理员状态", description = "启用或禁用指定管理员账号")
     public ApiResponse<Void> changeStatus(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         Integer status;
         Object v = body.get("status");

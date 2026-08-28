@@ -11,6 +11,7 @@ import com.algoviz.mapper.AIPromptMapper;
 import com.algoviz.mapper.DataStructureMapper;
 import com.algoviz.mapper.OJProblemMapper;
 import com.algoviz.mapper.TestCaseMapper;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -41,6 +42,7 @@ public class AdminContentController {
     private AIPromptMapper aiPromptMapper;
 
     @GetMapping("/content/data-structure")
+    @Operation(summary = "查询数据结构列表", description = "分页查询数据结构列表")
     public ApiResponse<Map<String, Object>> getDataStructureList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -55,6 +57,7 @@ public class AdminContentController {
     }
 
     @PostMapping("/content/data-structure")
+    @Operation(summary = "新增数据结构", description = "新增一条数据结构记录")
     public ApiResponse<DataStructure> createDataStructure(@RequestBody DataStructure dataStructure) {
         dataStructure.setId(UUID.randomUUID().toString());
         dataStructure.setStatus("enabled");
@@ -63,6 +66,7 @@ public class AdminContentController {
     }
 
     @PutMapping("/content/data-structure/{id}")
+    @Operation(summary = "更新数据结构", description = "根据ID更新数据结构记录")
     public ApiResponse<DataStructure> updateDataStructure(@PathVariable String id, @RequestBody DataStructure dataStructure) {
         dataStructure.setId(id);
         dataStructureMapper.update(dataStructure);
@@ -70,12 +74,14 @@ public class AdminContentController {
     }
 
     @DeleteMapping("/content/data-structure/{id}")
+    @Operation(summary = "删除数据结构", description = "根据ID删除数据结构记录")
     public ApiResponse<Void> deleteDataStructure(@PathVariable String id) {
         boolean success = dataStructureMapper.deleteById(id) > 0;
         return success ? ApiResponse.success(null) : ApiResponse.error("删除失败");
     }
 
     @GetMapping("/content/algorithm")
+    @Operation(summary = "查询算法列表", description = "分页查询算法列表")
     public ApiResponse<Map<String, Object>> getAlgorithmList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -90,6 +96,7 @@ public class AdminContentController {
     }
 
     @PostMapping("/content/algorithm")
+    @Operation(summary = "新增算法", description = "新增一条算法记录")
     public ApiResponse<Algorithm> createAlgorithm(@RequestBody Algorithm algorithm) {
         algorithm.setId(UUID.randomUUID().toString());
         algorithm.setStatus("enabled");
@@ -98,6 +105,7 @@ public class AdminContentController {
     }
 
     @PutMapping("/content/algorithm/{id}")
+    @Operation(summary = "更新算法", description = "根据ID更新算法记录")
     public ApiResponse<Algorithm> updateAlgorithm(@PathVariable String id, @RequestBody Algorithm algorithm) {
         algorithm.setId(id);
         algorithmMapper.update(algorithm);
@@ -105,12 +113,14 @@ public class AdminContentController {
     }
 
     @DeleteMapping("/content/algorithm/{id}")
+    @Operation(summary = "删除算法", description = "根据ID删除算法记录")
     public ApiResponse<Void> deleteAlgorithm(@PathVariable String id) {
         boolean success = algorithmMapper.deleteById(id) > 0;
         return success ? ApiResponse.success(null) : ApiResponse.error("删除失败");
     }
 
     @GetMapping("/content/oj-problem")
+    @Operation(summary = "查询OJ题目列表", description = "分页查询OJ题目列表")
     public ApiResponse<Map<String, Object>> getOJProblemList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -125,6 +135,7 @@ public class AdminContentController {
     }
 
     @PostMapping("/content/oj-problem")
+    @Operation(summary = "新增OJ题目", description = "新增一条OJ题目记录并初始化为上线状态")
     public ApiResponse<OJProblem> createOJProblem(@RequestBody OJProblem problem) {
         problem.setStatus("online");
         problem.setSubmissionCount(0);
@@ -134,6 +145,7 @@ public class AdminContentController {
     }
 
     @PutMapping("/content/oj-problem/{id}")
+    @Operation(summary = "更新OJ题目", description = "根据ID更新OJ题目记录")
     public ApiResponse<OJProblem> updateOJProblem(@PathVariable Long id, @RequestBody OJProblem problem) {
         problem.setId(id);
         ojProblemMapper.update(problem);
@@ -141,6 +153,7 @@ public class AdminContentController {
     }
 
     @DeleteMapping("/content/oj-problem/{id}")
+    @Operation(summary = "删除OJ题目", description = "根据ID删除OJ题目及其测试用例")
     public ApiResponse<Void> deleteOJProblem(@PathVariable Long id) {
         testCaseMapper.deleteByProblemId(String.valueOf(id));
         boolean success = ojProblemMapper.deleteById(id) > 0;
@@ -148,11 +161,13 @@ public class AdminContentController {
     }
 
     @GetMapping("/content/test-case/{problemId}")
+    @Operation(summary = "查询测试用例列表", description = "根据题目ID查询该题目的测试用例列表")
     public ApiResponse<List<TestCase>> getTestCaseList(@PathVariable String problemId) {
         return ApiResponse.success(testCaseMapper.findByProblemId(problemId));
     }
 
     @PostMapping("/content/test-case")
+    @Operation(summary = "新增测试用例", description = "新增一条测试用例记录")
     public ApiResponse<TestCase> createTestCase(@RequestBody TestCase testCase) {
         testCase.setId(UUID.randomUUID().toString());
         testCaseMapper.insert(testCase);
@@ -160,6 +175,7 @@ public class AdminContentController {
     }
 
     @PutMapping("/content/test-case/{id}")
+    @Operation(summary = "更新测试用例", description = "根据ID更新测试用例记录")
     public ApiResponse<TestCase> updateTestCase(@PathVariable String id, @RequestBody TestCase testCase) {
         testCase.setId(id);
         testCaseMapper.update(testCase);
@@ -167,12 +183,14 @@ public class AdminContentController {
     }
 
     @DeleteMapping("/content/test-case/{id}")
+    @Operation(summary = "删除测试用例", description = "根据ID删除测试用例记录")
     public ApiResponse<Void> deleteTestCase(@PathVariable String id) {
         boolean success = testCaseMapper.deleteById(id) > 0;
         return success ? ApiResponse.success(null) : ApiResponse.error("删除失败");
     }
 
     @GetMapping("/content/ai-prompt")
+    @Operation(summary = "查询AI提示词列表", description = "分页查询AI提示词列表")
     public ApiResponse<Map<String, Object>> getAIPromptList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -187,6 +205,7 @@ public class AdminContentController {
     }
 
     @PostMapping("/content/ai-prompt")
+    @Operation(summary = "新增AI提示词", description = "新增一条AI提示词记录")
     public ApiResponse<AIPrompt> createAIPrompt(@RequestBody AIPrompt prompt) {
         prompt.setId(UUID.randomUUID().toString());
         prompt.setUsageCount(0);
@@ -196,6 +215,7 @@ public class AdminContentController {
     }
 
     @PutMapping("/content/ai-prompt/{id}")
+    @Operation(summary = "更新AI提示词", description = "根据ID更新AI提示词记录")
     public ApiResponse<AIPrompt> updateAIPrompt(@PathVariable String id, @RequestBody AIPrompt prompt) {
         prompt.setId(id);
         aiPromptMapper.update(prompt);
@@ -203,6 +223,7 @@ public class AdminContentController {
     }
 
     @DeleteMapping("/content/ai-prompt/{id}")
+    @Operation(summary = "删除AI提示词", description = "根据ID删除AI提示词记录")
     public ApiResponse<Void> deleteAIPrompt(@PathVariable String id) {
         boolean success = aiPromptMapper.deleteById(id) > 0;
         return success ? ApiResponse.success(null) : ApiResponse.error("删除失败");

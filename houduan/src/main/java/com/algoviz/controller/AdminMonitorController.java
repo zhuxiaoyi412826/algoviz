@@ -4,6 +4,7 @@ import com.algoviz.dto.ApiResponse;
 import com.algoviz.entity.ApiLog;
 import com.algoviz.mapper.ApiLogMapper;
 import com.algoviz.mapper.AppUserMapper;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +26,7 @@ public class AdminMonitorController {
     private AppUserMapper appUserMapper;
 
     @GetMapping("/monitor/service")
+    @Operation(summary = "查询服务监控", description = "返回后端、前端、数据库等服务的运行状态（含CPU、内存、磁盘、运行时长）")
     public ApiResponse<List<Map<String, Object>>> getServiceStatus() {
         List<Map<String, Object>> services = List.of(
             Map.of("name", "后端服务", "status", "running", "cpu", 10, "memory", 256, "disk", 10, "uptime", "00:00:00"),
@@ -35,11 +37,13 @@ public class AdminMonitorController {
     }
 
     @GetMapping("/monitor/alerts")
+    @Operation(summary = "查询监控告警", description = "返回当前监控告警列表（暂返回空列表）")
     public ApiResponse<List<Map<String, Object>>> getAlerts() {
         return ApiResponse.success(List.of());
     }
 
     @GetMapping("/monitor/api")
+    @Operation(summary = "查询API性能统计", description = "统计各接口今日请求量、平均响应时间、错误数与成功率，可按条数限制")
     public ApiResponse<Map<String, Object>> getApiStats(
             @RequestParam(defaultValue = "20") int limit) {
         Map<String, Object> result = new HashMap<>();
@@ -66,6 +70,7 @@ public class AdminMonitorController {
     }
 
     @GetMapping("/monitor/api/hourly")
+    @Operation(summary = "查询API按小时统计", description = "统计今日各小时段的API请求量")
     public ApiResponse<List<Map<String, Object>>> getApiHourlyStats() {
         List<Map<String, Object>> result = new ArrayList<>();
         try {
@@ -85,6 +90,7 @@ public class AdminMonitorController {
     }
 
     @GetMapping("/monitor/api/daily")
+    @Operation(summary = "查询API按日统计", description = "统计最近N天（默认7天）每日API请求量与平均耗时")
     public ApiResponse<List<Map<String, Object>>> getApiDailyStats(@RequestParam(defaultValue = "7") int days) {
         List<Map<String, Object>> result = new ArrayList<>();
         try {
@@ -105,6 +111,7 @@ public class AdminMonitorController {
     }
 
     @GetMapping("/monitor/api/logs")
+    @Operation(summary = "分页查询API调用日志", description = "按页码和每页条数分页查询API调用日志列表及总数")
     public ApiResponse<Map<String, Object>> getApiLogs(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -119,6 +126,7 @@ public class AdminMonitorController {
     }
 
     @DeleteMapping("/monitor/api/logs/clean")
+    @Operation(summary = "清理旧API日志", description = "清理过期的API调用日志并返回删除条数")
     public ApiResponse<Void> cleanOldApiLogs() {
         int deleted = apiLogMapper.cleanOldLogs();
         Map<String, Object> result = new HashMap<>();

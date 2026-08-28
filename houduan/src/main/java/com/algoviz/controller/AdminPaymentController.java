@@ -4,6 +4,7 @@ import com.algoviz.dto.ApiResponse;
 import com.algoviz.entity.PaymentRecord;
 import com.algoviz.entity.PaymentTrend;
 import com.algoviz.mapper.PaymentRecordMapper;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +22,7 @@ public class AdminPaymentController {
     private PaymentRecordMapper paymentRecordMapper;
 
     @GetMapping("/payment/records")
+    @Operation(summary = "查询支付记录", description = "分页查询支付记录列表")
     public ApiResponse<Map<String, Object>> getPaymentRecords(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -35,11 +37,13 @@ public class AdminPaymentController {
     }
 
     @GetMapping("/payment/records/{id}")
+    @Operation(summary = "查询支付记录详情", description = "根据 ID 查询单条支付记录")
     public ApiResponse<PaymentRecord> getPaymentRecord(@PathVariable String id) {
         return ApiResponse.success(paymentRecordMapper.findById(id));
     }
 
     @GetMapping("/payment/refunds")
+    @Operation(summary = "查询退款记录", description = "分页查询已退款的支付记录列表")
     public ApiResponse<Map<String, Object>> getRefundRecords(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -54,6 +58,7 @@ public class AdminPaymentController {
     }
 
     @GetMapping("/payment/stats")
+    @Operation(summary = "查询支付统计", description = "汇总收入、退款与订单总数")
     public ApiResponse<Map<String, Object>> getPaymentStats() {
         Map<String, Object> result = new HashMap<>();
         result.put("totalIncome", paymentRecordMapper.sumTotalIncome());
@@ -66,6 +71,7 @@ public class AdminPaymentController {
     }
 
     @GetMapping("/payment/trend")
+    @Operation(summary = "查询收入趋势", description = "查询指定天数内的收入趋势数据")
     public ApiResponse<List<PaymentTrend>> getPaymentTrend(@RequestParam(defaultValue = "7") int days) {
         return ApiResponse.success(paymentRecordMapper.getIncomeTrend(days));
     }
