@@ -175,12 +175,12 @@ async function initOJ() {
         // 根据URL参数选择题目
         if (problemId) {
             const id = parseInt(problemId);
-            const problem = OJState.problems.find(p => p.id === id);
-            if (problem) {
-                selectProblem(problem);
-            } else {
-                selectProblem(OJState.problems[0]);
+            let problem = OJState.problems.find(p => p.id === id);
+            if (!problem) {
+                // 不在第一页（前20道）→ 直接按题号/ID 查详情，修复第 21 道之后打开显示错题目的 bug
+                problem = await fetchProblemById(problemId);
             }
+            selectProblem(problem || OJState.problems[0]);
         } else {
             // 没有ID参数，选择第一题
             if (OJState.problems.length > 0) {
@@ -202,7 +202,36 @@ async function initOJ() {
     }
 }
 
-// 从后端获取题目列表
+// 后端题目 → 前端题目对象（id 取题号 problem_no，与列表页跳转链接的 ?id= 保持一致）
+function mapProblem(problem, index) {
+    const problemNoValue = problem.problem_no || problem.problemNo;
+    let problemId = 0;
+    if (problemNoValue) {
+        if (typeof problemNoValue === 'number') {
+            problemId = problemNoValue;
+        } else {
+            const parsed = parseInt(problemNoValue);
+            problemId = isNaN(parsed) ? (index + 1) * 1000 : parsed;
+        }
+    } else {
+        problemId = (index + 1) * 1000;
+    }
+
+    return {
+        id: problemId,
+        title: problem.title || '未命名题目',
+        difficulty: problem.difficulty || 'easy',
+        tags: problem.tags ? problem.tags.split(',').map(tag => tag.trim()).filter(t => t) : [],
+        description: problem.description || '',
+        inputFormat: problem.inputFormat || '',
+        outputFormat: problem.outputFormat || '',
+        sampleInput: problem.sampleInput || '',
+        sampleOutput: problem.sampleOutput || '',
+        referenceSolution: problem.template || ''
+    };
+}
+
+// 从后端获取题目列表（第一页，用于列表导航）
 async function loadProblems() {
     try {
         const curUser = getCurrentUser();
@@ -213,33 +242,7 @@ async function loadProblems() {
         const data = await response.json();
 
         if (data.success && data.problems && data.problems.length > 0) {
-            OJState.problems = data.problems.map((problem, index) => {
-                const problemNoValue = problem.problem_no || problem.problemNo;
-                let problemId = 0;
-                if (problemNoValue) {
-                    if (typeof problemNoValue === 'number') {
-                        problemId = problemNoValue;
-                    } else {
-                        const parsed = parseInt(problemNoValue);
-                        problemId = isNaN(parsed) ? (index + 1) * 1000 : parsed;
-                    }
-                } else {
-                    problemId = (index + 1) * 1000;
-                }
-
-                return {
-                    id: problemId,
-                    title: problem.title || '未命名题目',
-                    difficulty: problem.difficulty || 'easy',
-                    tags: problem.tags ? problem.tags.split(',').map(tag => tag.trim()).filter(t => t) : [],
-                    description: problem.description || '',
-                    inputFormat: problem.inputFormat || '',
-                    outputFormat: problem.outputFormat || '',
-                    sampleInput: problem.sampleInput || '',
-                    sampleOutput: problem.sampleOutput || '',
-                    referenceSolution: problem.template || ''
-                };
-            });
+            OJState.problems = data.problems.map(mapProblem);
         } else {
             OJState.problems = OFFLINE_PROBLEMS;
         }
@@ -247,6 +250,25 @@ async function loadProblems() {
         console.log('使用离线题目数据');
         OJState.problems = OFFLINE_PROBLEMS;
     }
+}
+
+// 按题号/ID 直接拉取题目详情（URL ?id= 传的是题号 problem_no；兼容 DB 主键 id）
+async function fetchProblemById(id) {
+    const curUser = getCurrentUser();
+    // 优先按题号查（前端链接 id=题号），再兜底按 DB 主键查
+    for (const url of [`${API_BASE}/problems/by-no/${id}`, `${API_BASE}/problems/${id}`]) {
+        try {
+            const response = await fetch(url, {
+                credentials: 'include',
+                headers: { 'X-User-Id': String(curUser.id) }
+            });
+            const data = await response.json();
+            if (data.success && data.problem) {
+                return mapProblem(data.problem);
+            }
+        } catch (e) { /* 尝试下一个接口 */ }
+    }
+    return null;
 }
 
 // 初始化代码编辑器
