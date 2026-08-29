@@ -36,6 +36,7 @@ __pycache__/
 # 某个目录下的 txt 要提交
 !resources/*.txt
 !bin/*.txt
+!.githup/build.html
 
 # JS/TS bundlers & build outputs
 .next
