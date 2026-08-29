@@ -38,6 +38,9 @@ __pycache__/
 !bin/*.txt
 !.githup/build.html
 
+# GitHub Actions workflow 必须提交（第21行 *.yml 会忽略它，这里取消忽略）
+!.github/workflows/build.yml
+
 # JS/TS bundlers & build outputs
 .next
 .nuxt
