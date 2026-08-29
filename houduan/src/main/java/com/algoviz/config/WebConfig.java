@@ -80,6 +80,9 @@ public class WebConfig implements WebMvcConfigurer {
                         // 向量检索服务（管理端 Bearer Token 鉴权，用户端公开搜索）
                         "/api/vector",
                         "/api/vector/**",
+                        // 算法题目向量管理（后台，走 Sa-Token 鉴权）
+                        "/api/algorithm-vector",
+                        "/api/algorithm-vector/**",
                         // 内容审核系统（后台 Bearer Token 鉴权）
                         "/api/audit",
                         "/api/audit/**",

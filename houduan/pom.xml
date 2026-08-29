@@ -19,7 +19,16 @@
 
     <properties>
         <java.version>17</java.version>
+        <dubbo.version>3.2.20</dubbo.version>
     </properties>
+
+    <repositories>
+        <!-- Dubbo 依赖以 Maven Central 为准（aliyun 缺 dubbo-spring-boot-starter） -->
+        <repository>
+            <id>central</id>
+            <url>https://repo1.maven.org/maven2</url>
+        </repository>
+    </repositories>
 
     <dependencies>
         <!-- Spring Boot 核心依赖 -->
@@ -149,6 +158,20 @@
         </dependency>
 
         <!-- ==================== RBAC END ==================== -->
+
+        <!-- ==================== 向量检索（know-qrdant 独立服务） ==================== -->
+        <!-- 公共 API：KnowSearchService 接口 + DTO -->
+        <dependency>
+            <groupId>com.algoviz</groupId>
+            <artifactId>know-api</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <!-- Dubbo 3 Consumer（直连 know-qrdant） -->
+        <dependency>
+            <groupId>org.apache.dubbo</groupId>
+            <artifactId>dubbo-spring-boot-starter</artifactId>
+            <version>${dubbo.version}</version>
+        </dependency>
 
         <!-- 测试依赖 -->
         <dependency>

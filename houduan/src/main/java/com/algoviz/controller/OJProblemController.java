@@ -5,6 +5,10 @@ import com.algoviz.dto.BatchAddProblemsRequest;
 import com.algoviz.dto.BatchAddProblemsResponse;
 import com.algoviz.entity.OJProblem;
 import com.algoviz.entity.PageResult;
+import com.algoviz.know.api.dto.KnowSearchResult;
+import com.algoviz.know.api.dto.KnowSearchResultItem;
+import com.algoviz.mapper.OJProblemMapper;
+import com.algoviz.service.AlgorithmVectorService;
 import com.algoviz.service.ExcelImportService;
 import com.algoviz.service.MdImportService;
 import com.algoviz.service.JsonImportService;
@@ -39,6 +43,12 @@ public class OJProblemController {
 
     @Autowired
     private OJProblemService problemService;
+
+    @Autowired
+    private OJProblemMapper ojProblemMapper;
+
+    @Autowired
+    private AlgorithmVectorService algorithmVectorService;
 
     @Autowired
     private ExcelImportService excelImportService;
@@ -155,6 +165,65 @@ public class OJProblemController {
         }
         
         return result;
+    }
+
+    /**
+     * 语义搜索题目：输入自然语言（题目名称/标签/描述），
+     * 通过 Qdrant 向量库检索最相近的题目，再按题目 id 回查 MySQL 返回完整信息。
+     */
+    @PostMapping("/semantic-search")
+    @Operation(summary = "语义搜索题目", description = "基于 Qdrant 向量库按语义检索题目，返回相近题目列表")
+    public Map<String, Object> semanticSearch(@RequestBody Map<String, Object> body) {
+        logger.info("语义搜索：{}", body);
+        Map<String, Object> result = new HashMap<>();
+        String query = body.get("query") == null ? "" : String.valueOf(body.get("query")).trim();
+        int topK = body.get("topK") == null ? 10 : Integer.parseInt(String.valueOf(body.get("topK")));
+        if (query.isEmpty()) {
+            result.put("success", false);
+            result.put("message", "搜索内容不能为空");
+            return result;
+        }
+        if (topK <= 0 || topK > 50) {
+            topK = 10;
+        }
+        try {
+            KnowSearchResult r = algorithmVectorService.search(query, topK, null);
+            List<Map<String, Object>> problems = new ArrayList<>();
+            if (r.getItems() != null) {
+                for (KnowSearchResultItem item : r.getItems()) {
+                    String algorithmId = item.getId();
+                    double score = item.getScore();
+                    if (algorithmId == null || algorithmId.isBlank() || "null".equals(algorithmId)) {
+                        continue;
+                    }
+                    try {
+                        OJProblem p = ojProblemMapper.findById(Long.parseLong(algorithmId));
+                        if (p != null) {
+                            Map<String, Object> row = new HashMap<>();
+                            row.put("id", p.getId());
+                            row.put("problemNo", p.getProblemNo());
+                            row.put("title", p.getTitle());
+                            row.put("difficulty", p.getDifficulty());
+                            row.put("tags", p.getTags());
+                            row.put("description", p.getDescription());
+                            row.put("score", Math.round(score * 1000) / 1000.0);
+                            problems.add(row);
+                        }
+                    } catch (Exception ignored) {
+                        // 单条查询失败跳过
+                    }
+                }
+            }
+            result.put("success", true);
+            result.put("problems", problems);
+            result.put("total", problems.size());
+            return result;
+        } catch (Exception e) {
+            logger.warn("语义搜索失败: {}", e.getMessage());
+            result.put("success", false);
+            result.put("message", "向量检索服务未启动");
+            return result;
+        }
     }
 
     @PostMapping

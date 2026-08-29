@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.algoviz</groupId>
+        <artifactId>algo-common-api</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>know-api</artifactId>
+    <name>know-api</name>
+    <description>向量检索公共 API：Dubbo 接口 + DTO（纯声明，无实现；主服务与 know-qrdant 共用）</description>
+
+    <dependencies>
+        <!-- 仅需 JDK 序列化，无 Spring/Dubbo 运行依赖；主服务/提供方各自引入 Dubbo starter -->
+    </dependencies>
+</project>

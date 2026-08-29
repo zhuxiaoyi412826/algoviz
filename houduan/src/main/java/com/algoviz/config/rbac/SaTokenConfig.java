@@ -23,6 +23,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
             // 只匹配需要认证的后台接口
             SaRouter.match(
                             "/api/admin/**",                   // 后台管理全量接口（题解/评论审核等）
+                            "/api/algorithm-vector/**",        // 算法题目向量管理（后台，Sa-Token 登录校验）
                             "/api/system/admin/**",
                             "/api/system/profile",
                             "/api/system/system-config",
