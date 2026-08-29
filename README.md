@@ -18,10 +18,10 @@ AlgoViz 是一个交互式的数据结构和算法可视化学习网站，帮助
 | 前台门户 | 原生 HTML5 + CSS3 + JavaScript                               |
 | 后台管理 | Vue3 + Vite + Element Plus + ECharts                         |
 | 后端服务 | Spring Boot 3.2.0 + JDK 17 + MyBatis‑Plus SpringAI           |
-| 向量服务 | Python FastAPI + Uvicorn + SentenceTransformers              |
-| 数据库   | MySQL 8.0（业务库） + ChromaDB 1.5.9（向量库）+Redis（缓存） |
-| AI 模型  | DeepSeek（对话大模型） + BAAI/bge‑small‑zh‑v1.5（文本向量化） |
-| 通信方式 | OpenFeign（Java ↔ Python） + RESTful API                     |
+| 向量服务 | Python FastAPI + Uvicorn + SentenceTransformers（面试题）+ Java know-qrdant（算法题） |
+| 数据库   | MySQL 8.0（业务库） + ChromaDB 1.5.9（面试题向量）+ Qdrant（算法题向量）+ Redis（缓存） |
+| AI 模型  | DeepSeek（对话大模型） + BAAI/bge-small-zh-v1.5（面试题向量 512 维）+ BAAI/bge-large-zh-v1.5（算法题向量 1024 维，ONNX Runtime） |
+| 通信方式 | OpenFeign（Java ↔ Python）+ RESTful API + Dubbo 3（Java ↔ Java 子服务 know-qrdant） |
 
 | 技术                 | 版本        | 用途                                 |
 | -------------------- | ----------- | ------------------------------------ |
@@ -39,6 +39,9 @@ AlgoViz 是一个交互式的数据结构和算法可视化学习网站，帮助
 | POI                  | 5.2.5       | Excel 处理                           |
 | Maven Compiler       | 3.11.0      | 编译                                 |
 | Spring AI            | 1.0.0-M6    | 大模型接入、向量检索、RAG、Embedding |
+| Dubbo                | 3.2.20      | Java 子服务 RPC（主服务 ↔ know-qrdant 直连） |
+| Qdrant               | 1.x         | 算法题向量库（HNSW m=16 + Cosine，1024 维） |
+| onnxruntime          | 1.17.1      | Java 端 bge-large-zh-v1.5 模型推理 |
 | Nginx                |             |                                      |
 | OpenFeign            |             | 不同的组件之间通信使用               |
 | Elasticsearch        | 7.12.1      | 面试题全文检索 + 日志存储（IK 中文分词） |
@@ -51,7 +54,8 @@ AlgoViz 是一个交互式的数据结构和算法可视化学习网站，帮助
 
 | 目录     | 项目说明              |
 | -------- | --------------------- |
-| Agent    | 智能体 Agent 开发项目 |
+| Agent    | 智能体 Agent 开发项目（Python 面试题向量检索） |
+| algo-common-api | 公共模块：know-api（Dubbo 接口）+ know-qrdant（算法题向量检索独立子服务） |
 | houduan  | 后端核心业务服务      |
 | houtai   | 后台管理系统          |
 | qianduan | 前端门户网站          |
@@ -118,6 +122,31 @@ python run.py
 chroma run --path ./chroma_data --host 0.0.0.0 --port 8000
 ```
 
+#### 算法题向量子服务启动（know-qrdant）
+
+前置：Qdrant、模型转换（一次性）
+
+```
+# 1. 启动 Qdrant（Windows 可执行文件）
+D:\software\Qdrant\qdrant-x86_64-pc-windows-msvc\qdrant.exe
+#   默认 REST 6333 / gRPC 6334
+
+# 2. 模型转换（一次性，产物：model.onnx + vocab.txt 到
+#    C:\Users\Administrator\.cache\huggingface\hub\java-bge-large-zh-v1.5\）
+cd AlgoVize\algo-common-api\know-qrdant
+pip install onnxscript onnx
+python tools\export_onnx.py
+
+# 3. 启动子服务（Dubbo 20999 / HTTP 8090）
+cd AlgoVize\algo-common-api\know-qrdant
+mvn spring-boot:run
+# 确认日志：Export dubbo service ... bind.port=20999
+# 探活：curl http://localhost:8090/health  → {"modelReady":true,"qdrantConnected":true}
+
+# 4. 主服务保持 80，通过 Dubbo 直连 20999 调用（check=false + mock 降级，
+#    子服务未启动不影响核心功能，仅算法题向量接口返回 404/离线）
+```
+
 ### 服务端部署
 
 **1.1基础软件按照**
@@ -159,6 +188,9 @@ systemctl enable --now nginx
 | 9300 | ES 集群通信                                  |
 | 5601 | Kibana                                       |
 | 8001 | Choma                                        |
+| 8090 | know-qrdant 子服务 HTTP 探活（/health）       |
+| 20999 | know-qrdant 子服务 Dubbo RPC（主服务直连）    |
+| 6333/6334 | Qdrant 向量库 REST / gRPC              |
 
 **1.3 导入SQL文件** 
 
@@ -322,6 +354,9 @@ server {
 - 面试题目管理 ：新增/编辑/删除、JSON 批量导入、Excel 导入、AI 批量生成
 - 向量数据库管理 （VectorManage）：向量数量/维度实时监控、向量数值查看、全量同步、向量列表分页
 - ES 索引管理 （EsManage）：索引统计/mapping 查看、全量同步到 ES、重建索引（IK 分词器）、IK 分词效果测试
+- 算法题目向量管理 （AlgorithmVector）：算法题（oj_problem）全量同步/取消/清空、进度条（已导入/失败/总数/耗时）、服务状态
+- Qdrant 实时检测 （QdrantMonitor）：集合信息（名称/总数/维度/距离度量）、向量列表（按题目ID/标题/难度/标签组合搜索 + 分页）、向量 1024 维数值查看
+- 前台 OJ 语义搜索：oj-list.html 输入题目名称/标签/自然语言 → Qdrant 向量语义检索 → 相似度列表 → 点击进入题目
 #### 2. AI 配置
 - AI 模型配置（AIConfig）、Prompt 模板管理（AIPrompt）
 #### 3. 金币/订单系统
@@ -344,7 +379,7 @@ server {
 - AI ：AI 对话、AI 生成题目
 - 支付 ：微信支付、订单管理、金币系统
 - 内容 ：算法/数据结构/公告/反馈/文件上传导出
-- 向量 ：语义搜索（Chroma）+ 关键词搜索（ES IK）、同步进度监控、向量/索引管理
+- 向量 ：面试题语义搜索（Chroma）+ 关键词搜索（ES IK）、算法题语义搜索（Qdrant + Dubbo）、同步进度监控、向量/索引管理
 ### 2. 特色技术点
 - XSS 过滤 ：Jsoup 1.17.2 清洗 Markdown 富文本
 - Excel 导入导出 ：Apache POI 5.2.5
@@ -389,6 +424,25 @@ server {
 - 数据落盘：向量存 `Agent/know-retrieval/data/chroma_db/`（sqlite 账本 + HNSW 二进制段），备份需整目录拷贝
 
 > 详细设计文档见 `doc/txt/ES分词搜索与索引同步全流程文档.md`
+
+### 算法题语义检索（Qdrant + Dubbo 3 子服务）
+
+```
+┌──────────┐      ┌──────────────────┐  Dubbo 3 直连   ┌────────────────────────┐
+│ 前台 oj-list │ ──→│ Java 主服务 :80     │ ──(20999)──→ │ know-qrdant 子服务      │
+│ 语义搜索    │    │ OJProblemController │              │  (HTTP 8090 探活)       │
+└──────────┘      └──────────────────┘              └──────────┬─────────────┘
+                                        ONNX Runtime 推理        │ REST 6333
+                                        bge-large-zh-v1.5       ▼
+                                        文本 → 1024 维向量   Qdrant（algorithm_knowledge）
+                                                               HNSW + Cosine
+```
+
+- 索引：后台「算法题目向量管理」手动全量同步（只向量化**题目标题**，737 道），稳定 UUID 点 id 幂等覆盖，支持进度条/取消/清空
+- 检索：输入题目名称/标签/自然语言 → 向量化 → Qdrant 余弦近邻 → 按 algorithmId 回查 MySQL → 返回题目+相似度
+- 通信：主服务 `@DubboReference(check=false, mock降级, url=dubbo://127.0.0.1:20999)` 直连子服务，**子服务未启动不影响核心功能**（算法题向量接口返回 404/离线）
+- 模型：bge-large-zh-v1.5（1024 维），`tools/export_onnx.py` 一次性转换（合并单文件 + IR9 兼容 onnxruntime 1.17）
+- 详细设计见 `doc/算法题目向量检索子服务know-qrdant方案总结.md`
 
 ### EFK
 
