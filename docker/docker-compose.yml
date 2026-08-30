@@ -1,0 +1,97 @@
+name: algoviz
+
+services:
+  # ============ MySQL 8.0 ============
+  mysql:
+    image: mysql:8.0
+    container_name: algoviz-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      # backend 容器用 root 连库，必须允许 root 从非 localhost 连接
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_DATABASE: algoviz
+      TZ: Asia/Shanghai
+    command:
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_general_ci
+      --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # 首次启动自动导入建表脚本
+      # 相对 compose 所在目录（AlgoVize/docker/）→ 上一级 AlgoVize/houduan/...
+      - ../houduan/src/main/resources/db/algovize.sql:/docker-entrypoint-initdb.d/algovize.sql:ro
+    ports:
+      - "3306:3306"   # 生产环境建议删除此行，仅内部访问
+    networks:
+      - algoviz-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ============ 后端 Spring Boot ============
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend/Dockerfile
+    image: algoviz/backend:1.0.0
+    container_name: algoviz-backend
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - WECHAT_TOKEN=${WECHAT_TOKEN}
+      - WECHAT_APPID=${WECHAT_APPID}
+      - WECHAT_APPSECRET=${WECHAT_APPSECRET}
+      - WECHAT_ENCODING_AES_KEY=${WECHAT_ENCODING_AES_KEY}
+      - WECHAT_PAY_APPID=${WECHAT_PAY_APPID}
+      - WECHAT_PAY_MCH_ID=${WECHAT_PAY_MCH_ID}
+      - WECHAT_PAY_MCH_SHORTNAME=${WECHAT_PAY_MCH_SHORTNAME}
+      - WECHAT_PAY_API_V3_KEY=${WECHAT_PAY_API_V3_KEY}
+      - WECHAT_PAY_CERT_SERIAL_NO=${WECHAT_PAY_CERT_SERIAL_NO}
+      - TZ=Asia/Shanghai
+    volumes:
+      # 外部配置（敏感信息通过环境变量注入）
+      - ./config/application-docker.yml:/app/config/application-docker.yml:ro
+      # 上传文件持久化
+      - uploads_data:/app/uploads
+      # 日志持久化
+      - backend_logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - algoviz-net
+    # 不映射主机端口：仅由 nginx 在内网反代
+
+  # ============ Nginx（前台 + 后台 dist + SSL + API 反代） ============
+  nginx:
+    build:
+      context: ..
+      dockerfile: docker/nginx/Dockerfile
+    image: algoviz/nginx:1.0.0
+    container_name: algoviz-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # SSL 证书（dsaol.asia 的 .key 与 _bundle.pem）
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+    networks:
+      - algoviz-net
+
+volumes:
+  mysql_data:
+  uploads_data:
+  backend_logs:
+
+networks:
+  algoviz-net:
+    driver: bridge

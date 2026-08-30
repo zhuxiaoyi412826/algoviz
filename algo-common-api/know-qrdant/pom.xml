@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.algoviz</groupId>
+        <artifactId>algo-common-api</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>know-qrdant</artifactId>
+    <name>know-qrdant</name>
+    <description>独立向量检索服务：Spring Boot 直连 Qdrant + Dubbo 3 Provider（算法题目知识库，bge-large-zh 1024 维）</description>
+
+    <dependencies>
+        <!-- 公共 API 模块 -->
+        <dependency>
+            <groupId>com.algoviz</groupId>
+            <artifactId>know-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Web（探活 + 管理） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Dubbo 3（Spring Boot 2/3 通用 starter，版本由父 POM 管理 3.2.20） -->
+        <dependency>
+            <groupId>org.apache.dubbo</groupId>
+            <artifactId>dubbo-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- ONNX Runtime：bge-large-zh-v1.5 推理 -->
+        <dependency>
+            <groupId>com.microsoft.onnxruntime</groupId>
+            <artifactId>onnxruntime</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

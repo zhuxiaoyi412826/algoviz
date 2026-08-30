@@ -1,0 +1,24 @@
+# ====== Docker 构建上下文排除（context 根 = 仓库根 AlgoVize/） ======
+
+# 版本控制 / IDE
+.git/
+.github/
+.idea/
+.vscode/
+
+# 构建产物 / 缓存
+**/node_modules/
+**/target/
+**/dist/
+**/.vite/
+**/*.log
+
+# 不需要进镜像的目录
+Agent/
+bin/
+doc/
+
+# 敏感文件：绝不进镜像
+docker/.env
+docker/.env.example
+docker/ssl/

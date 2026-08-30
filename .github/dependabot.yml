@@ -1,0 +1,35 @@
+# ============================================================
+# Dependabot：自动检查依赖漏洞（Security updates）+ 定期升级依赖（Version updates）
+# - 发现存在 CVE 的依赖会自动创建安全更新 PR（需仓库开启 Dependabot alerts）
+# - 每周检查一次 Maven / npm 依赖是否有新版本，自动提升级 PR
+# 说明：此文件只在默认分支生效；还需在 仓库 Settings → Code security → 开启 Dependabot alerts
+# ============================================================
+version: 2
+updates:
+  # 后端（houduan）：Spring Boot / Dubbo / 工具类
+  - package-ecosystem: "maven"
+    directory: "/houduan"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # 公共模块（algo-common-api）：know-api / know-qrdant
+  - package-ecosystem: "maven"
+    directory: "/algo-common-api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # 后台管理前端（houtai）：Vue / Vite / Element Plus
+  - package-ecosystem: "npm"
+    directory: "/houtai"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # GitHub Actions 依赖（action 版本更新）
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

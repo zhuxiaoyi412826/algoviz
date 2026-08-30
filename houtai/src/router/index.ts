@@ -180,10 +180,22 @@ const routes: RouteRecordRaw[] = [
             meta: { title: '向量数据库' }
           },
           {
+            path: 'algorithm-vector',
+            name: 'AlgorithmVector',
+            component: () => import('@/views/content/AlgorithmVector.vue'),
+            meta: { title: '算法题目向量管理' }
+          },
+          {
             path: 'chromadb-monitor',
             name: 'ChromaDBMonitor',
             component: () => import('@/views/content/ChromaDBMonitor.vue'),
             meta: { title: 'ChromaDB实时检测' }
+          },
+          {
+            path: 'qdrant-monitor',
+            name: 'QdrantMonitor',
+            component: () => import('@/views/content/QdrantMonitor.vue'),
+            meta: { title: 'Qdrant实时检测' }
           },
           {
             path: 'es-manage',

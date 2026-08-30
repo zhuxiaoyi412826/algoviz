@@ -1,0 +1,65 @@
+# ============================================================
+# AlgoViz 后端 CI：编译 → 静态检测 → 单元测试 → 打包 jar → 上传产物 → 打 tag 发布 Release
+# 触发：仅 pull_request（push 不再触发 CI，减少无谓构建）
+# 发布：仅 push 到 v* 标签时触发 Release（需配合手动打 tag 推送）
+# ============================================================
+name: CI Build & Release
+
+on:
+  pull_request:  # 合并请求
+
+permissions:
+  contents: write   # 允许打 tag 时创建 Release（软著/版本发布用）
+  packages: write   # 允许推送/下载 ghcr.io 镜像与包
+
+jobs:
+  build:
+    name: 编译·检测·测试·打包
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 JDK 17 + Maven 缓存
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'          # 项目 java.version = 17（Spring Boot 3.2）
+          cache: maven
+
+      # houduan 依赖 com.algoviz:know-api:1.0.0（algo-common-api 公共模块），
+      # 必须先 install 到本地 Maven 仓库，houduan 才能编译
+      - name: 0) 构建公共模块（algo-common-api → know-api / know-qrdant）
+        working-directory: algo-common-api
+        run: mvn -B -q install -DskipTests
+
+      # 静态检测：编译期即做类型/引用检查（如需更严格可换 SpotBugs/Checkstyle：
+      #   mvn -B com.github.spotbugs:spotbugs-maven-plugin:4.8.6.6:check）
+      - name: 1) 静态检测（编译检查）
+        working-directory: houduan
+        run: mvn -B -q -DskipTests compile
+
+      - name: 2) 单元测试
+        working-directory: houduan
+        run: mvn -B test
+
+      - name: 3) 打包 jar
+        working-directory: houduan
+        run: mvn -B package -DskipTests
+
+      - name: 4) 上传构建产物（push / PR / tag 均上传）
+        uses: actions/upload-artifact@v4
+        with:
+          name: houduan-backend-jar
+          path: houduan/target/*.jar
+          if-no-files-found: error
+
+      # 仅打 tag（如 git tag v1.0.0 && git push --tags）时发布 GitHub Release；
+      # 普通 push 分支 / PR 到这一步直接跳过，不会创建 Release
+      - name: 5) 发布 Release（仅 tag 触发）
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: houduan/target/*.jar
+          generate_release_notes: true

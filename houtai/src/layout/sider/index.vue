@@ -62,7 +62,9 @@ const fullMenuList: MenuItem[] = [
       { path: '/content/ai-prompt', name: 'AIPrompt', meta: { title: 'AI快捷提示词' }, menuGroup: 'content' },
       { path: '/content/ai-config', name: 'AIConfig', meta: { title: 'AI接口配置' }, menuGroup: 'content' },
       { path: '/content/vector-manage', name: 'VectorManage', meta: { title: '向量数据库' }, menuGroup: 'content' },
+      { path: '/content/algorithm-vector', name: 'AlgorithmVector', meta: { title: '算法题目向量管理' }, menuGroup: 'content' },
       { path: '/content/chromadb-monitor', name: 'ChromaDBMonitor', meta: { title: 'ChromaDB实时检测' }, menuGroup: 'content' },
+      { path: '/content/qdrant-monitor', name: 'QdrantMonitor', meta: { title: 'Qdrant实时检测' }, menuGroup: 'content' },
       { path: '/content/es-manage', name: 'EsManage', meta: { title: 'ES分词索引' }, menuGroup: 'content' }
     ]
   },

@@ -1,5 +1,7 @@
 package com.algoviz.controller;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
+
 import com.algoviz.dto.ApiResponse;
 import com.algoviz.entity.Changelog;
 import com.algoviz.mapper.ChangelogMapper;
@@ -55,6 +57,7 @@ public class ChangelogController {
         return ApiResponse.success(c);
     }
 
+    @SaCheckLogin
     @PostMapping("/changelog")
     @Operation(summary = "新增更新日志", description = "新增一条更新日志，包含基础校验与默认值填充")
     public ApiResponse<Changelog> create(@RequestBody Changelog dto) {
@@ -80,6 +83,7 @@ public class ChangelogController {
         return ApiResponse.success(dto);
     }
 
+    @SaCheckLogin
     @PutMapping("/changelog/{id}")
     @Operation(summary = "更新更新日志", description = "根据ID更新更新日志，仅覆盖传入的非空字段")
     public ApiResponse<Changelog> update(@PathVariable Long id, @RequestBody Changelog dto) {
@@ -98,6 +102,7 @@ public class ChangelogController {
         return ApiResponse.success(existed);
     }
 
+    @SaCheckLogin
     @DeleteMapping("/changelog/{id}")
     @Operation(summary = "删除更新日志", description = "根据ID删除更新日志，不存在时返回错误")
     public ApiResponse<Void> delete(@PathVariable Long id) {

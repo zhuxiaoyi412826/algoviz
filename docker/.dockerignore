@@ -1,0 +1,27 @@
+# ====== Docker 构建上下文排除 ======
+# 位置：项目根目录（与 docker-compose.yml 的 context: .. 对应）
+
+# 版本控制 / IDE
+**/.git/
+**/.idea/
+**/.vscode/
+**/.coze/
+
+# 构建产物
+**/node_modules/
+**/dist/
+**/target/
+**/*.log
+
+# 分析缓存
+graphify-out/
+**/.graphify_*
+
+# 文档（不需要进镜像）
+doc/
+**/AGENTS.md
+**/README.md
+
+# 敏感文件：绝不进镜像
+docker/.env
+docker/ssl/

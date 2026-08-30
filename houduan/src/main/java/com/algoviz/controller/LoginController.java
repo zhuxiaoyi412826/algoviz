@@ -377,7 +377,7 @@ public class LoginController {
             User newUser = new User();
             newUser.setUsername(username.trim());
             newUser.setEmail(email.trim());
-            newUser.setPassword(PasswordEncoderUtil.md5Encode(password));
+            newUser.setPassword(PasswordEncoderUtil.bcryptEncode(password));
             newUser.setNickname(username.trim());
             newUser.setStatus(1);
             newUser.setLoginStatus("offline");
@@ -509,12 +509,8 @@ public class LoginController {
             result.put("message", "用户不存在");
             return result;
         }
-        // 兼容 MD5 加密密码和明文密码（与登录逻辑保持一致）
-        boolean passwordValid = PasswordEncoderUtil.md5Matches(oldPassword, dbUser.getPassword());
-        if (!passwordValid) {
-            // 兼容旧的明文密码
-            passwordValid = oldPassword.equals(dbUser.getPassword());
-        }
+        // 旧密码校验：自动探测存储算法（Argon2id / BCrypt / MD5），不再兼容明文密码
+        boolean passwordValid = PasswordEncoderUtil.autoMatches(oldPassword, dbUser.getPassword());
         if (!passwordValid) {
             result.put("success", false);
             result.put("message", "旧密码错误");
@@ -560,8 +556,8 @@ public class LoginController {
             return result;
         }
 
-        // 7. 更新密码
-        String encodedPassword = PasswordEncoderUtil.md5Encode(newPassword);
+        // 7. 更新密码（BCrypt）
+        String encodedPassword = PasswordEncoderUtil.bcryptEncode(newPassword);
         userService.updatePassword(user.getId(), encodedPassword);
 
         // 8. 发送通知邮件

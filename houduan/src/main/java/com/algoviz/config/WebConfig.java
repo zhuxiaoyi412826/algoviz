@@ -12,6 +12,12 @@ public class WebConfig implements WebMvcConfigurer {
     @Autowired
     private AuthInterceptor authInterceptor;
 
+    @Autowired
+    private RateLimitInterceptor rateLimitInterceptor;
+
+    @Autowired
+    private NonceReplayInterceptor nonceReplayInterceptor;
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // Knife4j 资源映射
@@ -29,7 +35,13 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 注册登录拦截器：Cookie + Session + 14天双重校验
+        // 0) 接口级 IP 限流（防 CC 攻击，最先执行）
+        registry.addInterceptor(rateLimitInterceptor).addPathPatterns("/api/**");
+
+        // 0.5) 防重放（nonce + 时间戳 + Redis 去重；未携带 nonce 的请求兼容放行）
+        registry.addInterceptor(nonceReplayInterceptor).addPathPatterns("/api/**");
+
+        // 1) 注册登录拦截器：Cookie + Session + 14天双重校验
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/api/**")
                 // 公开接口：登录流程本身、验证码获取、登出等不拦截
@@ -80,6 +92,9 @@ public class WebConfig implements WebMvcConfigurer {
                         // 向量检索服务（管理端 Bearer Token 鉴权，用户端公开搜索）
                         "/api/vector",
                         "/api/vector/**",
+                        // 算法题目向量管理（后台，走 Sa-Token 鉴权）
+                        "/api/algorithm-vector",
+                        "/api/algorithm-vector/**",
                         // 内容审核系统（后台 Bearer Token 鉴权）
                         "/api/audit",
                         "/api/audit/**",

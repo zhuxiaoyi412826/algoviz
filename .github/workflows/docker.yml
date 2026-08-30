@@ -1,0 +1,116 @@
+# ============================================================
+# AlgoViz Docker 构建 & 推送（ghcr.io / GitHub Packages）
+# 触发：仅 workflow_dispatch（手动触发）—— 已禁用 push/PR 自动构建
+# 需要构建镜像时：Actions → Docker Build & Push → Run workflow
+#  - 手动在默认分支触发：推送 latest + sha-xxxx
+#  - 手动在 tag 触发：推送 版本号 + latest
+#  - 手动在其他分支触发：推送 分支名 + sha-xxxx
+# 镜像：ghcr.io/<owner>/backend、ghcr.io/<owner>/nginx（用户级，避免带斜杠包名导致网页 404）
+# 前置：docker/ 已在仓库内，context 根 = 仓库根
+# ============================================================
+name: Docker Build & Push
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write      # 推送 ghcr.io 需要；write 同时涵盖下载（read）
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker:
+    name: 构建并推送 Docker 镜像
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录 ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 计算镜像标签
+        id: meta
+        shell: bash
+        run: |
+          # ghcr.io 镜像名必须全小写
+          # 用用户级镜像名 ghcr.io/<owner>/<image>：不带仓库前缀。
+          # 若带仓库前缀（ghcr.io/<owner>/<repo>/<image>）包名会含斜杠（如 algoviz/backend），
+          # GitHub 网页/详情 API 无法解析 → 包详情页 404（registry 本身正常）
+          OWNER="${{ github.repository_owner }}"; OWNER="${OWNER,,}"
+          BASE="ghcr.io/${OWNER}"
+
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            # PR：只构建验证，不推送
+            PUSH="false"
+            BACKEND_TAGS="${BASE}/backend:pr-${{ github.event.pull_request.number }}"
+            NGINX_TAGS="${BASE}/nginx:pr-${{ github.event.pull_request.number }}"
+          elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            # 打 tag（v1.2.3）→ 版本号 + latest
+            PUSH="true"
+            BACKEND_TAGS="${BASE}/backend:${GITHUB_REF_NAME},${BASE}/backend:latest"
+            NGINX_TAGS="${BASE}/nginx:${GITHUB_REF_NAME},${BASE}/nginx:latest"
+          elif [[ "$GITHUB_REF_NAME" == "${{ github.event.repository.default_branch }}" ]]; then
+            # 默认分支（main / devlops 等）→ latest + sha-xxxx
+            PUSH="true"
+            BACKEND_TAGS="${BASE}/backend:latest,${BASE}/backend:sha-${GITHUB_SHA::7}"
+            NGINX_TAGS="${BASE}/nginx:latest,${BASE}/nginx:sha-${GITHUB_SHA::7}"
+          else
+            BRANCH="${GITHUB_REF_NAME//\//-}"
+            PUSH="true"
+            BACKEND_TAGS="${BASE}/backend:${BRANCH},${BASE}/backend:sha-${GITHUB_SHA::7}"
+            NGINX_TAGS="${BASE}/nginx:${BRANCH},${BASE}/nginx:sha-${GITHUB_SHA::7}"
+          fi
+
+          echo "push=${PUSH}"             >> "$GITHUB_OUTPUT"
+          echo "backend_tags=${BACKEND_TAGS}" >> "$GITHUB_OUTPUT"
+          echo "nginx_tags=${NGINX_TAGS}"     >> "$GITHUB_OUTPUT"
+
+      - name: 构建后端镜像 backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/backend/Dockerfile
+          push: ${{ steps.meta.outputs.push }}
+          tags: ${{ steps.meta.outputs.backend_tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 构建 Nginx 镜像 nginx
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/nginx/Dockerfile
+          push: ${{ steps.meta.outputs.push }}
+          tags: ${{ steps.meta.outputs.nginx_tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 双保险：推送后主动把包可见性设为 public（仓库已是 public，镜像默认就 public；
+      # 这一步确保即使后续仓库改为 private，新包也保持 public）
+      - name: 确保镜像包可见性为 public
+        if: steps.meta.outputs.push == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for pkg in backend nginx; do
+            code=$(curl -s -o /tmp/pkg_vis.json -w "%{http_code}" -X PATCH \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/user/packages/container/${pkg}/visibility" \
+              -d '{"visibility":"public"}')
+            echo "package ${pkg}: HTTP ${code}"
+            if [ "$code" != "200" ] && [ "$code" != "204" ]; then
+              echo "警告: GITHUB_TOKEN 设置 ${pkg} 可见性失败（HTTP ${code}）。仓库为 public 时镜像默认即 public，可忽略。"
+            fi
+          done

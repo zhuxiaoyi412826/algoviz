@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -224,6 +224,11 @@
             font-size: 11px;
             margin-right: 4px;
             margin-bottom: 2px;
+        }
+        .oj-score-tag {
+            background: #67c23a;
+            color: #fff;
+            margin-left: 6px;
         }
         .oj-list-loading {
             text-align: center;
@@ -573,6 +578,9 @@
             <div class="oj-search-box">
                 <input type="text" id="ojSearchInput" placeholder="搜索题号、题目名称或标签...">
             </div>
+            <button class="oj-sort-btn oj-semantic-btn" id="ojSemanticBtn" onclick="semanticSearch()" title="按语义（向量）检索相近题目">
+                🧠 语义搜索
+            </button>
             <select class="oj-filter-select" id="ojDifficultyFilter">
                 <option value="">全部难度</option>
                 <option value="easy">简单</option>
@@ -896,7 +904,9 @@
                 tableHtml +=
                     '<tr onclick="goToProblem(' + problem.id + ')">' +
                         '<td class="oj-problem-no">' + problem.id + '</td>' +
-                        '<td class="oj-problem-name">' + problem.title + '</td>' +
+                        '<td class="oj-problem-name">' + problem.title +
+                            (problem.score ? ' <span class="oj-tag oj-score-tag">相似度 ' + Math.round(problem.score * 100) + '%</span>' : '') +
+                        '</td>' +
                         '<td><span class="oj-difficulty-badge ' + diff.class + '">' + diff.label + '</span></td>' +
                         '<td>' + tagsHtml + '</td>' +
                     '</tr>';
@@ -1063,6 +1073,66 @@
 
         function goToProblem(id) {
             window.location.href = 'oj.html?id=' + id;
+        }
+
+        // ========== 语义搜索（Qdrant 向量检索） ==========
+        async function semanticSearch() {
+            var query = document.getElementById('ojSearchInput').value.trim();
+            if (!query) {
+                alert('请输入要搜索的题目名称或标签');
+                return;
+            }
+            var content = document.getElementById('ojListContent');
+            content.innerHTML = '<div class="oj-list-loading"><div class="oj-spinner"></div><div>语义检索中...</div></div>';
+
+            try {
+                var resp = await fetch(API_BASE + '/problems/semantic-search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query, topK: 10 })
+                });
+                var data = await resp.json();
+
+                if (data.success && data.problems) {
+                    // 复用普通列表的映射格式（id 取题号，跳转 oj.html?id=题号）
+                    allProblems = data.problems.map(function(problem, index) {
+                        var problemNoValue = problem.problem_no || problem.problemNo;
+                        var problemId = 0;
+                        if (problemNoValue) {
+                            if (typeof problemNoValue === 'number') {
+                                problemId = problemNoValue;
+                            } else {
+                                var parsed = parseInt(problemNoValue);
+                                problemId = isNaN(parsed) ? (index + 1) * 1000 : parsed;
+                            }
+                        } else {
+                            problemId = (index + 1) * 1000;
+                        }
+                        return {
+                            id: problemId,
+                            title: problem.title || '未命名题目',
+                            difficulty: problem.difficulty || 'easy',
+                            tags: problem.tags ? problem.tags.split(',').map(function(tag) { return tag.trim(); }).filter(function(t) { return t; }) : [],
+                            description: problem.description || '',
+                            score: problem.score || 0
+                        };
+                    });
+                    filteredProblems = allProblems;
+
+                    // 更新统计（语义搜索结果不分页）
+                    var totalCount = document.getElementById('ojTotalCount');
+                    if (totalCount) totalCount.textContent = allProblems.length;
+                    var paginationBar = document.getElementById('ojPaginationBar');
+                    if (paginationBar) paginationBar.style.display = 'none';
+
+                    renderProblems(allProblems);
+                } else {
+                    showError('语义搜索失败', data.message || '未找到匹配结果');
+                }
+            } catch (e) {
+                console.error('语义搜索失败:', e);
+                showError('语义搜索失败', e.message || '无法连接后端服务');
+            }
         }
 
         function applyFilters() {

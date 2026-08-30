@@ -5,6 +5,10 @@ import com.algoviz.dto.BatchAddProblemsRequest;
 import com.algoviz.dto.BatchAddProblemsResponse;
 import com.algoviz.entity.OJProblem;
 import com.algoviz.entity.PageResult;
+import com.algoviz.know.api.dto.KnowSearchResult;
+import com.algoviz.know.api.dto.KnowSearchResultItem;
+import com.algoviz.mapper.OJProblemMapper;
+import com.algoviz.service.AlgorithmVectorService;
 import com.algoviz.service.ExcelImportService;
 import com.algoviz.service.MdImportService;
 import com.algoviz.service.JsonImportService;
@@ -30,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
+
 @RestController
 @RequestMapping("/api/problems")
 @Tag(name = "题目管理", description = "OJ题目相关接口")
@@ -39,6 +45,12 @@ public class OJProblemController {
 
     @Autowired
     private OJProblemService problemService;
+
+    @Autowired
+    private OJProblemMapper ojProblemMapper;
+
+    @Autowired
+    private AlgorithmVectorService algorithmVectorService;
 
     @Autowired
     private ExcelImportService excelImportService;
@@ -157,6 +169,65 @@ public class OJProblemController {
         return result;
     }
 
+    /**
+     * 语义搜索题目：输入自然语言（题目名称/标签/描述），
+     * 通过 Qdrant 向量库检索最相近的题目，再按题目 id 回查 MySQL 返回完整信息。
+     */
+    @PostMapping("/semantic-search")
+    @Operation(summary = "语义搜索题目", description = "基于 Qdrant 向量库按语义检索题目，返回相近题目列表")
+    public Map<String, Object> semanticSearch(@RequestBody Map<String, Object> body) {
+        logger.info("语义搜索：{}", body);
+        Map<String, Object> result = new HashMap<>();
+        String query = body.get("query") == null ? "" : String.valueOf(body.get("query")).trim();
+        int topK = body.get("topK") == null ? 10 : Integer.parseInt(String.valueOf(body.get("topK")));
+        if (query.isEmpty()) {
+            result.put("success", false);
+            result.put("message", "搜索内容不能为空");
+            return result;
+        }
+        if (topK <= 0 || topK > 50) {
+            topK = 10;
+        }
+        try {
+            KnowSearchResult r = algorithmVectorService.search(query, topK, null);
+            List<Map<String, Object>> problems = new ArrayList<>();
+            if (r.getItems() != null) {
+                for (KnowSearchResultItem item : r.getItems()) {
+                    String algorithmId = item.getId();
+                    double score = item.getScore();
+                    if (algorithmId == null || algorithmId.isBlank() || "null".equals(algorithmId)) {
+                        continue;
+                    }
+                    try {
+                        OJProblem p = ojProblemMapper.findById(Long.parseLong(algorithmId));
+                        if (p != null) {
+                            Map<String, Object> row = new HashMap<>();
+                            row.put("id", p.getId());
+                            row.put("problemNo", p.getProblemNo());
+                            row.put("title", p.getTitle());
+                            row.put("difficulty", p.getDifficulty());
+                            row.put("tags", p.getTags());
+                            row.put("description", p.getDescription());
+                            row.put("score", Math.round(score * 1000) / 1000.0);
+                            problems.add(row);
+                        }
+                    } catch (Exception ignored) {
+                        // 单条查询失败跳过
+                    }
+                }
+            }
+            result.put("success", true);
+            result.put("problems", problems);
+            result.put("total", problems.size());
+            return result;
+        } catch (Exception e) {
+            logger.warn("语义搜索失败: {}", e.getMessage());
+            result.put("success", false);
+            result.put("message", "向量检索服务未启动");
+            return result;
+        }
+    }
+
     @PostMapping
     @Operation(summary = "添加题目", description = "添加新的OJ题目")
     public Map<String, Object> addProblem(@RequestBody OJProblem problem) {
@@ -262,6 +333,7 @@ public class OJProblemController {
      * 批量添加题目（专供「AI 生成题目 → 批量入库」流程）
      * 流程：前端把 AI 生成的若干道题（含人工二次编辑）→ 一次性提交 → 后端写入数据库
      */
+    @SaCheckLogin
     @PostMapping("/batch")
     @Operation(summary = "批量添加题目", description = "把 AI 生成的若干道题批量入库")
     public BatchAddProblemsResponse batchAddProblems(@RequestBody BatchAddProblemsRequest request) {
@@ -415,6 +487,7 @@ public class OJProblemController {
      * Markdown 批量导入题目
      * 接收 .md 文件，解析后批量入库
      */
+    @SaCheckLogin
     @PostMapping("/import-md")
     @Operation(summary = "MD 批量导入题目", description = "上传 .md 文件批量入库")
     public BatchAddProblemsResponse importFromMd(
@@ -429,6 +502,7 @@ public class OJProblemController {
      * JSON 批量导入题目
      * 接收 .json 文件，解析后批量入库
      */
+    @SaCheckLogin
     @PostMapping("/import-json")
     @Operation(summary = "JSON 批量导入题目", description = "上传 .json 文件批量入库")
     public BatchAddProblemsResponse importFromJson(
@@ -442,6 +516,7 @@ public class OJProblemController {
     /**
      * 导出题目为 SQL 文件
      */
+    @SaCheckLogin
     @GetMapping("/export/sql")
     @Operation(summary = "导出题目(SQL)", description = "将所有题目导出为 SQL INSERT 语句文件")
     public ResponseEntity<byte[]> exportAsSql() throws IOException {
@@ -498,6 +573,7 @@ public class OJProblemController {
     /**
      * 导出题目为 JSON 文件
      */
+    @SaCheckLogin
     @GetMapping("/export/json")
     @Operation(summary = "导出题目(JSON)", description = "将所有题目导出为 JSON 格式文件")
     public ResponseEntity<byte[]> exportAsJson() throws IOException {

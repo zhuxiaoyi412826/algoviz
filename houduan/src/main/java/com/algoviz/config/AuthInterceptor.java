@@ -159,15 +159,18 @@ public class AuthInterceptor implements HandlerInterceptor {
     }
 
     /**
-     * 设置 Cookie（HttpOnly + 同站，防XSS/CSRF）
+     * 设置 Cookie（HttpOnly + SameSite=Lax + Secure，防 XSS/CSRF）
+     * 注意：Secure 仅在 HTTPS 下由浏览器发送；本地 HTTP 开发环境该 Cookie 不会被浏览器存储，
+     *      但登录态由服务端 Session 兜底（SESSION_USER），不影响本地调试登录。
      */
     public static void setCookie(HttpServletResponse response, String name, String value, int maxAgeSeconds) {
         Cookie cookie = new Cookie(name, value);
         cookie.setMaxAge(maxAgeSeconds);
         cookie.setPath("/");
         cookie.setHttpOnly(true);
-        // 生产环境应启用 Secure（HTTPS）
-        // cookie.setSecure(true);
+        cookie.setSecure(true);
+        // SameSite=Lax：阻止跨站请求携带本 Cookie（CSRF 防护）
+        cookie.setAttribute("SameSite", "Lax");
         response.addCookie(cookie);
     }
 

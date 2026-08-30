@@ -36,6 +36,13 @@ __pycache__/
 # 某个目录下的 txt 要提交
 !resources/*.txt
 !bin/*.txt
+!.githup/build.html
+
+# GitHub Actions workflow 必须提交（第21行 *.yml 会忽略它，这里取消忽略）
+!.github/workflows/build.yml
+!.github/workflows/docker.yml
+# docker-compose 不含密钥（密钥在 .env / application-docker.yml，已被忽略），允许提交
+!docker/docker-compose.yml
 
 # JS/TS bundlers & build outputs
 .next
@@ -50,6 +57,8 @@ storybook-static
 # Package manager artifacts
 pnpm-lock.yaml
 package-lock.json
+# houtai 的 lock 必须提交：Docker 构建 npm install 需要锁文件保证可复现构建（否则每次装最新版本）
+!houtai/package-lock.json
 yarn.lock
 .pnp*
 .npm

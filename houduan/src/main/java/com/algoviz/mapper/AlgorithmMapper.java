@@ -19,6 +19,10 @@ public interface AlgorithmMapper {
     @Select("SELECT * FROM algorithm WHERE id = #{id}")
     Algorithm findById(String id);
 
+    /** 全量 ACTIVE 算法题（算法题向量手动全量同步用） */
+    @Select("SELECT * FROM algorithm WHERE status = 'ACTIVE' ORDER BY created_at DESC")
+    List<Algorithm> findAllActive();
+
     @Update("UPDATE algorithm SET name=#{name}, category=#{category}, description=#{description}, time_complexity=#{timeComplexity}, " +
             "space_complexity=#{spaceComplexity}, pseudocode=#{pseudocode}, status=#{status}, updated_at=NOW() WHERE id=#{id}")
     int update(Algorithm algorithm);
