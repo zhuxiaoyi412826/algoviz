@@ -12,6 +12,8 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.regex.Pattern;
+import org.springframework.core.io.ClassPathResource;
 import java.util.concurrent.*;
 
 @Service
@@ -27,6 +29,53 @@ public class CodeRunServiceImpl implements CodeRunService {
     
     // 最大输出长度
     private static final int MAX_OUTPUT_LENGTH = 10000;
+
+    // ==================== OJ 代码沙箱安全加固 ====================
+    // Java 类名校验：仅允许合法 Java 标识符（防止 extractClassName 把 "Main extends Object" 吞进进程参数）
+    private static final Pattern JAVA_CLASS_NAME_PATTERN = Pattern.compile("^[A-Za-z_$][A-Za-z0-9_$]*$");
+
+    // 危险 API 静态过滤（第一层辅助防护；真正的拦截由子 JVM SecurityManager 完成）
+    private static final String[] FORBIDDEN_API_KEYWORDS = {
+            "ProcessBuilder", "Runtime", "getRuntime", "exec(", "System.load",
+            "Class.forName", "URLClassLoader", "Socket", "ServerSocket", "URLConnection",
+            "HttpURLConnection", "new File(", "FileInputStream", "FileOutputStream",
+            "FileWriter", "FileReader", "Files."
+    };
+
+    // Python 危险 API（辅助防护：Python 无内置沙箱，此层为主要拦截）
+    private static final String[] PYTHON_FORBIDDEN_KEYWORDS = {
+            "import os", "from os", "os.system", "os.popen", "os.remove", "os.listdir", "os.unlink",
+            "subprocess", "eval(", "exec(", "__import__", "compile(", "pickle", "ctypes",
+            "import socket", "from socket", "import requests", "import urllib", "http.client",
+            "shutil", "open(", "file("
+    };
+
+    // C++ 危险 API（辅助防护：C++ 无内置沙箱，此层为主要拦截）
+    private static final String[] CPP_FORBIDDEN_KEYWORDS = {
+            "system(", "popen(", "fork(", "execvp(", "execve(", "execl", "fopen", "fstream",
+            "ifstream", "ofstream", "remove(", "rename(", "getenv", "chmod",
+            "#include <unistd.h>", "#include <sys", "#include <net", "#include <arpa", "socket("
+    };
+
+    // JavaScript 危险 API（辅助防护：Node 无内置沙箱，此层为主要拦截）
+    private static final String[] JS_FORBIDDEN_KEYWORDS = {
+            "child_process", "require('fs')", "require(\"fs\")", "process.execPath",
+            "process.mainModule", "process.binding", "process.env", "execSync", "spawn(",
+            "fork(", "eval(", "Function(", "global.require", "fs.", "net.", "dns.", "vm.",
+            "http.request", "https.request"
+    };
+
+    /**
+     * 静态危险 API 扫描：命中返回命中的关键字，未命中返回 null
+     */
+    private String scanForbiddenCode(String code, String[] keywords) {
+        for (String keyword : keywords) {
+            if (code.contains(keyword)) {
+                return keyword;
+            }
+        }
+        return null;
+    }
 
     @Override
     public Map<String, Object> runCode(String code, String language, String input) {
@@ -305,11 +354,35 @@ public class CodeRunServiceImpl implements CodeRunService {
         }
         
         try {
+            // 0) 静态危险 API 扫描（辅助防护：编译前拦截文件IO/进程/网络相关 API）
+            String forbidden = scanForbiddenCode(code, FORBIDDEN_API_KEYWORDS);
+            if (forbidden != null) {
+                result.put("status", "ce");
+                result.put("message", "编译错误: 检测到禁止使用的 API \"" + forbidden
+                        + "\"，出于安全考虑不允许文件IO/进程/网络相关操作");
+                return result;
+            }
+
+            // 写入安全策略文件（供子 JVM 的 SecurityManager 使用）
+            File policyFile = new File(tempDir, "security.policy");
+            try (InputStream in = new ClassPathResource("security.policy").getInputStream();
+                 FileOutputStream fos = new FileOutputStream(policyFile)) {
+                in.transferTo(fos);
+            } catch (Exception e) {
+                logger.warn("安全策略文件写入失败，子进程将以受限策略运行: {}", e.getMessage());
+            }
+
             // 提取类名
             String className = extractClassName(code);
             if (className == null) {
                 result.put("status", "ce");
                 result.put("message", "编译错误: 无法找到类名，请确保类名为public且与文件名一致");
+                return result;
+            }
+            // 类名合法性校验：仅允许 Java 标识符，杜绝 "Main extends Object" 等被拼接进进程参数
+            if (!JAVA_CLASS_NAME_PATTERN.matcher(className).matches()) {
+                result.put("status", "ce");
+                result.put("message", "编译错误: 非法类名 \"" + className + "\"，类名只能由字母、数字、下划线、$ 组成");
                 return result;
             }
             
@@ -350,9 +423,15 @@ public class CodeRunServiceImpl implements CodeRunService {
                 
                 try {
                     // 创建进程并捕获输出
+                    // 沙箱：启用 SecurityManager + 安全策略，限制子 JVM 权限
+                    //   - 禁 createProcess（拦截 ProcessBuilder / Runtime.exec 执行系统命令）
+                    //   - 禁临时目录外文件读取（拦截读 C:/Windows 等）
+                    //   - 禁 Socket（拦截网络）
                     ProcessBuilder pb = new ProcessBuilder(
                         javaHome + "/bin/java",
                         "-Dfile.encoding=UTF-8",
+                        "-Djava.security.manager",
+                        "-Djava.security.policy=" + policyFile.toURI(),
                         "-cp", tempDir.getPath(),
                         className
                     );
@@ -432,7 +511,16 @@ public class CodeRunServiceImpl implements CodeRunService {
      */
     private Map<String, Object> runPythonCode(String code, String input) throws Exception {
         Map<String, Object> result = new HashMap<>();
-        
+
+        // 0) 静态危险 API 扫描（Python 无内置沙箱，此层为主要拦截）
+        String forbidden = scanForbiddenCode(code, PYTHON_FORBIDDEN_KEYWORDS);
+        if (forbidden != null) {
+            result.put("status", "ce");
+            result.put("message", "编译错误: 检测到禁止使用的 API \"" + forbidden
+                    + "\"，出于安全考虑不允许文件IO/进程/网络相关操作");
+            return result;
+        }
+
         // 创建临时文件
         File tempFile = File.createTempFile("algoviz_", ".py");
         try (FileOutputStream fos = new FileOutputStream(tempFile)) {
@@ -445,7 +533,9 @@ public class CodeRunServiceImpl implements CodeRunService {
                 long startTime = System.currentTimeMillis();
                 
                 try {
-                    ProcessBuilder pb = new ProcessBuilder("python", tempFile.getPath());
+                    // -I：隔离模式（忽略 PYTHON* 环境变量与用户 site-packages）
+                    // -u：无缓冲输出
+                    ProcessBuilder pb = new ProcessBuilder("python", "-I", "-u", tempFile.getPath());
                     pb.redirectErrorStream(true);
                     
                     Process process = pb.start();
@@ -508,7 +598,16 @@ public class CodeRunServiceImpl implements CodeRunService {
      */
     private Map<String, Object> runCppCode(String code, String input) throws Exception {
         Map<String, Object> result = new HashMap<>();
-        
+
+        // 0) 静态危险 API 扫描（C++ 无内置沙箱，此层为主要拦截）
+        String forbidden = scanForbiddenCode(code, CPP_FORBIDDEN_KEYWORDS);
+        if (forbidden != null) {
+            result.put("status", "ce");
+            result.put("message", "编译错误: 检测到禁止使用的 API \"" + forbidden
+                    + "\"，出于安全考虑不允许文件IO/进程/网络相关操作");
+            return result;
+        }
+
         // 创建临时目录
         File tempDir = new File(System.getProperty("java.io.tmpdir"), "algoviz_cpp_" + System.currentTimeMillis());
         if (!tempDir.mkdirs()) {
@@ -524,8 +623,8 @@ public class CodeRunServiceImpl implements CodeRunService {
                 fos.write(code.getBytes(StandardCharsets.UTF_8));
             }
             
-            // 编译
-            ProcessBuilder compilePb = new ProcessBuilder("g++", "-o", "main", "main.cpp");
+            // 编译（-w 静默警告，-O2 优化）
+            ProcessBuilder compilePb = new ProcessBuilder("g++", "-w", "-O2", "-o", "main", "main.cpp");
             compilePb.directory(tempDir);
             ByteArrayOutputStream compileErr = new ByteArrayOutputStream();
             
@@ -614,7 +713,16 @@ public class CodeRunServiceImpl implements CodeRunService {
      */
     private Map<String, Object> runJavaScriptCode(String code, String input) throws Exception {
         Map<String, Object> result = new HashMap<>();
-        
+
+        // 0) 静态危险 API 扫描（Node 无内置沙箱，此层为主要拦截）
+        String forbidden = scanForbiddenCode(code, JS_FORBIDDEN_KEYWORDS);
+        if (forbidden != null) {
+            result.put("status", "ce");
+            result.put("message", "编译错误: 检测到禁止使用的 API \"" + forbidden
+                    + "\"，出于安全考虑不允许文件IO/进程/网络相关操作");
+            return result;
+        }
+
         // 创建临时文件
         File tempFile = File.createTempFile("algoviz_", ".js");
         try (FileOutputStream fos = new FileOutputStream(tempFile)) {
@@ -627,7 +735,8 @@ public class CodeRunServiceImpl implements CodeRunService {
                 long startTime = System.currentTimeMillis();
                 
                 try {
-                    ProcessBuilder pb = new ProcessBuilder("node", tempFile.getPath());
+                    // --disallow-code-generation-from-strings：禁止 eval/Function 动态生成代码
+                    ProcessBuilder pb = new ProcessBuilder("node", "--disallow-code-generation-from-strings", tempFile.getPath());
                     pb.redirectErrorStream(true);
                     
                     Process process = pb.start();

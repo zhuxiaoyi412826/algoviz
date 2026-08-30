@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
+
 @RestController
 @RequestMapping("/api/problems")
 @Tag(name = "题目管理", description = "OJ题目相关接口")
@@ -331,6 +333,7 @@ public class OJProblemController {
      * 批量添加题目（专供「AI 生成题目 → 批量入库」流程）
      * 流程：前端把 AI 生成的若干道题（含人工二次编辑）→ 一次性提交 → 后端写入数据库
      */
+    @SaCheckLogin
     @PostMapping("/batch")
     @Operation(summary = "批量添加题目", description = "把 AI 生成的若干道题批量入库")
     public BatchAddProblemsResponse batchAddProblems(@RequestBody BatchAddProblemsRequest request) {
@@ -484,6 +487,7 @@ public class OJProblemController {
      * Markdown 批量导入题目
      * 接收 .md 文件，解析后批量入库
      */
+    @SaCheckLogin
     @PostMapping("/import-md")
     @Operation(summary = "MD 批量导入题目", description = "上传 .md 文件批量入库")
     public BatchAddProblemsResponse importFromMd(
@@ -498,6 +502,7 @@ public class OJProblemController {
      * JSON 批量导入题目
      * 接收 .json 文件，解析后批量入库
      */
+    @SaCheckLogin
     @PostMapping("/import-json")
     @Operation(summary = "JSON 批量导入题目", description = "上传 .json 文件批量入库")
     public BatchAddProblemsResponse importFromJson(
@@ -511,6 +516,7 @@ public class OJProblemController {
     /**
      * 导出题目为 SQL 文件
      */
+    @SaCheckLogin
     @GetMapping("/export/sql")
     @Operation(summary = "导出题目(SQL)", description = "将所有题目导出为 SQL INSERT 语句文件")
     public ResponseEntity<byte[]> exportAsSql() throws IOException {
@@ -567,6 +573,7 @@ public class OJProblemController {
     /**
      * 导出题目为 JSON 文件
      */
+    @SaCheckLogin
     @GetMapping("/export/json")
     @Operation(summary = "导出题目(JSON)", description = "将所有题目导出为 JSON 格式文件")
     public ResponseEntity<byte[]> exportAsJson() throws IOException {
