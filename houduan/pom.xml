@@ -131,7 +131,7 @@
         <dependency>
             <groupId>cn.dev33</groupId>
             <artifactId>sa-token-spring-boot3-starter</artifactId>
-            <version>1.37.0</version>
+            <version>1.46.0</version>
         </dependency>
 
         <!-- Spring Security Crypto（BCryptPasswordEncoder，用于普通管理员密码） -->
