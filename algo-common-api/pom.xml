@@ -25,7 +25,7 @@
         <spring-boot.version>3.2.0</spring-boot.version>
         <dubbo.version>3.2.20</dubbo.version>
         <onnxruntime.version>1.17.1</onnxruntime.version>
-        <onnxruntime-ext.version>0.10.0</onnxruntime-ext.version>
+        <onnxruntime-ext.version>0.13.0</onnxruntime-ext.version>
     </properties>
 
     <repositories>
