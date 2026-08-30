@@ -138,7 +138,7 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>
-            <version>6.2.1</version>
+            <version>7.1.1</version>
         </dependency>
 
         <!-- Argon2 加密（超级管理员密码）
