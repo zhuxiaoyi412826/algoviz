@@ -1,0 +1,27 @@
+// ============================================================
+// AlgoViz OJ 用户代码沙箱安全策略
+// 配合 java -Djava.security.manager 使用：
+//   安全模型 = 默认全部拒绝，只有下面 grant 显式放行的才允许
+// ============================================================
+grant {
+    // 临时运行目录（${user.dir} = 子进程工作目录 = 每次运行的临时目录）内文件读写删
+    // 用户代码需要加载 -cp 下的 .class，并可读写自己的临时文件
+    permission java.io.FilePermission "${user.dir}/-", "read,write,delete";
+
+    // 标准输入 / 输出 / 错误（判题必须：读测试输入、写答案输出）
+    permission java.lang.RuntimePermission "readFileDescriptor";
+    permission java.lang.RuntimePermission "writeFileDescriptor";
+
+    // 读取系统属性（-Dfile.encoding、user.dir 等）
+    permission java.util.PropertyPermission "*", "read";
+
+    // ⚠️ 故意【不授予】的权限（默认拒绝，无需声明）：
+    //   java.lang.RuntimePermission "createProcess"
+    //       → 拦截 ProcessBuilder / Runtime.exec（防系统命令执行，如 whoami）
+    //   java.net.SocketPermission
+    //       → 拦截一切网络（防内网探测 / 数据外带）
+    //   java.lang.RuntimePermission "accessDeclaredMembers" / "suppressAccessChecks"
+    //       → 限制反射逃逸（无法 setAccessible 绕过检查）
+    //   临时目录之外的 FilePermission
+    //       → 拦截 C:/Windows、应用目录等文件越权读取
+};

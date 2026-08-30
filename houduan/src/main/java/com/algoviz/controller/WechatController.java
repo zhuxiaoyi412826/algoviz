@@ -3,6 +3,7 @@ package com.algoviz.controller;
 import com.algoviz.service.LoginService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
@@ -39,6 +40,8 @@ public class WechatController {
      */
     @GetMapping("/callback")
     @Operation(summary = "微信回调验证", description = "用于微信公众平台验证服务器地址")
+    // echostr 为微信验证协议强制原样回显字段，已做纯字母数字格式校验（见方法内），无 XSS 风险
+    @SuppressWarnings("java/xss")
     public String verify(
             @RequestParam(value = "signature", required = false) String signature,
             @RequestParam(value = "timestamp", required = false) String timestamp,
@@ -53,8 +56,15 @@ public class WechatController {
         System.out.println("token value: " + token);
 
         if (checkSignature(signature, timestamp, nonce)) {
-            System.out.println("验证成功!");
-            return echostr;
+            // 微信验证协议要求：原样返回 echostr 随机串以确认服务器归属。
+            // 安全：echostr 是微信下发的纯字母数字串，先做格式校验再回显，
+            // 含 <script> 等非法字符直接拒绝，防止 XSS / 注入。
+            if (echostr != null && echostr.matches("[A-Za-z0-9]{1,128}")) {
+                System.out.println("验证成功!");
+                return echostr;
+            }
+            System.out.println("验证失败! echostr 格式非法");
+            return "验证失败";
         }
         System.out.println("验证失败!");
         return "验证失败";
@@ -208,16 +218,26 @@ public class WechatController {
 
     /**
      * 构建文本消息XML
+     * 安全：所有用户可控字段（ToUserName/FromUserName/Content）必须做 XML 转义，
+     * 防止 XSS / XML 注入（如用户消息中含 &lt;script&gt; 注入 HTML/XML）
      */
     private String buildTextMessage(String toUserName, String fromUserName, String content) {
         long createTime = System.currentTimeMillis() / 1000;
         return "<xml>\n" +
-                "<ToUserName><![CDATA[" + toUserName + "]]></ToUserName>\n" +
-                "<FromUserName><![CDATA[" + fromUserName + "]]></FromUserName>\n" +
+                "<ToUserName>" + escXml(toUserName) + "</ToUserName>\n" +
+                "<FromUserName>" + escXml(fromUserName) + "</FromUserName>\n" +
                 "<CreateTime>" + createTime + "</CreateTime>\n" +
                 "<MsgType><![CDATA[text]]></MsgType>\n" +
-                "<Content><![CDATA[" + content + "]]></Content>\n" +
+                "<Content>" + escXml(content) + "</Content>\n" +
                 "</xml>";
+    }
+
+    /**
+     * XML 安全转义：使用 commons-lang3 的标准 XML 1.1 转义（CodeQL 可识别为净化），
+     * 转义 &amp; &lt; &gt; &quot; &apos;，防止 XSS / XML 注入
+     */
+    private String escXml(String s) {
+        return StringEscapeUtils.escapeXml11(s != null ? s : "");
     }
 
     /**

@@ -7,6 +7,8 @@ import com.algoviz.service.LoginLockService;
 import com.algoviz.service.LoginService;
 import com.algoviz.service.UserService;
 import com.algoviz.common.util.PasswordEncoderUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class LoginServiceImpl implements LoginService {
+
+    private static final Logger logger = LoggerFactory.getLogger(LoginServiceImpl.class);
 
     @Autowired
     private UserService userService;
@@ -114,6 +118,22 @@ public class LoginServiceImpl implements LoginService {
         return response;
     }
 
+    /**
+     * 密码升级：若用户密码仍为弱算法（MD5/明文）存储，登录成功后自动重哈希为 BCrypt（平滑迁移）
+     */
+    private void upgradePasswordIfNeeded(User user, String rawPassword) {
+        String stored = user.getPassword();
+        boolean isWeak = stored != null
+                && !stored.startsWith("$2a$") && !stored.startsWith("$2b$")
+                && !stored.startsWith("$2y$") && !stored.startsWith("$argon2id$");
+        if (isWeak) {
+            String newHash = PasswordEncoderUtil.bcryptEncode(rawPassword);
+            userService.updatePassword(user.getId(), newHash);
+            user.setPassword(newHash);
+            logger.info("用户 {} 密码已从弱算法升级为 BCrypt", user.getUsername());
+        }
+    }
+
     @Override
     public LoginResponse loginByAccount(String username, String password) {
         LoginResponse response = new LoginResponse();
@@ -151,15 +171,17 @@ public class LoginServiceImpl implements LoginService {
         // 以用户实体 username（规范化值）作为真实锁标识
         final String lockId = user.getUsername();
 
-        // 3) 校验密码（MD5加密比对）
-        String inputMd5 = PasswordEncoderUtil.md5Encode(password);
-        boolean pwOk = inputMd5.equals(user.getPassword()) || password.equals(user.getPassword());
+        // 3) 校验密码：自动探测存储算法（Argon2id / BCrypt / MD5），不再支持明文比对
+        boolean pwOk = PasswordEncoderUtil.autoMatches(password, user.getPassword());
         if (!pwOk) {
             loginLockService.recordFailure(LoginLockService.LoginLockType.USER, lockId);
             response.setSuccess(false);
             response.setMessage("用户不存在或密码错误");
             return response;
         }
+
+        // 3.1) 密码升级：若存储为弱算法（MD5），登录成功后自动重哈希为 BCrypt（平滑迁移）
+        upgradePasswordIfNeeded(user, password);
 
         // 4) 检查用户状态
         if (user.getStatus() != null && user.getStatus() == 0) {
@@ -233,15 +255,17 @@ public class LoginServiceImpl implements LoginService {
             return response;
         }
 
-        // 3) 校验密码
-        String inputMd5 = PasswordEncoderUtil.md5Encode(password);
-        boolean pwOk = inputMd5.equals(user.getPassword()) || password.equals(user.getPassword());
+        // 3) 校验密码：自动探测存储算法（Argon2id / BCrypt / MD5），不再支持明文比对
+        boolean pwOk = PasswordEncoderUtil.autoMatches(password, user.getPassword());
         if (!pwOk) {
             loginLockService.recordFailure(LoginLockService.LoginLockType.USER, lockId);
             response.setSuccess(false);
             response.setMessage("邮箱未注册或密码错误");
             return response;
         }
+
+        // 3.1) 密码升级：若存储为弱算法（MD5），登录成功后自动重哈希为 BCrypt（平滑迁移）
+        upgradePasswordIfNeeded(user, password);
 
         // 4) 账号禁用
         if (user.getStatus() != null && user.getStatus() == 0) {

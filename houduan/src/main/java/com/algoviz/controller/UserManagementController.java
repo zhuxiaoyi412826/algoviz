@@ -49,6 +49,11 @@ public class UserManagementController {
         List<User> users = userService.getUsersByConditions(keyword, gender, status, loginStatus, order, page, pageSize);
         int totalCount = userService.getUsersCountByConditions(keyword, gender, status, loginStatus);
 
+        // 脱敏：清除密码哈希，防止泄露（用户列表接口）
+        if (users != null) {
+            users.forEach(u -> u.setPassword(null));
+        }
+
         result.put("success", true);
         result.put("users", users);
         result.put("count", totalCount);
@@ -67,6 +72,7 @@ public class UserManagementController {
         User user = userService.findById(id);
         
         if (user != null) {
+            user.setPassword(null);   // 脱敏：清除密码哈希，防止泄露（用户详情接口）
             result.put("success", true);
             result.put("user", user);
         } else {

@@ -19,6 +19,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // isAnnotation(true)：启用 Sa-Token 方法级注解（@SaCheckLogin/@SaCheckPermission）
         registry.addInterceptor(new SaInterceptor(handle -> {
             // 只匹配需要认证的后台接口
             SaRouter.match(
@@ -32,11 +33,26 @@ public class SaTokenConfig implements WebMvcConfigurer {
                             "/api/system/operation-log",
                             "/api/system/operation-log/**",
                             "/api/export/**",
-                            "/api/dashboard/**"
+                            "/api/dashboard/**",
+                            "/api/file/**",                   // 文件管理（后台）
+                            "/api/users/**",                  // 用户管理（后台）
+                            // ===== 补充：此前被 WebConfig 排除 AuthInterceptor 但 Sa-Token 未覆盖的后台接口 =====
+                            "/api/content/**",                // 内容管理（数据结构/算法/题库/测试用例/AI提示）
+                            "/api/monitor/**",                // 服务监控
+                            "/api/payment/records**",         // 支付记录管理（用户支付接口 /api/payment/* 保持公开）
+                            "/api/payment/refunds**",
+                            "/api/payment/stats**",
+                            "/api/payment/trend**",
+                            "/api/extension/**",              // 扩展管理（公告/反馈）
+                            "/api/interview/admin/**",        // 面试题管理
+                            "/api/coin/admin/**",             // 金币商品管理
+                            "/api/orders/**",                 // 订单管理
+                            "/api/audit/**",                  // 内容审核
+                            "/api/vector/admin/**"            // 向量管理（管理端）
                     )
                     .check(r -> StpUtil.checkLogin());
 
-        })).addPathPatterns("/**")
+        }).isAnnotation(true)).addPathPatterns("/**")
                 // 白名单：完全放行
                 .excludePathPatterns(
                         "/api/admin/login",
