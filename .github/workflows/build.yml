@@ -1,12 +1,11 @@
 # ============================================================
 # AlgoViz 后端 CI：编译 → 静态检测 → 单元测试 → 打包 jar → 上传产物 → 打 tag 发布 Release
-# 触发：push（含打 tag）、pull_request
-# 发布：仅 push 到 v* 标签时触发 Release；普通 push / PR 只跑 CI，不发布
+# 触发：仅 pull_request（push 不再触发 CI，减少无谓构建）
+# 发布：仅 push 到 v* 标签时触发 Release（需配合手动打 tag 推送）
 # ============================================================
 name: CI Build & Release
 
 on:
-  push:          # 代码 push（含打 tag —— tag push 也是 push 事件）
   pull_request:  # 合并请求
 
 permissions:
