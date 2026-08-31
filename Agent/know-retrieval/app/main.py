@@ -568,5 +568,8 @@ async def es_test_analyzer(text: str = "动态规划入门二叉树遍历"):
 
 
 if __name__ == "__main__":
+    import os
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+    # 默认仅绑定本机（127.0.0.1），避免暴露到所有网络接口（S8392）；
+    # 需要被其他主机访问时，通过环境变量 HOST 覆盖，如 HOST=0.0.0.0
+    uvicorn.run(app, host=os.getenv("HOST", "127.0.0.1"), port=PORT)
