@@ -1,10 +1,14 @@
 # ============================================================
-# AlgoViz 后端 CI 流水线（按事件分级，与开发流程模板对应）
+# AlgoViz 后端 CI 流水线（按事件分级）
 #
-#  1) push 到分支（非默认）→ 快速检查：静态检测 + 单元测试 + 依赖安全扫描（尽早反馈低级错误）
+#  1) push 到分支（非默认）→ 快速检查：静态检测 + 单元测试 + 依赖安全扫描
 #  2) pull_request       → 全面 CI：测试 + 打包 jar + 上传产物 + 安全扫描
 #  3) push 到默认分支    → 构建成品 jar（PR 合并后触发；不打 Docker 镜像）
 #  4) push v* 标签       → 发布 GitHub Release（附 jar 附件）
+#
+# 安全实践：
+#  - 所有第三方 Action 使用完整 commit SHA 固定（防供应链篡改，SonarCloud 要求）
+#  - 写权限（contents/security-events）只放在需要的 job 级，workflow 级仅只读
 #
 #  Docker 镜像构建不在 CI 自动触发，见 docker.yml（workflow_dispatch 手动）
 # ============================================================
@@ -15,8 +19,7 @@ on:
   pull_request:    # 合并请求
 
 permissions:
-  contents: write   # 打 tag 时创建 Release
-  packages: write
+  contents: read   # workflow 级只读；写权限在各 job 内单独声明
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -28,12 +31,15 @@ jobs:
     name: 快速检查（push 分支）
     if: github.event_name == 'push' && github.ref_type == 'branch' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # 上报 SARIF 需要
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
       - name: 配置 JDK 17 + Maven 缓存
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3  # v4
         with:
           distribution: temurin
           java-version: '17'
@@ -52,7 +58,7 @@ jobs:
         run: mvn -B test
 
       - name: 依赖安全扫描（Trivy 快速子集，结果上报 Code Scanning）
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1  # 0.35.0（供应链事件后唯一确认安全版本）
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -61,7 +67,7 @@ jobs:
 
       - name: 上传扫描结果
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@fddeee1a7ece751b577e409a89057319e3172939  # v4
         with:
           sarif_file: trivy-results.sarif
 
@@ -70,12 +76,15 @@ jobs:
     name: 全面 CI（PR）
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # 上报 SARIF 需要
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
       - name: 配置 JDK 17 + Maven 缓存
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3  # v4
         with:
           distribution: temurin
           java-version: '17'
@@ -98,14 +107,14 @@ jobs:
         run: mvn -B package -DskipTests
 
       - name: 上传构建产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: houduan-backend-jar
           path: houduan/target/*.jar
           if-no-files-found: error
 
       - name: 依赖安全扫描（Trivy，结果上报 Code Scanning）
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1  # 0.35.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -114,7 +123,7 @@ jobs:
 
       - name: 上传扫描结果
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@fddeee1a7ece751b577e409a89057319e3172939  # v4
         with:
           sarif_file: trivy-results.sarif
 
@@ -125,10 +134,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
       - name: 配置 JDK 17 + Maven 缓存
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3  # v4
         with:
           distribution: temurin
           java-version: '17'
@@ -143,7 +152,7 @@ jobs:
         run: mvn -B package -DskipTests
 
       - name: 上传成品（Actions → 本运行 → Artifacts 下载）
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: houduan-backend-release
           path: houduan/target/*.jar
@@ -154,12 +163,14 @@ jobs:
     name: 发布 Release（tag）
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # 创建 GitHub Release 需要（最小权限，仅此 job）
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
       - name: 配置 JDK 17 + Maven 缓存
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3  # v4
         with:
           distribution: temurin
           java-version: '17'
@@ -174,7 +185,7 @@ jobs:
         run: mvn -B package -DskipTests
 
       - name: 发布 Release（附 jar）
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2
         with:
           files: houduan/target/*.jar
           generate_release_notes: true

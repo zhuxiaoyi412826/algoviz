@@ -41,6 +41,8 @@ __pycache__/
 # GitHub Actions workflow 必须提交（第21行 *.yml 会忽略它，这里取消忽略）
 !.github/workflows/build.yml
 !.github/workflows/docker.yml
+!.github/workflows/security-scan.yml
+!.github/dependabot.yml
 # docker-compose 不含密钥（密钥在 .env / application-docker.yml，已被忽略），允许提交
 !docker/docker-compose.yml
 

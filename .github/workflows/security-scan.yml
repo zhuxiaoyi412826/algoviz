@@ -1,0 +1,78 @@
+# ============================================================
+# 依赖漏洞定期审核（每月最后一个周六 18:00 北京时间）
+#
+# 触发设计（避免重复执行）：
+#  - cron '0 10 * * 6'：每周六 10:00 UTC = 18:00 北京时间
+#  - job 内判断：只有当月日 >= 25 的周六（= 本月最后一个周六）才真正扫描，
+#    其余周六直接跳过 → 每月实际只执行 1 次
+#  - 注意：不能直接用 '0 10 25-31 * 6'，POSIX cron 中日与星期是 OR 关系，
+#    会导致每月 25-31 每天 + 所有周六都触发（重复执行）
+#
+# 扫描内容：Trivy 文件系统扫描，仅关注 CRITICAL + HIGH 漏洞，
+# 结果上报 Code Scanning 页面；修复 PR 由 Dependabot security updates 负责
+# ============================================================
+name: 依赖漏洞定期审核
+
+on:
+  schedule:
+    - cron: '0 10 * * 6'      # 每周六 10:00 UTC = 18:00 北京时间
+  workflow_dispatch:           # 也支持手动触发
+
+permissions:
+  contents: read   # workflow 级只读；写权限在 job 内声明
+
+concurrency:
+  group: security-scan
+  cancel-in-progress: false    # 同一时间只允许一个运行（手动+定时撞车时排队，不重复并行）
+
+jobs:
+  security-scan:
+    name: Trivy 依赖漏洞扫描
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # 上报 SARIF 到 Code Scanning 需要
+    steps:
+      - name: 判断是否为本月最后一个周六（否则跳过，保证每月只执行一次）
+        id: check
+        shell: bash
+        run: |
+          DAY=$(date +%-d)   # 当天几号，去掉前导 0
+          if [ "$DAY" -ge 25 ]; then
+            echo "last_saturday=true" >> "$GITHUB_OUTPUT"
+            echo "今天是 $(date +%Y-%m-%d)，本月最后一个周六，开始漏洞审核"
+          else
+            echo "last_saturday=false" >> "$GITHUB_OUTPUT"
+            echo "今天 $(date +%Y-%m-%d) 不是本月最后一个周六，跳过扫描"
+          fi
+
+      - name: 检出代码
+        if: steps.check.outputs.last_saturday == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - name: Trivy 依赖漏洞扫描（pom / package-lock 等）
+        if: steps.check.outputs.last_saturday == 'true'
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1  # 0.35.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          # 只关注有害漏洞：critical + high
+          severity: 'CRITICAL,HIGH'
+
+      - name: 上报 Code Scanning（Security → Code scanning 查看告警）
+        if: steps.check.outputs.last_saturday == 'true'
+        uses: github/codeql-action/upload-sarif@fddeee1a7ece751b577e409a89057319e3172939  # v4
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: 扫描结果摘要
+        if: steps.check.outputs.last_saturday == 'true'
+        run: |
+          if [ -f trivy-results.sarif ]; then
+            echo "依赖漏洞审核完成，告警已上报：Security → Code scanning"
+            echo "修复 PR 由 Dependabot security updates 自动创建（需仓库设置开启）"
+          else
+            echo "未发现 CRITICAL/HIGH 级别依赖漏洞"
+          fi
