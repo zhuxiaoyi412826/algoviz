@@ -52,7 +52,7 @@ jobs:
         run: mvn -B test
 
       - name: 依赖安全扫描（Trivy 快速子集，结果上报 Code Scanning）
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -105,7 +105,7 @@ jobs:
           if-no-files-found: error
 
       - name: 依赖安全扫描（Trivy，结果上报 Code Scanning）
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
