@@ -19,8 +19,7 @@ on:
   workflow_dispatch:           # 也支持手动触发
 
 permissions:
-  contents: read
-  security-events: write       # 上报 SARIF 到 Code Scanning 需要
+  contents: read   # workflow 级只读；写权限在 job 内声明
 
 concurrency:
   group: security-scan
@@ -30,6 +29,9 @@ jobs:
   security-scan:
     name: Trivy 依赖漏洞扫描
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # 上报 SARIF 到 Code Scanning 需要
     steps:
       - name: 判断是否为本月最后一个周六（否则跳过，保证每月只执行一次）
         id: check
@@ -46,11 +48,11 @@ jobs:
 
       - name: 检出代码
         if: steps.check.outputs.last_saturday == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
       - name: Trivy 依赖漏洞扫描（pom / package-lock 等）
         if: steps.check.outputs.last_saturday == 'true'
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1  # 0.35.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -61,7 +63,7 @@ jobs:
 
       - name: 上报 Code Scanning（Security → Code scanning 查看告警）
         if: steps.check.outputs.last_saturday == 'true'
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@fddeee1a7ece751b577e409a89057319e3172939  # v4
         with:
           sarif_file: trivy-results.sarif
 
