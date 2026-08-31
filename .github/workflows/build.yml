@@ -17,6 +17,7 @@ on:
 permissions:
   contents: write   # 打 tag 时创建 Release
   packages: write
+  security-events: write   # 上报 SARIF（Trivy 结果）到 Code Scanning 需要
 
 concurrency:
   group: ci-${{ github.ref }}
