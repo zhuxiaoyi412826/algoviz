@@ -98,7 +98,7 @@ jobs:
         run: mvn -B package -DskipTests
 
       - name: 上传构建产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: houduan-backend-jar
           path: houduan/target/*.jar
@@ -143,7 +143,7 @@ jobs:
         run: mvn -B package -DskipTests
 
       - name: 上传成品（Actions → 本运行 → Artifacts 下载）
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: houduan-backend-release
           path: houduan/target/*.jar
