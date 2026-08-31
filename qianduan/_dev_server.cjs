@@ -31,7 +31,7 @@ const server = http.createServer((req, res) => {
   }
   fs.stat(filePath, (err, st) => {
     if (err || !st.isFile()) {
-      res.writeHead(404); return res.end('Not Found: ' + urlPath);
+      res.writeHead(404); return res.end('Not Found');   // 不反映用户控制的 urlPath，防反射型 XSS
     }
     const ext = path.extname(filePath).toLowerCase();
     res.writeHead(200, {
@@ -42,6 +42,6 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '127.0.0.1', () => {   // 本地联调服务器，仅本机访问
   console.log(`[qianduan] static server running at http://localhost:${PORT} (root=${ROOT})`);
 });
