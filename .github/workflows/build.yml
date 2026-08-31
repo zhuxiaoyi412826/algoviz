@@ -1,22 +1,33 @@
 # ============================================================
-# AlgoViz 后端 CI：编译 → 静态检测 → 单元测试 → 打包 jar → 上传产物 → 打 tag 发布 Release
-# 触发：仅 pull_request（push 不再触发 CI，减少无谓构建）
-# 发布：仅 push 到 v* 标签时触发 Release（需配合手动打 tag 推送）
+# AlgoViz 后端 CI 流水线（按事件分级，与开发流程模板对应）
+#
+#  1) push 到分支（非默认）→ 快速检查：静态检测 + 单元测试 + 依赖安全扫描（尽早反馈低级错误）
+#  2) pull_request       → 全面 CI：测试 + 打包 jar + 上传产物 + 安全扫描
+#  3) push 到默认分支    → 构建成品 jar（PR 合并后触发；不打 Docker 镜像）
+#  4) push v* 标签       → 发布 GitHub Release（附 jar 附件）
+#
+#  Docker 镜像构建不在 CI 自动触发，见 docker.yml（workflow_dispatch 手动）
 # ============================================================
 name: CI Build & Release
 
 on:
-  pull_request:  # 合并请求
+  push:            # 分支 push（含 PR 合并到 main、打 tag）
+  pull_request:    # 合并请求
 
 permissions:
-  contents: write   # 允许打 tag 时创建 Release（软著/版本发布用）
-  packages: write   # 允许推送/下载 ghcr.io 镜像与包
+  contents: write   # 打 tag 时创建 Release
+  packages: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
-    name: 编译·检测·测试·打包
+  # ============ 1) push 到分支：快速检查 ============
+  quick-check:
+    name: 快速检查（push 分支）
+    if: github.event_name == 'push' && github.ref_type == 'branch' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
-
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -25,40 +36,144 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'          # 项目 java.version = 17（Spring Boot 3.2）
+          java-version: '17'
           cache: maven
 
-      # houduan 依赖 com.algoviz:know-api:1.0.0（algo-common-api 公共模块），
-      # 必须先 install 到本地 Maven 仓库，houduan 才能编译
-      - name: 0) 构建公共模块（algo-common-api → know-api / know-qrdant）
+      - name: 构建公共模块（algo-common-api）
         working-directory: algo-common-api
         run: mvn -B -q install -DskipTests
 
-      # 静态检测：编译期即做类型/引用检查（如需更严格可换 SpotBugs/Checkstyle：
-      #   mvn -B com.github.spotbugs:spotbugs-maven-plugin:4.8.6.6:check）
-      - name: 1) 静态检测（编译检查）
+      - name: 静态检测（编译检查）
         working-directory: houduan
         run: mvn -B -q -DskipTests compile
 
-      - name: 2) 单元测试
+      - name: 单元测试
         working-directory: houduan
         run: mvn -B test
 
-      - name: 3) 打包 jar
+      - name: 依赖安全扫描（Trivy 快速子集，结果上报 Code Scanning）
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: 上传扫描结果
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+  # ============ 2) PR：全面 CI ============
+  full-ci:
+    name: 全面 CI（PR）
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 JDK 17 + Maven 缓存
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: 构建公共模块（algo-common-api）
+        working-directory: algo-common-api
+        run: mvn -B -q install -DskipTests
+
+      - name: 静态检测（编译检查）
+        working-directory: houduan
+        run: mvn -B -q -DskipTests compile
+
+      - name: 单元测试
+        working-directory: houduan
+        run: mvn -B test
+
+      - name: 打包 jar
         working-directory: houduan
         run: mvn -B package -DskipTests
 
-      - name: 4) 上传构建产物（push / PR / tag 均上传）
+      - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
           name: houduan-backend-jar
           path: houduan/target/*.jar
           if-no-files-found: error
 
-      # 仅打 tag（如 git tag v1.0.0 && git push --tags）时发布 GitHub Release；
-      # 普通 push 分支 / PR 到这一步直接跳过，不会创建 Release
-      - name: 5) 发布 Release（仅 tag 触发）
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: 依赖安全扫描（Trivy，结果上报 Code Scanning）
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: 上传扫描结果
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+  # ============ 3) push 到默认分支（PR 合并后）：构建成品 jar ============
+  build-artifact:
+    name: 构建成品（合并后）
+    if: github.event_name == 'push' && github.ref_type == 'branch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 JDK 17 + Maven 缓存
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: 构建公共模块（algo-common-api）
+        working-directory: algo-common-api
+        run: mvn -B -q install -DskipTests
+
+      - name: 打包成品 jar
+        working-directory: houduan
+        run: mvn -B package -DskipTests
+
+      - name: 上传成品（Actions → 本运行 → Artifacts 下载）
+        uses: actions/upload-artifact@v4
+        with:
+          name: houduan-backend-release
+          path: houduan/target/*.jar
+          if-no-files-found: error
+
+  # ============ 4) 打 tag：发布 Release ============
+  release:
+    name: 发布 Release（tag）
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 JDK 17 + Maven 缓存
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: 构建公共模块（algo-common-api）
+        working-directory: algo-common-api
+        run: mvn -B -q install -DskipTests
+
+      - name: 打包
+        working-directory: houduan
+        run: mvn -B package -DskipTests
+
+      - name: 发布 Release（附 jar）
         uses: softprops/action-gh-release@v2
         with:
           files: houduan/target/*.jar
