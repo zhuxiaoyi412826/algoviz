@@ -13,11 +13,17 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # ==================== 配置 ====================
-MYSQL_HOST = "localhost"
-MYSQL_PORT = 3306
-MYSQL_USER = "root"
-MYSQL_PASSWORD = "412826"
-MYSQL_DB = "algoviz"
+# 安全：数据库凭据必须从环境变量注入，禁止硬编码密码（S6437）
+MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
+MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
+MYSQL_USER = os.getenv("MYSQL_USER", "root")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")   # 密码必须由环境变量提供
+MYSQL_DB = os.getenv("MYSQL_DB", "algoviz")
+
+if not MYSQL_PASSWORD:
+    print("错误: 未设置 MYSQL_PASSWORD 环境变量，请先执行：")
+    print("    export MYSQL_PASSWORD=你的数据库密码")
+    sys.exit(1)
 
 CHROMA_PATH = "data/chroma_db"
 COLLECTION_NAME = "interview_problems"
