@@ -46,8 +46,18 @@ public class AuthInterceptor implements HandlerInterceptor {
                 Integer userId = Integer.parseInt(headerUid);
                 User user = userService.findById(userId);
                 if (user != null) {
+                    // 封禁(0)/注销(-1)/已删除(findById 已过滤) 一律拒绝
+                    String accountError = checkAccountActive(user);
+                    if (accountError != null) {
+                        writeUnauthorized(response, accountError, 40106);
+                        return false;
+                    }
                     HttpSession session = request.getSession(true);
                     session.setAttribute(SESSION_USER, user);
+                    // 自动登录 -> 标记在线(0)，仅离线时写库避免频繁 UPDATE
+                    if (user.getLoginStatus() == null || user.getLoginStatus() != 0) {
+                        userService.updateLoginStatus(userId, 0);
+                    }
                     logger.debug("X-User-Id Header认证通过，用户: {}", user.getUsername());
                     return true;
                 }
@@ -58,6 +68,16 @@ public class AuthInterceptor implements HandlerInterceptor {
         HttpSession session = request.getSession(false);
         if (session != null && session.getAttribute(SESSION_USER) != null) {
             User sessionUser = (User) session.getAttribute(SESSION_USER);
+            // 实时校验账号状态：登录后被封禁/注销/删除，立即失效（主键点查，开销可忽略）
+            User fresh = userService.findById(sessionUser.getId());
+            String accountError = checkAccountActive(fresh);
+            if (accountError != null) {
+                logger.info("账号状态异常，强制下线: userId={}, reason={}", sessionUser.getId(), accountError);
+                session.invalidate();
+                removeCookie(response, COOKIE_USER_ID);
+                writeUnauthorized(response, accountError, 40106);
+                return false;
+            }
             logger.debug("Session校验通过，用户: {}", sessionUser.getUsername());
             return true;
         }
@@ -89,6 +109,18 @@ public class AuthInterceptor implements HandlerInterceptor {
             return false;
         }
 
+        // 4. 账号状态校验：封禁(0)/注销(-1) 拒绝自动登录并清除凭证
+        String accountError = checkAccountActive(user);
+        if (accountError != null) {
+            logger.info("Cookie自动登录被拒，账号状态异常: userId={}, reason={}", userId, accountError);
+            removeCookie(response, COOKIE_USER_ID);
+            if (session != null) {
+                session.invalidate();
+            }
+            writeUnauthorized(response, accountError, 40106);
+            return false;
+        }
+
         // 4. 关键校验：最后登录时间 > 14 天，直接拒绝（防用户手动篡改Cookie有效期）
         LocalDateTime lastLoginAt = user.getLastLoginAt();
         if (lastLoginAt == null) {
@@ -114,6 +146,10 @@ public class AuthInterceptor implements HandlerInterceptor {
         logger.info("Cookie自动登录成功，用户: {}，距上次登录{}天", user.getUsername(), daysSinceLastLogin);
         HttpSession newSession = request.getSession(true);
         newSession.setAttribute(SESSION_USER, user);
+        // Cookie自动登录 -> 标记在线(0)，仅离线时写库避免频繁 UPDATE
+        if (user.getLoginStatus() == null || user.getLoginStatus() != 0) {
+            userService.updateLoginStatus(userId, 0);
+        }
         // 刷新 Cookie 的 4 天有效期（滑动过期）
         setCookie(response, COOKIE_USER_ID, String.valueOf(userId), COOKIE_MAX_AGE_DAYS_4);
 
@@ -129,6 +165,24 @@ public class AuthInterceptor implements HandlerInterceptor {
         System.out.println();
 
         return true;
+    }
+
+    /**
+     * 账号可用性校验：null 表示可用；否则返回拒绝原因
+     * is_deleted=1 在 findById 查询层已过滤（返回 null），这里只需判 status
+     */
+    private String checkAccountActive(User user) {
+        if (user == null) {
+            return "账号不存在，请重新登录";
+        }
+        Integer st = user.getStatus();
+        if (st != null && st == -1) {
+            return "账号已注销";
+        }
+        if (st != null && st == 0) {
+            return "账号已被禁用，请联系管理员";
+        }
+        return null;
     }
 
     /**

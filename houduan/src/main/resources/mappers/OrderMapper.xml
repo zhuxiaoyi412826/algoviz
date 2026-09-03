@@ -65,15 +65,15 @@
     </delete>
     
     <select id="getOrdersWithUserInfo" resultMap="OrderResultMap">
-        SELECT o.*, u.username, u.email 
-        FROM orders o LEFT JOIN user u ON o.user_id = u.id 
+        SELECT o.*, u.username, u.email
+        FROM orders o LEFT JOIN user u ON o.user_id = u.id AND u.is_deleted = 0
         ORDER BY o.create_time DESC
     </select>
     
     <select id="getOrdersByRefundStatus" resultMap="OrderResultMap">
-        SELECT o.*, u.username, u.email 
-        FROM orders o LEFT JOIN user u ON o.user_id = u.id 
-        WHERE o.refund_status = #{refundStatus} 
+        SELECT o.*, u.username, u.email
+        FROM orders o LEFT JOIN user u ON o.user_id = u.id AND u.is_deleted = 0
+        WHERE o.refund_status = #{refundStatus}
         ORDER BY o.create_time DESC
     </select>
     

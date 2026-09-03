@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -333,6 +333,151 @@
         .logout-btn:hover {
             background: #dc2626;
         }
+
+        /* 注销账号按钮（危险操作，描边样式与退出登录区分） */
+        .cancel-account-btn {
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            color: #dc2626;
+            border: 1px solid #dc2626;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 0.75rem;
+        }
+
+        .cancel-account-btn:hover {
+            background: #fef2f2;
+        }
+
+        /* 注销确认弹窗（固定浅色实色主题，保证深浅色模式下都清晰可读） */
+        #cancelAccountModal .modal-content {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        }
+
+        #cancelAccountModal .modal-header {
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        #cancelAccountModal .modal-close {
+            color: #6b7280;
+        }
+
+        .cancel-modal-body {
+            padding: 1.5rem;
+        }
+
+        .cancel-warning-box {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            border-radius: 8px;
+            padding: 0.9rem 1rem;
+            margin-bottom: 1.2rem;
+            color: #b91c1c;
+            font-size: 0.92rem;
+            line-height: 1.8;
+        }
+
+        .cancel-warning-box strong {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-size: 0.98rem;
+        }
+
+        .cancel-modal-body .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .cancel-modal-body label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #111827;
+        }
+
+        .cancel-modal-body input {
+            width: 100%;
+            padding: 0.7rem 0.85rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #1f2937;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+        }
+
+        .cancel-modal-body input::placeholder {
+            color: #9ca3af;
+        }
+
+        .cancel-modal-body input:focus {
+            outline: none;
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+        }
+
+        .cancel-tip {
+            font-size: 0.82rem;
+            color: #6b7280;
+            margin-top: 0.45rem;
+            line-height: 1.5;
+        }
+
+        .cancel-error {
+            color: #dc2626;
+            font-size: 0.88rem;
+            font-weight: 500;
+            margin-top: 0.5rem;
+            min-height: 1.2em;
+        }
+
+        .cancel-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            padding: 1rem 1.5rem 1.5rem;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        .cancel-modal-footer .btn-cancel {
+            padding: 0.65rem 1.5rem;
+            border: 1px solid #d1d5db;
+            background: #ffffff;
+            color: #374151;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .cancel-modal-footer .btn-cancel:hover {
+            background: #f9fafb;
+            border-color: #9ca3af;
+        }
+
+        .cancel-modal-footer .btn-confirm {
+            padding: 0.65rem 1.5rem;
+            background: #dc2626;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .cancel-modal-footer .btn-confirm:hover:not(:disabled) {
+            background: #b91c1c;
+        }
+
+        .cancel-modal-footer .btn-confirm:disabled {
+            background: #fca5a5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body onload="initTheme()">
@@ -470,6 +615,61 @@
         
         window.toggleTheme = toggleTheme;
         window.logout = logout;
+
+        // ========== 注销账号 ==========
+        function openCancelModal() {
+            document.getElementById('cancelError').textContent = '';
+            document.getElementById('cancelPassword').value = '';
+            document.getElementById('cancelAccountModal').style.display = 'flex';
+        }
+
+        function closeCancelModal() {
+            document.getElementById('cancelAccountModal').style.display = 'none';
+        }
+
+        async function confirmCancelAccount() {
+            var errEl = document.getElementById('cancelError');
+            var btn = document.getElementById('cancelConfirmBtn');
+            var password = document.getElementById('cancelPassword').value;
+
+            // 二次确认（弹窗内确认 + 原生 confirm 双保险）
+            if (!window.confirm('最后确认：注销后账号将永久无法登录，用户名/邮箱不可再注册，此操作不可恢复。确定继续吗？')) {
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '注销中...';
+            errEl.textContent = '';
+            try {
+                var API_BASE_URL = window.getApiBaseUrl();
+                var res = await fetch(API_BASE_URL + '/api/login/cancel-account', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: password })
+                });
+                var result = await res.json();
+                if (result.success) {
+                    localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('userAvatar');
+                    window.alert('账号已注销，即将返回首页');
+                    window.location.href = '../index.html';
+                } else {
+                    errEl.textContent = result.message || '注销失败';
+                    btn.disabled = false;
+                    btn.textContent = '确认注销';
+                }
+            } catch (e) {
+                console.error('注销账号失败:', e);
+                errEl.textContent = '网络异常，注销失败，请稍后重试';
+                btn.disabled = false;
+                btn.textContent = '确认注销';
+            }
+        }
+
+        window.openCancelModal = openCancelModal;
+        window.closeCancelModal = closeCancelModal;
+        window.confirmCancelAccount = confirmCancelAccount;
         
         function initTheme() {
             var saved = localStorage.getItem('algoviz-theme') || 'light';
@@ -707,6 +907,7 @@
                                     </div>
                                     <div class="profile-info-item">
                                         <button class="logout-btn" onclick="logout()">退出登录</button>
+                                        <button class="cancel-account-btn" onclick="openCancelModal()">注销账号</button>
                                     </div>
                                 </div>
                             </div>
@@ -877,9 +1078,9 @@
                                     <div class="form-group">
                                         <label class="form-label">性别</label>
                                         <select class="form-select">
-                                            <option value="male">男</option>
-                                            <option value="female">女</option>
-                                            <option value="other">其他</option>
+                                            <option value="1">男</option>
+                                            <option value="0">女</option>
+                                            <option value="">保密</option>
                                         </select>
                                     </div>
                                     <div class="form-group">
@@ -978,6 +1179,34 @@
                 </div>
                 <h4 style="margin-top: 2rem;">上传头像</h4>
                 <input type="file" id="avatarUpload" accept="image/*" onchange="uploadAvatar()" style="margin-top: 1rem;">
+            </div>
+        </div>
+    </div>
+
+    <!-- 注销账号确认弹窗 -->
+    <div class="modal" id="cancelAccountModal">
+        <div class="modal-content" style="max-width: 460px;">
+            <div class="modal-header">
+                <h3 class="modal-title" style="color:#dc2626;">⚠️ 注销账号</h3>
+                <button class="modal-close" onclick="closeCancelModal()">&times;</button>
+            </div>
+            <div class="cancel-modal-body">
+                <div class="cancel-warning-box">
+                    <strong>注销后将产生以下后果，且不可恢复：</strong>
+                    1. 账号将无法登录（含用户名、邮箱、微信扫码）；<br>
+                    2. 用户名和邮箱将被永久占用，无法重新注册；<br>
+                    3. 账号数据将保留用于审计，但在前台不再可见。
+                </div>
+                <div class="form-group">
+                    <label for="cancelPassword">请输入登录密码以确认注销</label>
+                    <input type="password" id="cancelPassword" placeholder="输入当前账号的登录密码" autocomplete="off">
+                    <div class="cancel-tip">微信注册且未设置密码的账号，保持密码框为空即可直接确认</div>
+                </div>
+                <div class="cancel-error" id="cancelError"></div>
+            </div>
+            <div class="cancel-modal-footer">
+                <button class="btn-cancel" onclick="closeCancelModal()">再想想</button>
+                <button class="btn-confirm" id="cancelConfirmBtn" onclick="confirmCancelAccount()">确认注销</button>
             </div>
         </div>
     </div>

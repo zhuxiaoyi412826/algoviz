@@ -77,6 +77,9 @@ public class LoginController {
                         String.valueOf(userId),
                         AuthInterceptor.COOKIE_MAX_AGE_DAYS_4);
 
+                // 登录成功 -> 标记在线(0)
+                userService.updateLoginStatus(userId, 0);
+
                 System.out.println();
                 System.out.println("╔══════════════════════════════════════════════════════════╗");
                 System.out.println("║            🔑  账号密码登录成功                          ║");
@@ -175,6 +178,19 @@ public class LoginController {
         User user = userService.findByEmail(email.trim());
 
         if (user == null) {
+            // 墓碑账号拦截：已逻辑删除/注销的邮箱不可自动注册（用户名/邮箱永久占用）
+            User tombstone = userService.findByEmailIncludeDeleted(email.trim());
+            if (tombstone != null) {
+                loginResponse.setSuccess(false);
+                if (tombstone.getIsDeleted() != null && tombstone.getIsDeleted() == 1) {
+                    loginResponse.setMessage("账号不存在");
+                } else if (tombstone.getStatus() != null && tombstone.getStatus() == -1) {
+                    loginResponse.setMessage("账号已注销");
+                } else {
+                    loginResponse.setMessage("账号异常，请联系管理员");
+                }
+                return loginResponse;
+            }
             // 新用户自动注册，用户名为 邮箱-01, 邮箱-02, ...
             String baseUsername = email.trim().split("@")[0];
             String username = generateUniqueUsername(baseUsername);
@@ -185,7 +201,7 @@ public class LoginController {
             user.setPassword(PasswordEncoderUtil.md5Encode("email_auto_register"));
             user.setNickname(username);
             user.setStatus(1);
-            user.setLoginStatus("offline");
+            user.setLoginStatus(1);   // 新用户默认离线（登录成功即置0在线）
             user.setCoins(1000);
             user.setCreatedAt(LocalDateTime.now());
             user.setUpdatedAt(LocalDateTime.now());
@@ -202,6 +218,12 @@ public class LoginController {
             System.out.println("╚══════════════════════════════════════════════════════════╝");
             System.out.println();
         } else {
+            // 状态校验：注销(-1) / 封禁(0) 禁止登录
+            if (user.getStatus() != null && user.getStatus() == -1) {
+                loginResponse.setSuccess(false);
+                loginResponse.setMessage("账号已注销");
+                return loginResponse;
+            }
             if (user.getStatus() != null && user.getStatus() == 0) {
                 loginResponse.setSuccess(false);
                 loginResponse.setMessage("账号已被禁用，请联系管理员");
@@ -219,6 +241,9 @@ public class LoginController {
                 AuthInterceptor.COOKIE_USER_ID,
                 String.valueOf(user.getId()),
                 AuthInterceptor.COOKIE_MAX_AGE_DAYS_4);
+
+        // 登录成功 -> 标记在线(0)
+        userService.updateLoginStatus(user.getId(), 0);
 
         loginResponse.setSuccess(true);
         loginResponse.setMessage("登录成功");
@@ -242,7 +267,8 @@ public class LoginController {
         do {
             username = base + "-" + String.format("%02d", counter);
             counter++;
-        } while (userService.findByUsername(username) != null);
+            // 含已删除/注销账号查重，避免撞唯一索引
+        } while (userService.findByUsernameIncludeDeleted(username) != null);
         return username;
     }
 
@@ -262,6 +288,9 @@ public class LoginController {
             Integer userId = loginResponse.getUserInfo().getId();
             User user = userService.findById(userId);
             if (user != null) {
+                // 微信扫码登录成功 -> 标记在线(0)
+                userService.updateLoginStatus(userId, 0);
+
                 if (user.getLastLoginAt() == null) {
                     user.setLastLoginAt(LocalDateTime.now());
                 }
@@ -300,6 +329,9 @@ public class LoginController {
             Integer userId = loginResponse.getUserInfo().getId();
             User user = userService.findById(userId);
             if (user != null) {
+                // 邮箱密码登录成功 -> 标记在线(0)
+                userService.updateLoginStatus(userId, 0);
+
                 if (user.getLastLoginAt() == null) {
                     user.setLastLoginAt(LocalDateTime.now());
                 }
@@ -359,14 +391,14 @@ public class LoginController {
             return result;
         }
 
-        User existingUser = userService.findByUsername(username);
+        User existingUser = userService.findByUsernameIncludeDeleted(username);
         if (existingUser != null) {
             result.put("success", false);
             result.put("message", "用户名已存在");
             return result;
         }
 
-        User existingEmail = userService.findByEmail(email);
+        User existingEmail = userService.findByEmailIncludeDeleted(email);
         if (existingEmail != null) {
             result.put("success", false);
             result.put("message", "邮箱已被注册");
@@ -380,7 +412,7 @@ public class LoginController {
             newUser.setPassword(PasswordEncoderUtil.bcryptEncode(password));
             newUser.setNickname(username.trim());
             newUser.setStatus(1);
-            newUser.setLoginStatus("offline");
+            newUser.setLoginStatus(1);   // 新用户默认离线
             newUser.setCoins(1000);
             newUser.setCreatedAt(LocalDateTime.now());
             newUser.setUpdatedAt(LocalDateTime.now());
@@ -413,11 +445,90 @@ public class LoginController {
         Map<String, Object> result = new HashMap<>();
         HttpSession session = request.getSession(false);
         if (session != null) {
+            // 登出 -> 标记离线(1)
+            Object loginUser = session.getAttribute(AuthInterceptor.SESSION_USER);
+            if (loginUser instanceof User) {
+                Integer uid = ((User) loginUser).getId();
+                if (uid != null) {
+                    userService.updateLoginStatus(uid, 1);
+                }
+            }
             session.invalidate();
         }
         AuthInterceptor.removeCookie(response, AuthInterceptor.COOKIE_USER_ID);
         result.put("success", true);
         result.put("message", "登出成功");
+        return result;
+    }
+
+    @PostMapping("/cancel-account")
+    @Operation(summary = "注销账号", description = "已登录用户申请注销：校验密码后置 status=-1（数据保留、后台可见），强制下线；用户名/邮箱永久不可再注册")
+    public Map<String, Object> cancelAccount(@RequestBody Map<String, String> body,
+                                             HttpServletRequest request,
+                                             HttpServletResponse response) {
+        Map<String, Object> result = new HashMap<>();
+
+        // 1. 获取当前登录用户（Session → Cookie）
+        HttpSession session = request.getSession(false);
+        User user = null;
+        if (session != null) {
+            Object attr = session.getAttribute(AuthInterceptor.SESSION_USER);
+            if (attr instanceof User) {
+                user = (User) attr;
+            }
+        }
+        if (user == null) {
+            String uid = AuthInterceptor.getCookieValue(request, AuthInterceptor.COOKIE_USER_ID);
+            if (uid != null) {
+                try {
+                    user = userService.findById(Integer.parseInt(uid));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (user == null) {
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+
+        // 2. 二次身份校验：有密码的账号必须验密码；微信注册账号（密码为空）登录态即身份
+        User dbUser = userService.findById(user.getId());
+        if (dbUser == null) {
+            result.put("success", false);
+            result.put("message", "用户不存在");
+            return result;
+        }
+        if (dbUser.getStatus() != null && dbUser.getStatus() == -1) {
+            result.put("success", false);
+            result.put("message", "账号已注销");
+            return result;
+        }
+        String password = body.get("password");
+        if (dbUser.getPassword() != null && !dbUser.getPassword().isEmpty()) {
+            if (password == null || password.trim().isEmpty()) {
+                result.put("success", false);
+                result.put("message", "请输入登录密码以确认注销");
+                return result;
+            }
+            if (!PasswordEncoderUtil.autoMatches(password, dbUser.getPassword())) {
+                result.put("success", false);
+                result.put("message", "密码错误，注销已取消");
+                return result;
+            }
+        }
+
+        // 3. 执行注销：status=-1 且强制下线（数据保留，后台用户管理仍可见）
+        userService.cancelAccount(user.getId());
+        logger.warn("用户注销账号: userId={}, username={}", user.getId(), user.getUsername());
+
+        // 4. 销毁会话与 Cookie（与改密踢下线一致）
+        if (session != null) {
+            session.invalidate();
+        }
+        AuthInterceptor.removeCookie(response, AuthInterceptor.COOKIE_USER_ID);
+
+        result.put("success", true);
+        result.put("message", "账号已注销");
         return result;
     }
 
@@ -572,7 +683,8 @@ public class LoginController {
             }
         }
 
-        // 9. 销毁 session，强制重新登录
+        // 9. 销毁 session，强制重新登录（改密踢下线 -> 标记离线）
+        userService.updateLoginStatus(user.getId(), 1);
         if (session != null) {
             session.invalidate();
         }

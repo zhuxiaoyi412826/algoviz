@@ -37,9 +37,9 @@ public class UserManagementController {
     @Operation(summary = "获取用户列表", description = "分页获取用户列表，支持关键词搜索、性别/账号状态/登录状态筛选、注册时间排序")
     public Map<String, Object> getUsers(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String gender,
-            @RequestParam(required = false) Integer status,
-            @RequestParam(required = false) String loginStatus,
+            @RequestParam(required = false) Integer gender,      // 1=男 0=女
+            @RequestParam(required = false) Integer status,      // 1=正常 0=封禁 -1=注销
+            @RequestParam(required = false) Integer loginStatus,   // 0=在线 1=离线
             @RequestParam(required = false, defaultValue = "desc") String order,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "100") int pageSize) {
@@ -91,15 +91,15 @@ public class UserManagementController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            // 检查用户名是否已存在
-            if (userService.findByUsername(user.getUsername()) != null) {
+            // 检查用户名是否已存在（含已逻辑删除/注销账号，用户名永久占用）
+            if (userService.findByUsernameIncludeDeleted(user.getUsername()) != null) {
                 result.put("success", false);
                 result.put("message", "用户名已存在");
                 return result;
             }
             
-            // 检查邮箱是否已存在
-            if (userService.findByEmail(user.getEmail()) != null) {
+            // 检查邮箱是否已存在（同上，含已删除/注销）
+            if (userService.findByEmailIncludeDeleted(user.getEmail()) != null) {
                 result.put("success", false);
                 result.put("message", "邮箱已被使用");
                 return result;
@@ -133,6 +133,15 @@ public class UserManagementController {
             }
             
             user.setId(id);
+            // 字段保护：is_deleted / login_status 只能通过专用接口修改；
+            // status 普通编辑仅允许 1(正常)/0(封禁)，注销(-1) 只能由用户本人走注销流程；
+            // phone 为预留字段，前端暂无编辑入口，保留原值防误清空
+            user.setIsDeleted(existingUser.getIsDeleted());
+            user.setLoginStatus(existingUser.getLoginStatus());
+            user.setPhone(existingUser.getPhone());
+            if (user.getStatus() == null || (user.getStatus() != 0 && user.getStatus() != 1)) {
+                user.setStatus(existingUser.getStatus());
+            }
             userService.updateUser(user);
             result.put("success", true);
             result.put("message", "用户更新成功");
