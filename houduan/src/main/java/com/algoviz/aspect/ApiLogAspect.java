@@ -42,7 +42,8 @@ public class ApiLogAspect {
         String apiPath = request != null ? request.getRequestURI() : "";
         String httpMethod = request != null ? request.getMethod() : "";
         String clientIp = request != null ? getClientIp(request) : "";
-        String userId = request != null ? request.getHeader("X-User-Id") : null;
+        // 登录态取号优先级：① 后台 Sa-Token 会话 → ② 前台 Session(LOGIN_USER) → ③ 旧 X-User-Id 头(兜底)
+        String userId = resolveUserId(request);
         
         Object[] args = joinPoint.getArgs();
         String requestBody = "";
@@ -81,8 +82,18 @@ public class ApiLogAspect {
         } finally {
             long responseTime = System.currentTimeMillis() - startTime;
             
+            // 记录响应体（Controller 返回对象序列化；异常时无响应体）
+            String responseBody = null;
+            if (result != null) {
+                try {
+                    responseBody = objectMapper.writeValueAsString(result);
+                } catch (Exception e) {
+                    responseBody = "Cannot serialize response body";
+                }
+            }
             apiLog.setStatusCode(statusCode);
             apiLog.setResponseTime(responseTime);
+            apiLog.setResponseBody(truncate(responseBody, 2000));
             apiLog.setErrorMessage(truncate(errorMessage, 500));
             apiLog.setCreateTime(java.time.LocalDateTime.now().toString());
 
@@ -92,6 +103,41 @@ public class ApiLogAspect {
                 logger.error("Failed to save API log", e);
             }
         }
+    }
+
+    /**
+     * 解析当前登录用户 ID：
+     *  ① 后台 Sa-Token 会话（反射调用，避免硬依赖）
+     *  ② 前台 Session 中的 LOGIN_USER（AuthInterceptor 写入的 User 对象）
+     *  ③ 旧 X-User-Id 请求头（兼容历史联调）
+     */
+    private String resolveUserId(HttpServletRequest request) {
+        // ① 后台 Sa-Token
+        try {
+            Class<?> saClz = Class.forName("cn.dev33.satoken.stp.StpUtil");
+            Object id = saClz.getMethod("getLoginIdAsStringDefaultNull").invoke(null);
+            if (id != null && !id.toString().isEmpty()) {
+                return id.toString();
+            }
+        } catch (Exception ignored) {
+            // Sa-Token 未登录或依赖缺失，忽略
+        }
+        // ② 前台 Session
+        if (request != null) {
+            try {
+                jakarta.servlet.http.HttpSession session = request.getSession(false);
+                if (session != null) {
+                    Object loginUser = session.getAttribute(com.algoviz.config.AuthInterceptor.SESSION_USER);
+                    if (loginUser instanceof com.algoviz.entity.User user && user.getId() != null) {
+                        return String.valueOf(user.getId());
+                    }
+                }
+            } catch (Exception ignored) {
+                // 会话无效，忽略
+            }
+        }
+        // ③ 旧请求头兜底
+        return request != null ? request.getHeader("X-User-Id") : null;
     }
 
     private String getClientIp(HttpServletRequest request) {

@@ -21,7 +21,7 @@ public interface DashboardMapper {
             "IFNULL(SUM(ds_visits), 0) AS dsVisits, " +
             "IFNULL(SUM(algo_visits), 0) AS algoVisits, " +
             "IFNULL(SUM(oj_visits), 0) AS ojVisits " +
-            "FROM user")
+            "FROM user WHERE is_deleted = 0")
     Map<String, Object> getUserStats();
 
     /**

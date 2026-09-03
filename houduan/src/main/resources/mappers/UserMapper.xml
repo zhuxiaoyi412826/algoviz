@@ -4,30 +4,41 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.algoviz.mapper.UserMapper">
+    <!-- 业务查询：仅返回未逻辑删除的用户 -->
     <select id="findByUsername" resultType="com.algoviz.entity.User">
-        SELECT * FROM user WHERE username = #{username}
+        SELECT * FROM user WHERE username = #{username} AND is_deleted = 0
     </select>
 
     <select id="findByEmail" resultType="com.algoviz.entity.User">
-        SELECT * FROM user WHERE email = #{email}
+        SELECT * FROM user WHERE email = #{email} AND is_deleted = 0
+    </select>
+
+    <!-- 注册查重专用：含已逻辑删除/注销账号，用户名/邮箱永久占用不可复用 -->
+    <select id="findByUsernameIncludeDeleted" resultType="com.algoviz.entity.User">
+        SELECT * FROM user WHERE username = #{username} LIMIT 1
+    </select>
+
+    <select id="findByEmailIncludeDeleted" resultType="com.algoviz.entity.User">
+        SELECT * FROM user WHERE email = #{email} LIMIT 1
     </select>
 
     <insert id="insert" parameterType="com.algoviz.entity.User" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO user (username, email, password, age, gender, nickname, avatar_url, login_status, status, coins, created_at, updated_at, last_login_at)
-        VALUES (#{username}, #{email}, #{password}, #{age}, #{gender}, #{nickname}, #{avatarUrl}, #{loginStatus}, #{status},
+        INSERT INTO user (username, email, phone, password, age, gender, nickname, avatar_url, login_status, status, is_deleted, coins, created_at, updated_at, last_login_at)
+        VALUES (#{username}, #{email}, #{phone}, #{password}, #{age}, #{gender}, #{nickname}, #{avatarUrl}, #{loginStatus}, #{status}, 0,
                 <choose><when test="coins != null">#{coins}</when><otherwise>1000</otherwise></choose>,
                 #{createdAt}, #{updatedAt}, #{lastLoginAt})
     </insert>
 
+    <!-- 普通更新不包含 is_deleted / login_status，状态字段只能通过专用接口修改，防前端篡改 -->
     <update id="update" parameterType="com.algoviz.entity.User">
         UPDATE user
-        SET username = #{username}, email = #{email}, password = #{password}, age = #{age},
+        SET username = #{username}, email = #{email}, phone = #{phone}, password = #{password}, age = #{age},
             gender = #{gender}, nickname = #{nickname}, avatar_url = #{avatarUrl},
-            login_status = #{loginStatus}, status = #{status}, updated_at = #{updatedAt}
-        WHERE id = #{id}
+            status = #{status}, updated_at = #{updatedAt}
+        WHERE id = #{id} AND is_deleted = 0
     </update>
 
     <update id="updateLastLoginAt">
-        UPDATE user SET last_login_at = CURRENT_TIMESTAMP WHERE id = #{id}
+        UPDATE user SET last_login_at = CURRENT_TIMESTAMP WHERE id = #{id} AND is_deleted = 0
     </update>
 </mapper>

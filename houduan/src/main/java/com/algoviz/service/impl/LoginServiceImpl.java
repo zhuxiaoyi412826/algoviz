@@ -79,19 +79,43 @@ public class LoginServiceImpl implements LoginService {
         User user = userService.findByUsername(openId);
 
         if (user == null) {
+            // 含已逻辑删除/注销账号也要拦截：防止唯一索引冲突，且墓碑账号不可恢复登录
+            User tombstone = userService.findByUsernameIncludeDeleted(openId);
+            if (tombstone != null) {
+                response.setSuccess(false);
+                if (tombstone.getIsDeleted() != null && tombstone.getIsDeleted() == 1) {
+                    response.setMessage("账号不存在");
+                } else if (tombstone.getStatus() != null && tombstone.getStatus() == -1) {
+                    response.setMessage("账号已注销");
+                } else if (tombstone.getStatus() != null && tombstone.getStatus() == 0) {
+                    response.setMessage("账号已被禁用，请联系管理员");
+                } else {
+                    response.setMessage("账号异常，请联系管理员");
+                }
+                verificationCodes.remove(code);
+                return response;
+            }
             // 创建新用户
             user = new User();
             user.setUsername(openId);
             user.setEmail(openId + "@example.com");
             user.setPassword(""); // 微信登录不需要密码
             user.setAge(null);
-            user.setGender("未知");
-            user.setLoginStatus("offline");
+            user.setGender(null);   // 性别未知（1=男 0=女）
+            user.setLoginStatus(1);   // 新用户默认离线（扫码登录成功即置0在线）
             user.setStatus(1);
             user.setAvatarUrl("https://i.pravatar.cc/150?u=" + System.currentTimeMillis());
             user.setNickname("微信用户" + new Random().nextInt(10000));
             user = userService.createUser(user);
         } else {
+            // 状态校验：注销/封禁禁止登录
+            String statusError = checkAccountStatus(user);
+            if (statusError != null) {
+                response.setSuccess(false);
+                response.setMessage(statusError);
+                verificationCodes.remove(code);
+                return response;
+            }
             // 更新最后登录时间
             userService.updateLastLogin(user.getId());
         }
@@ -119,6 +143,22 @@ public class LoginServiceImpl implements LoginService {
     }
 
     /**
+     * 账号状态校验：返回 null 表示可登录，否则返回拒绝原因
+     * status: 1=正常 0=封禁 -1=注销（is_deleted=1 的账号在查询层已被过滤）
+     */
+    private String checkAccountStatus(User user) {
+        if (user == null) return null;
+        Integer st = user.getStatus();
+        if (st != null && st == -1) {
+            return "账号已注销";
+        }
+        if (st != null && st == 0) {
+            return "账号已被禁用，请联系管理员";
+        }
+        return null;
+    }
+
+    /**
      * 密码升级：若用户密码仍为弱算法（MD5/明文）存储，登录成功后自动重哈希为 BCrypt（平滑迁移）
      */
     private void upgradePasswordIfNeeded(User user, String rawPassword) {
@@ -132,6 +172,24 @@ public class LoginServiceImpl implements LoginService {
             user.setPassword(newHash);
             logger.info("用户 {} 密码已从弱算法升级为 BCrypt", user.getUsername());
         }
+    }
+
+    /**
+     * 密码校验 + 弱算法升级（登录用）：
+     *  ① 标准哈希（Argon2id / BCrypt / MD5）→ autoMatches 校验
+     *  ② 历史明文存储 → equals 兼容一次并记录告警
+     *  校验通过即触发弱算法升级（MD5/明文→BCrypt），避免"明文账号永远登不进、升不了级"的死锁。
+     */
+    private boolean checkPasswordWithLegacyUpgrade(User user, String rawPassword) {
+        boolean pwOk = PasswordEncoderUtil.autoMatches(rawPassword, user.getPassword());
+        if (!pwOk && rawPassword.equals(user.getPassword())) {
+            logger.warn("用户 {} 使用明文密码登录成功（历史遗留数据），已触发 BCrypt 升级", user.getUsername());
+            pwOk = true;
+        }
+        if (pwOk) {
+            upgradePasswordIfNeeded(user, rawPassword);
+        }
+        return pwOk;
     }
 
     @Override
@@ -171,22 +229,19 @@ public class LoginServiceImpl implements LoginService {
         // 以用户实体 username（规范化值）作为真实锁标识
         final String lockId = user.getUsername();
 
-        // 3) 校验密码：自动探测存储算法（Argon2id / BCrypt / MD5），不再支持明文比对
-        boolean pwOk = PasswordEncoderUtil.autoMatches(password, user.getPassword());
-        if (!pwOk) {
+        // 3) 校验密码：自动探测存储算法（Argon2id/BCrypt/MD5）；历史明文账号兼容一次并自动升级
+        if (!checkPasswordWithLegacyUpgrade(user, password)) {
             loginLockService.recordFailure(LoginLockService.LoginLockType.USER, lockId);
             response.setSuccess(false);
             response.setMessage("用户不存在或密码错误");
             return response;
         }
 
-        // 3.1) 密码升级：若存储为弱算法（MD5），登录成功后自动重哈希为 BCrypt（平滑迁移）
-        upgradePasswordIfNeeded(user, password);
-
-        // 4) 检查用户状态
-        if (user.getStatus() != null && user.getStatus() == 0) {
+        // 4) 检查用户状态：注销(-1) / 封禁(0)
+        String statusError = checkAccountStatus(user);
+        if (statusError != null) {
             response.setSuccess(false);
-            response.setMessage("账号已被禁用，请联系管理员");
+            response.setMessage(statusError);
             return response;
         }
 
@@ -255,22 +310,19 @@ public class LoginServiceImpl implements LoginService {
             return response;
         }
 
-        // 3) 校验密码：自动探测存储算法（Argon2id / BCrypt / MD5），不再支持明文比对
-        boolean pwOk = PasswordEncoderUtil.autoMatches(password, user.getPassword());
-        if (!pwOk) {
+        // 3) 校验密码：自动探测存储算法（Argon2id/BCrypt/MD5）；历史明文账号兼容一次并自动升级
+        if (!checkPasswordWithLegacyUpgrade(user, password)) {
             loginLockService.recordFailure(LoginLockService.LoginLockType.USER, lockId);
             response.setSuccess(false);
             response.setMessage("邮箱未注册或密码错误");
             return response;
         }
 
-        // 3.1) 密码升级：若存储为弱算法（MD5），登录成功后自动重哈希为 BCrypt（平滑迁移）
-        upgradePasswordIfNeeded(user, password);
-
-        // 4) 账号禁用
-        if (user.getStatus() != null && user.getStatus() == 0) {
+        // 4) 账号状态校验：注销(-1) / 封禁(0)
+        String statusError = checkAccountStatus(user);
+        if (statusError != null) {
             response.setSuccess(false);
-            response.setMessage("账号已被禁用，请联系管理员");
+            response.setMessage(statusError);
             return response;
         }
 

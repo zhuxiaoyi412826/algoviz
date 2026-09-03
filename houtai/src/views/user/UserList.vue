@@ -9,10 +9,10 @@ interface User {
   username: string
   email: string
   age: number | null
-  gender: string
+  gender: number | null
   nickname: string
   avatarUrl: string
-  loginStatus: string
+  loginStatus: number
   status: number
   createdAt: string
   updatedAt: string
@@ -42,7 +42,7 @@ const syncScroll = (source: 'top' | 'bottom') => {
   syncing = false
 }
 
-const searchForm = reactive({ keyword: '', gender: '', status: '' as string, loginStatus: '', order: 'desc' })
+const searchForm = reactive({ keyword: '', gender: '' as string | number, status: '' as string | number, loginStatus: '' as string | number, order: 'desc' })
 const page = ref(1); const pageSize = ref(100); const total = ref(0)
 
 onMounted(() => loadData())
@@ -56,9 +56,9 @@ const loadData = async () => {
   try {
     const params: any = {}
     if (searchForm.keyword) params.keyword = searchForm.keyword
-    if (searchForm.gender) params.gender = searchForm.gender
-    if (searchForm.status != null && searchForm.status !== '') params.status = String(searchForm.status)
-    if (searchForm.loginStatus) params.loginStatus = searchForm.loginStatus
+    if (searchForm.gender !== '' && searchForm.gender != null) params.gender = searchForm.gender
+    if (searchForm.status !== '' && searchForm.status != null) params.status = searchForm.status
+    if (searchForm.loginStatus !== '' && searchForm.loginStatus != null) params.loginStatus = searchForm.loginStatus
     if (searchForm.order) params.order = searchForm.order
     params.page = String(page.value)
     params.pageSize = String(pageSize.value)
@@ -71,10 +71,10 @@ const loadData = async () => {
         username: item.username,
         email: item.email,
         age: item.age,
-        gender: item.gender || '未知',
+        gender: item.gender == null ? null : item.gender,
         nickname: item.nickname || item.username,
         avatarUrl: item.avatarUrl || '',
-        loginStatus: item.loginStatus || 'offline',
+        loginStatus: item.loginStatus ?? 1,
         status: item.status != null ? item.status : 1,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
@@ -120,6 +120,12 @@ const handleView = (row: User) => {
   detailVisible.value = true 
 }
 
+// 性别：1=男 0=女 null=未知
+const genderText = (g: number | null | undefined) => (g === 1 ? '男' : g === 0 ? '女' : '未知')
+// 账号状态：1=正常 0=封禁 -1=注销
+const statusText = (s: number) => (s === 1 ? '正常' : s === 0 ? '封禁' : '注销')
+const statusTagType = (s: number): 'success' | 'danger' | 'info' => (s === 1 ? 'success' : s === 0 ? 'danger' : 'info')
+
 const handleEdit = (row: User) => {
   editUser.value = row
   editStatus.value = row.status
@@ -145,7 +151,7 @@ const handleSaveEdit = async () => {
 
 const handleDelete = async (row: User) => {
   try {
-    await ElMessageBox.confirm('确定要删除该用户吗？', '提示', { type: 'warning' })
+    await ElMessageBox.confirm('删除后该用户数据将保留但不可见、不可登录，且用户名/邮箱永久不可再注册。确定删除吗？', '逻辑删除确认', { type: 'warning' })
 
     const data: any = await request.delete(`/users/${row.id}`)
 
@@ -190,16 +196,17 @@ const handleExport = async () => {
       <div class="filter-bar">
         <el-input v-model="searchForm.keyword" placeholder="用户名/邮箱" clearable style="width:180px" @keyup.enter="handleSearch" />
         <el-select v-model="searchForm.gender" placeholder="性别" clearable style="width:120px">
-          <el-option label="男" value="男" />
-          <el-option label="女" value="女" />
+          <el-option label="男" :value="1" />
+          <el-option label="女" :value="0" />
         </el-select>
         <el-select v-model="searchForm.status" placeholder="账号状态" clearable style="width:130px">
-          <el-option label="正常" value="1" />
-          <el-option label="封禁" value="0" />
+          <el-option label="正常" :value="1" />
+          <el-option label="封禁" :value="0" />
+          <el-option label="注销" :value="-1" />
         </el-select>
         <el-select v-model="searchForm.loginStatus" placeholder="登录状态" clearable style="width:130px">
-          <el-option label="在线" value="online" />
-          <el-option label="离线" value="offline" />
+          <el-option label="在线" :value="0" />
+          <el-option label="离线" :value="1" />
         </el-select>
         <el-select v-model="searchForm.order" placeholder="注册时间" style="width:140px">
           <el-option label="注册时间倒序" value="desc" />
@@ -230,18 +237,20 @@ const handleExport = async () => {
         <el-table-column prop="age" label="年龄" width="70">
           <template #default="{row}">{{ row.age != null ? row.age : '-' }}</template>
         </el-table-column>
-        <el-table-column prop="gender" label="性别" width="70" />
+        <el-table-column prop="gender" label="性别" width="70">
+          <template #default="{row}">{{ genderText(row.gender) }}</template>
+        </el-table-column>
         <el-table-column label="登录状态" width="90">
           <template #default="{row}">
-            <el-tag :type="row.loginStatus === 'online' ? 'success' : 'info'" size="small">
-              {{ row.loginStatus === 'online' ? '在线' : '离线' }}
+            <el-tag :type="row.loginStatus === 0 ? 'success' : 'info'" size="small">
+              {{ row.loginStatus === 0 ? '在线' : '离线' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="账号状态" width="90">
           <template #default="{row}">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-              {{ row.status === 1 ? '正常' : '封禁' }}
+            <el-tag :type="statusTagType(row.status)" size="small">
+              {{ statusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -274,19 +283,19 @@ const handleExport = async () => {
         <el-descriptions-item label="用户名">{{ currentUser.username }}</el-descriptions-item>
         <el-descriptions-item label="昵称">{{ currentUser.nickname }}</el-descriptions-item>
         <el-descriptions-item label="邮箱">{{ currentUser.email }}</el-descriptions-item>
-        <el-descriptions-item label="性别">{{ currentUser.gender }}</el-descriptions-item>
+        <el-descriptions-item label="性别">{{ genderText(currentUser.gender) }}</el-descriptions-item>
         <el-descriptions-item label="年龄">{{ currentUser.age != null ? currentUser.age : '-' }}</el-descriptions-item>
         <el-descriptions-item label="头像">
           <el-avatar :size="40" :src="currentUser.avatarUrl" icon="User" />
         </el-descriptions-item>
         <el-descriptions-item label="登录状态">
-          <el-tag :type="currentUser.loginStatus === 'online' ? 'success' : 'info'" size="small">
-            {{ currentUser.loginStatus === 'online' ? '在线' : '离线' }}
+          <el-tag :type="currentUser.loginStatus === 0 ? 'success' : 'info'" size="small">
+            {{ currentUser.loginStatus === 0 ? '在线' : '离线' }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="账号状态">
-          <el-tag :type="currentUser.status === 1 ? 'success' : 'danger'" size="small">
-            {{ currentUser.status === 1 ? '正常' : '封禁' }}
+          <el-tag :type="statusTagType(currentUser.status)" size="small">
+            {{ statusText(currentUser.status) }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ currentUser.createdAt }}</el-descriptions-item>
@@ -301,9 +310,12 @@ const handleExport = async () => {
           <el-descriptions-item label="用户名">{{ editUser.username }}</el-descriptions-item>
           <el-descriptions-item label="昵称">{{ editUser.nickname }}</el-descriptions-item>
           <el-descriptions-item label="邮箱">{{ editUser.email }}</el-descriptions-item>
-          <el-descriptions-item label="性别">{{ editUser.gender }}</el-descriptions-item>
+          <el-descriptions-item label="性别">{{ genderText(editUser.gender) }}</el-descriptions-item>
         </el-descriptions>
-        <div style="margin-top:18px">
+        <div v-if="editUser.status === -1" style="margin-top:14px;color:#e6a23c;font-size:13px">
+          该账号已由用户本人注销，状态不可变更
+        </div>
+        <div v-else style="margin-top:18px">
           <div style="font-weight:600;margin-bottom:8px">账号状态 <span style="color:#f56c6c">*</span></div>
           <el-radio-group v-model="editStatus">
             <el-radio :value="1"><el-tag type="success" size="small">正常</el-tag></el-radio>
@@ -313,7 +325,7 @@ const handleExport = async () => {
       </div>
       <template #footer>
         <el-button @click="editVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveEdit">保存</el-button>
+        <el-button type="primary" :disabled="editUser?.status === -1" @click="handleSaveEdit">保存</el-button>
       </template>
     </el-dialog>
   </div>

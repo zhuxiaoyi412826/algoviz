@@ -30,16 +30,27 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public User findByUsernameIncludeDeleted(String username) {
+        return userMapper.findByUsernameIncludeDeleted(username);
+    }
+
+    @Override
+    public User findByEmailIncludeDeleted(String email) {
+        return userMapper.findByEmailIncludeDeleted(email);
+    }
+
+    @Override
     public User createUser(User user) {
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         user.setLastLoginAt(LocalDateTime.now());
         if (user.getLoginStatus() == null) {
-            user.setLoginStatus("offline");
+            user.setLoginStatus(1);   // 新用户默认离线
         }
         if (user.getStatus() == null) {
             user.setStatus(1);
         }
+        user.setIsDeleted(0);   // 新用户正常，逻辑删除标记固定为 0
         if (user.getAvatarUrl() == null || user.getAvatarUrl().isEmpty()) {
             user.setAvatarUrl("https://i.pravatar.cc/150?u=" + System.currentTimeMillis());
         }
@@ -108,14 +119,14 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<User> getUsersByConditions(String keyword, String gender, Integer status, String loginStatus, String order, int page, int pageSize) {
+    public List<User> getUsersByConditions(String keyword, Integer gender, Integer status, Integer loginStatus, String order, int page, int pageSize) {
         String safeOrder = "desc".equalsIgnoreCase(order) ? "DESC" : "ASC";
         int offset = (page - 1) * pageSize;
         return userMapper.getUsersByConditions(keyword, gender, status, loginStatus, safeOrder, offset, pageSize);
     }
 
     @Override
-    public int getUsersCountByConditions(String keyword, String gender, Integer status, String loginStatus) {
+    public int getUsersCountByConditions(String keyword, Integer gender, Integer status, Integer loginStatus) {
         return userMapper.getUsersCountByConditions(keyword, gender, status, loginStatus);
     }
 
@@ -127,5 +138,15 @@ public class UserServiceImpl implements UserService {
     @Override
     public int updatePassword(Integer id, String password) {
         return userMapper.updatePassword(id, password);
+    }
+
+    @Override
+    public void updateLoginStatus(Integer id, Integer loginStatus) {
+        userMapper.updateLoginStatus(id, loginStatus);
+    }
+
+    @Override
+    public int cancelAccount(Integer id) {
+        return userMapper.cancelAccount(id);
     }
 }

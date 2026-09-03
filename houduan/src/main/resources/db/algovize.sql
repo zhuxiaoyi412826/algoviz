@@ -1517,3 +1517,75 @@ CREATE INDEX idx_comment_audit ON oj_solution_comment (audit_status, created_at 
 -- ② oj_solution：题解审核列表覆盖索引
 DROP INDEX idx_solution_audit ON oj_solution;
 CREATE INDEX idx_solution_audit ON oj_solution (audit_status, created_at DESC, status);
+-- 17============ ① 存量值迁移：online→0(在线)、其余→1(离线) ============
+UPDATE `user`
+SET `login_status` = CASE
+    WHEN `login_status` IN ('online', '0') THEN 0
+    ELSE 1
+END;
+
+-- ============ ② 改类型：varchar(20) -> tinyint(1) ============
+-- 语义：0 = 在线（已登录），1 = 离线（默认值，新注册用户离线）
+ALTER TABLE `user`
+    MODIFY COLUMN `login_status` TINYINT(1) NOT NULL DEFAULT 1
+    COMMENT '登录状态: 0=在线 1=离线';
+
+-- 索引 idx_user_login_created（含 login_status, created_at）类型变更后自动适配，无需重建
+
+-- ============================================================================
+-- 18============ user 表结构升级：gender 整型化 / 手机号预留 / 逻辑删除 / 注销状态
+-- 语义约定：
+--   gender       TINYINT(1)  : 1=男 0=女，NULL=未知（原 '男'/'女'/'未知' 字符串迁移）
+--   phone        VARCHAR(20) : 手机号，预留字段，暂不启用（先不加唯一索引）
+--   is_deleted   TINYINT(1)  : 0=正常 1=已逻辑删除；所有业务 SQL 必须带 is_deleted=0
+--   status       TINYINT(1)  : 1=正常 0=封禁 -1=注销
+-- 唯一索引策略（重要）：
+--   uk_user_username / uk_user_email 保持不变 —— 逻辑删除/注销后用户名与邮箱
+--   永久占用，新用户注册不可复用（防止冒名注册）。应用层注册查重使用
+--   "不过滤 is_deleted" 的查询提前拦截，唯一索引作为并发兜底。
+-- ============================================================================
+
+-- ① gender: varchar(10) -> tinyint(1)，'男'->1，'女'->0，'未知'/其他->NULL
+UPDATE `user`
+SET `gender` = CASE `gender`
+    WHEN '男'   THEN '1'
+    WHEN '女'   THEN '0'
+    ELSE NULL
+END;
+
+ALTER TABLE `user`
+    MODIFY COLUMN `gender` TINYINT(1) DEFAULT NULL
+    COMMENT '性别: 1=男 0=女';
+
+-- ② 新增手机号（预留字段，暂不启用，不建唯一索引）
+ALTER TABLE `user`
+    ADD COLUMN `phone` VARCHAR(20) DEFAULT NULL
+    COMMENT '手机号（预留，暂不启用）' AFTER `email`;
+
+-- ③ 新增逻辑删除字段：0=正常 1=已删除
+ALTER TABLE `user`
+    ADD COLUMN `is_deleted` TINYINT(1) NOT NULL DEFAULT 0
+    COMMENT '逻辑删除: 0=正常 1=已删除' AFTER `status`;
+
+-- ④ status 语义升级：1=正常 0=封禁 -1=注销（先兜底 NULL 数据，再收紧 NOT NULL）
+UPDATE `user` SET `status` = 1 WHERE `status` IS NULL;
+ALTER TABLE `user`
+    MODIFY COLUMN `status` TINYINT(1) NOT NULL DEFAULT 1
+    COMMENT '账号状态: 1=正常 0=封禁 -1=注销';
+
+-- ⑤ 索引重建：is_deleted 作为前导等值列，保证所有业务 SQL 带 is_deleted=0 后
+--    筛选 + ORDER BY created_at 全部走索引（is_deleted=1 行极少，过滤成本极低）
+DROP INDEX `idx_user_created_at`   ON `user`;
+CREATE INDEX `idx_user_deleted_created`       ON `user` (`is_deleted`, `created_at`);
+
+DROP INDEX `idx_user_status_created` ON `user`;
+CREATE INDEX `idx_user_deleted_status_created` ON `user` (`is_deleted`, `status`, `created_at`);
+
+DROP INDEX `idx_user_gender_created` ON `user`;
+CREATE INDEX `idx_user_deleted_gender_created` ON `user` (`is_deleted`, `gender`, `created_at`);
+
+DROP INDEX `idx_user_login_created` ON `user`;
+CREATE INDEX `idx_user_deleted_login_created`  ON `user` (`is_deleted`, `login_status`, `created_at`);
+
+-- ⑥ 唯一索引无需改动：uk_user_username / uk_user_email 天然覆盖"含已删除行"的
+--    全局唯一性，逻辑删除/注销账号的用户名与邮箱永久不可再注册。
