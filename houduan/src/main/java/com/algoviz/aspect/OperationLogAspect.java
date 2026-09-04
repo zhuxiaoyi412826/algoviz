@@ -19,6 +19,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -33,6 +34,14 @@ import java.util.UUID;
 public class OperationLogAspect {
 
     private static final Logger log = LoggerFactory.getLogger(OperationLogAspect.class);
+
+    /**
+     * 统一时间输出格式。
+     * 禁止使用 LocalDateTime.toString().substring(0, 19)：
+     * 秒为 0 时 toString() 会省略 ":00" 输出 16 字符（如 "2026-09-04T19:43"），
+     * substring(0, 19) 将抛 StringIndexOutOfBoundsException 导致切面中断、管理员写操作失败。
+     */
+    private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Autowired
     private OperationLogMapper operationLogMapper;
@@ -207,7 +216,7 @@ public class OperationLogAspect {
         opLog.setIp(getClientIp(request));
 
         // 设置时间
-        opLog.setCreatedAt(LocalDateTime.now().toString().replace("T", " ").substring(0, 19));
+        opLog.setCreatedAt(LocalDateTime.now().format(DATETIME_FMT));
 
         operationLogMapper.insert(opLog);
     }

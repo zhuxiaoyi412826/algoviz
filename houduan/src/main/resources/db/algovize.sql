@@ -1589,3 +1589,94 @@ CREATE INDEX `idx_user_deleted_login_created`  ON `user` (`is_deleted`, `login_s
 
 -- ⑥ 唯一索引无需改动：uk_user_username / uk_user_email 天然覆盖"含已删除行"的
 --    全局唯一性，逻辑删除/注销账号的用户名与邮箱永久不可再注册。
+
+-- ============================================================================
+-- 19============ 模块访问统计拆表：user 表 6 列 -> 独立 user_visit_stat 表
+-- 拆出字段：
+--   ai_dialogues    AI 对话次数      -> user_visit_stat.ai_dialogues
+--   ds_visits       数据结构访问次数 -> user_visit_stat.ds_visits
+--   algo_visits     算法访问次数     -> user_visit_stat.algo_visits
+--   oj_visits       OJ 访问次数      -> user_visit_stat.oj_visits
+--   last_login_at   最后登录时间     -> user_visit_stat.last_login_at
+--   last_visit_time 最后访问时间     -> user_visit_stat.last_visit_time
+-- 设计理由：
+--   1) 这 6 列都是高频更新的业务统计计数器，与用户基础资料读写竞争同一行，
+--      拆表后互不影响（用户改名/改头像不再被计数器自增阻塞）；
+--   2) 新增/调整统计模块只动本表，用户主表无需反复 DDL；
+--   3) 访问计数用 INSERT ... ON DUPLICATE KEY UPDATE 原子自增，无读-改-写竞态；
+--   4) 用户核心聚合指标（coins 刷题数量 评论数等）保留在 user 主表。
+-- 口径约定：
+--   - user 与 user_visit_stat 为 1:1（user_id 主键），无 stat 行视为全 0；
+--   - 逻辑删除(is_deleted=1)用户的 stat 行保留（审计），但 Dashboard 聚合
+--     INNER JOIN user AND u.is_deleted = 0，与既有统计口径一致。
+-- ============================================================================
+
+-- ① 新建用户模块访问统计表（1:1，user_id 为主键）
+CREATE TABLE IF NOT EXISTS `user_visit_stat` (
+    `user_id`         BIGINT   NOT NULL COMMENT '用户ID（user.id，1:1）',
+    `ai_dialogues`    INT      NOT NULL DEFAULT 0 COMMENT 'AI对话次数',
+    `ds_visits`       INT      NOT NULL DEFAULT 0 COMMENT '数据结构访问次数',
+    `algo_visits`     INT      NOT NULL DEFAULT 0 COMMENT '算法访问次数',
+    `oj_visits`       INT      NOT NULL DEFAULT 0 COMMENT 'OJ访问次数',
+    `last_login_at`   DATETIME DEFAULT NULL COMMENT '最后登录时间',
+    `last_visit_time` DATETIME DEFAULT NULL COMMENT '最后访问时间（任一模块上报时刷新）',
+    `updated_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`user_id`),
+    KEY `idx_uvs_last_visit` (`last_visit_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户模块访问统计表';
+
+-- ② 存量数据迁移（含已逻辑删除用户的历史统计，一并保留用于审计）；
+--    INSERT IGNORE 保证幂等，重复执行不会产生重复行
+INSERT IGNORE INTO `user_visit_stat`
+    (`user_id`, `ai_dialogues`, `ds_visits`, `algo_visits`, `oj_visits`, `last_login_at`, `last_visit_time`)
+SELECT `id`, `ai_dialogues`, `ds_visits`, `algo_visits`, `oj_visits`, `last_login_at`, `last_visit_time`
+FROM `user`;
+
+-- ③ 迁移核验（执行删列前必须先跑，行数与总和应一致）：
+--    SELECT COUNT(*) FROM user_visit_stat;                          -- 应等于 user 表总行数
+--    SELECT SUM(ds_visits), SUM(algo_visits), SUM(oj_visits), SUM(ai_dialogues)
+--    FROM user_visit_stat;                                          -- 与下面 user 表总和对比
+--    SELECT SUM(ds_visits), SUM(algo_visits), SUM(oj_visits), SUM(ai_dialogues) FROM user;
+
+-- ④ 删除 user 主表拆出列（确认 ③ 核验通过后再执行）
+ALTER TABLE `user`
+    DROP COLUMN `ai_dialogues`,
+    DROP COLUMN `ds_visits`,
+    DROP COLUMN `algo_visits`,
+    DROP COLUMN `oj_visits`,
+    DROP COLUMN `last_visit_time`,
+    DROP COLUMN `last_login_at`;
+
+-- ⑤ 兜底：为注册流程遗漏初始化的老用户补 stat 行（COUNT 自增接口 upsert 也会自动建行，
+--    此句仅为数据完整性兜底，幂等）
+INSERT IGNORE INTO `user_visit_stat` (`user_id`)
+SELECT `id` FROM `user` WHERE `is_deleted` = 0;
+
+-- 20 ① 新表（1:1，user_id 主键）
+CREATE TABLE IF NOT EXISTS `user_visit_stat` (
+    `user_id`         BIGINT   NOT NULL COMMENT '用户ID（user.id，1:1）',
+    `ai_dialogues`    INT      NOT NULL DEFAULT 0 COMMENT 'AI对话次数',
+    `ds_visits`       INT      NOT NULL DEFAULT 0 COMMENT '数据结构访问次数',
+    `algo_visits`     INT      NOT NULL DEFAULT 0 COMMENT '算法访问次数',
+    `oj_visits`       INT      NOT NULL DEFAULT 0 COMMENT 'OJ访问次数',
+    `last_login_at`   DATETIME DEFAULT NULL COMMENT '最后登录时间',
+    `last_visit_time` DATETIME DEFAULT NULL COMMENT '最后访问时间（任一模块上报时刷新）',
+    `updated_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`user_id`),
+    KEY `idx_uvs_last_visit` (`last_visit_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ② 存量迁移（INSERT IGNORE 幂等，含已删除用户一并保留审计）
+INSERT IGNORE INTO `user_visit_stat`
+    (`user_id`,`ai_dialogues`,`ds_visits`,`algo_visits`,`oj_visits`,`last_login_at`,`last_visit_time`)
+SELECT `id`,`ai_dialogues`,`ds_visits`,`algo_visits`,`oj_visits`,`last_login_at`,`last_visit_time` FROM `user`;
+
+-- ③ 核验关卡（只读）：stat 行数=user 行数；四项 SUM 逐列相等
+
+-- ④ 删除 user 表 6 列（③ 通过后再执行，不可逆）
+ALTER TABLE `user`
+    DROP COLUMN `ai_dialogues`,`ds_visits`,`algo_visits`,`oj_visits`,
+    DROP COLUMN `last_visit_time`,`last_login_at`;
+
+-- ⑤ 兜底补 stat 行（幂等）
+INSERT IGNORE INTO `user_visit_stat` (`user_id`) SELECT `id` FROM `user` WHERE `is_deleted`=0;

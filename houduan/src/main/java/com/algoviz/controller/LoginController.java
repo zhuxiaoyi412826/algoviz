@@ -19,6 +19,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,6 +30,14 @@ import java.util.Map;
 public class LoginController {
 
     private static final Logger logger = LoggerFactory.getLogger(LoginController.class);
+
+    /**
+     * 统一的时间输出格式。
+     * 禁止使用 LocalDateTime.toString().substring(0, 19)：
+     * 秒为 0 时 toString() 会省略 ":00" 输出 16 字符（如 "2026-09-04T19:43"），
+     * substring(0, 19) 将抛 StringIndexOutOfBoundsException 导致接口 500。
+     */
+    private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Autowired
     private LoginService loginService;
@@ -558,8 +567,8 @@ public class LoginController {
             userInfo.put("gender", user.getGender());
             userInfo.put("avatarUrl", user.getAvatarUrl());
             userInfo.put("coins", user.getCoins() != null ? user.getCoins() : 0);
-            userInfo.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().toString().replace("T", " ").substring(0, 19) : null);
-            userInfo.put("lastLoginAt", user.getLastLoginAt() != null ? user.getLastLoginAt().toString().replace("T", " ").substring(0, 19) : null);
+            userInfo.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().format(DATETIME_FMT) : null);
+            userInfo.put("lastLoginAt", user.getLastLoginAt() != null ? user.getLastLoginAt().format(DATETIME_FMT) : null);
             result.put("data", userInfo);
         } else {
             result.put("success", false);
@@ -675,7 +684,7 @@ public class LoginController {
         if (dbUser.getEmail() != null) {
             try {
                 String emailContent = "您的账号密码已修改成功。\n" +
-                        "修改时间：" + LocalDateTime.now().toString().replace("T", " ").substring(0, 19) + "\n" +
+                        "修改时间：" + LocalDateTime.now().format(DATETIME_FMT) + "\n" +
                         "如非本人操作，请立即联系管理员冻结账号。";
                 emailService.sendNotificationEmail(dbUser.getEmail(), "密码修改通知", emailContent);
             } catch (Exception e) {

@@ -58,6 +58,7 @@ jobs:
         run: mvn -B test
 
       - name: 依赖安全扫描（Trivy 快速子集，结果上报 Code Scanning）
+        if: always()   # 编译/测试失败也扫描；否则后续 always 的上传步骤会因 sarif 缺失报错
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1  # 0.35.0（供应链事件后唯一确认安全版本）
         with:
           scan-type: 'fs'
@@ -114,6 +115,7 @@ jobs:
           if-no-files-found: error
 
       - name: 依赖安全扫描（Trivy，结果上报 Code Scanning）
+        if: always()   # 编译/测试失败也扫描；否则后续 always 的上传步骤会因 sarif 缺失报错
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1  # 0.35.0
         with:
           scan-type: 'fs'
