@@ -38,6 +38,6 @@ public class User {
     private LocalDateTime createdAt;
     @Schema(description = "更新时间")
     private LocalDateTime updatedAt;
-    @Schema(description = "最后登录时间")
+    @Schema(description = "最后登录时间（来源 user_visit_stat 表，查询时 LEFT JOIN 联查填充）")
     private LocalDateTime lastLoginAt;
 }

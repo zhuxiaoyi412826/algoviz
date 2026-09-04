@@ -4,29 +4,42 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.algoviz.mapper.UserMapper">
-    <!-- 业务查询：仅返回未逻辑删除的用户 -->
+    <!-- 统一查询模板：user 主表 LEFT JOIN 访问统计表（1:1），联查填充 last_login_at
+         （last_login_at 已从 user 表拆至 user_visit_stat，对外实体字段保持不变） -->
     <select id="findByUsername" resultType="com.algoviz.entity.User">
-        SELECT * FROM user WHERE username = #{username} AND is_deleted = 0
+        SELECT u.*, s.last_login_at
+        FROM user u
+        LEFT JOIN user_visit_stat s ON s.user_id = u.id
+        WHERE u.username = #{username} AND u.is_deleted = 0
     </select>
 
     <select id="findByEmail" resultType="com.algoviz.entity.User">
-        SELECT * FROM user WHERE email = #{email} AND is_deleted = 0
+        SELECT u.*, s.last_login_at
+        FROM user u
+        LEFT JOIN user_visit_stat s ON s.user_id = u.id
+        WHERE u.email = #{email} AND u.is_deleted = 0
     </select>
 
     <!-- 注册查重专用：含已逻辑删除/注销账号，用户名/邮箱永久占用不可复用 -->
     <select id="findByUsernameIncludeDeleted" resultType="com.algoviz.entity.User">
-        SELECT * FROM user WHERE username = #{username} LIMIT 1
+        SELECT u.*, s.last_login_at
+        FROM user u
+        LEFT JOIN user_visit_stat s ON s.user_id = u.id
+        WHERE u.username = #{username} LIMIT 1
     </select>
 
     <select id="findByEmailIncludeDeleted" resultType="com.algoviz.entity.User">
-        SELECT * FROM user WHERE email = #{email} LIMIT 1
+        SELECT u.*, s.last_login_at
+        FROM user u
+        LEFT JOIN user_visit_stat s ON s.user_id = u.id
+        WHERE u.email = #{email} LIMIT 1
     </select>
 
     <insert id="insert" parameterType="com.algoviz.entity.User" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO user (username, email, phone, password, age, gender, nickname, avatar_url, login_status, status, is_deleted, coins, created_at, updated_at, last_login_at)
+        INSERT INTO user (username, email, phone, password, age, gender, nickname, avatar_url, login_status, status, is_deleted, coins, created_at, updated_at)
         VALUES (#{username}, #{email}, #{phone}, #{password}, #{age}, #{gender}, #{nickname}, #{avatarUrl}, #{loginStatus}, #{status}, 0,
                 <choose><when test="coins != null">#{coins}</when><otherwise>1000</otherwise></choose>,
-                #{createdAt}, #{updatedAt}, #{lastLoginAt})
+                #{createdAt}, #{updatedAt})
     </insert>
 
     <!-- 普通更新不包含 is_deleted / login_status，状态字段只能通过专用接口修改，防前端篡改 -->
@@ -38,7 +51,9 @@
         WHERE id = #{id} AND is_deleted = 0
     </update>
 
-    <update id="updateLastLoginAt">
-        UPDATE user SET last_login_at = CURRENT_TIMESTAMP WHERE id = #{id} AND is_deleted = 0
-    </update>
+    <!-- 最后登录时间已拆至 user_visit_stat 表：upsert 无行自动建行 -->
+    <insert id="updateLastLoginAt">
+        INSERT INTO user_visit_stat (user_id, last_login_at) VALUES (#{id}, CURRENT_TIMESTAMP)
+        ON DUPLICATE KEY UPDATE last_login_at = CURRENT_TIMESTAMP
+    </insert>
 </mapper>

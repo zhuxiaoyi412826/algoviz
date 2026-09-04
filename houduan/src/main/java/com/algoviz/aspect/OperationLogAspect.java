@@ -19,6 +19,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -207,7 +208,7 @@ public class OperationLogAspect {
         opLog.setIp(getClientIp(request));
 
         // 设置时间
-        opLog.setCreatedAt(LocalDateTime.now().toString().replace("T", " ").substring(0, 19));
+        opLog.setCreatedAt(LocalDateTime.now().format(DATETIME_FMT));
 
         operationLogMapper.insert(opLog);
     }

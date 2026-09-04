@@ -14,14 +14,16 @@ public interface UserMapper {
     User findByEmailIncludeDeleted(@Param("email") String email);
     void insert(User user);
     void update(User user);
+    /** 最后登录时间已拆至 user_visit_stat（XML 实现为 upsert） */
     void updateLastLoginAt(@Param("id") Integer id);
 
     /**
      * 获取所有用户（仅导出用，百万级数据不建议直接调用）
      * 已优化为延迟关联：子查询走覆盖索引，再回表取数据
-     * 仅导出未逻辑删除用户
+     * 仅导出未逻辑删除用户；LEFT JOIN stat 表填充 last_login_at（已从 user 表拆出）
      */
-    @Select("SELECT u.* FROM user u " +
+    @Select("SELECT u.*, s.last_login_at FROM user u " +
+            "LEFT JOIN user_visit_stat s ON s.user_id = u.id " +
             "INNER JOIN (SELECT id FROM user WHERE is_deleted = 0 ORDER BY created_at DESC LIMIT 10000) t ON u.id = t.id " +
             "ORDER BY u.created_at DESC")
     List<User> getAllUsers();
@@ -30,7 +32,8 @@ public interface UserMapper {
      * 分页查询（延迟关联优化深翻页）
      * 子查询只扫描 id 列（走索引），再回表取完整行数据；仅未逻辑删除
      */
-    @Select("SELECT u.* FROM user u " +
+    @Select("SELECT u.*, s.last_login_at FROM user u " +
+            "LEFT JOIN user_visit_stat s ON s.user_id = u.id " +
             "INNER JOIN (SELECT id FROM user WHERE is_deleted = 0 ORDER BY created_at DESC LIMIT #{offset}, #{pageSize}) t ON u.id = t.id " +
             "ORDER BY u.created_at DESC")
     List<User> getUsersByPage(@Param("offset") int offset, @Param("pageSize") int pageSize);
@@ -39,7 +42,8 @@ public interface UserMapper {
      * 关键词搜索分页（延迟关联 + 前缀匹配走索引）
      * LIKE 'keyword%' 前缀匹配可走 username/email 唯一索引，毫秒级；仅未逻辑删除
      */
-    @Select("SELECT u.* FROM user u " +
+    @Select("SELECT u.*, s.last_login_at FROM user u " +
+            "LEFT JOIN user_visit_stat s ON s.user_id = u.id " +
             "INNER JOIN (" +
             "  SELECT id FROM user " +
             "  WHERE is_deleted = 0 AND (username LIKE CONCAT(#{keyword}, '%') OR email LIKE CONCAT(#{keyword}, '%')) " +
@@ -51,10 +55,14 @@ public interface UserMapper {
     @Select("SELECT COUNT(*) FROM user WHERE is_deleted = 0 AND (username LIKE CONCAT(#{keyword}, '%') OR email LIKE CONCAT(#{keyword}, '%'))")
     int searchUsersCount(@Param("keyword") String keyword);
 
-    @Select("SELECT * FROM user WHERE id = #{id} AND is_deleted = 0")
+    @Select("SELECT u.*, s.last_login_at FROM user u " +
+            "LEFT JOIN user_visit_stat s ON s.user_id = u.id " +
+            "WHERE u.id = #{id} AND u.is_deleted = 0")
     User findById(@Param("id") Integer id);
 
-    @Select("SELECT * FROM user WHERE is_deleted = 0 AND (username LIKE CONCAT(#{keyword}, '%') OR email LIKE CONCAT(#{keyword}, '%')) ORDER BY created_at DESC")
+    @Select("SELECT u.*, s.last_login_at FROM user u " +
+            "LEFT JOIN user_visit_stat s ON s.user_id = u.id " +
+            "WHERE u.is_deleted = 0 AND (u.username LIKE CONCAT(#{keyword}, '%') OR u.email LIKE CONCAT(#{keyword}, '%')) ORDER BY u.created_at DESC")
     List<User> searchUsers(@Param("keyword") String keyword);
 
     /**
@@ -97,7 +105,8 @@ public interface UserMapper {
      * 注意：gender/loginStatus/status 均为 Integer，0 是合法值，OGNL 只判 null
      */
     @Select("<script>" +
-            "SELECT u.* FROM user u " +
+            "SELECT u.*, s.last_login_at FROM user u " +
+            "LEFT JOIN user_visit_stat s ON s.user_id = u.id " +
             "INNER JOIN (" +
             "  SELECT id FROM user WHERE is_deleted = 0" +
             "  <if test='keyword != null and keyword != \"\"'>" +

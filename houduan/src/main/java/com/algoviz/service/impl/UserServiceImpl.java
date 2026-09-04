@@ -19,6 +19,9 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private com.algoviz.mapper.UserVisitStatMapper userVisitStatMapper;
+
     @Override
     public User findByUsername(String username) {
         return userMapper.findByUsername(username);
@@ -55,6 +58,10 @@ public class UserServiceImpl implements UserService {
             user.setAvatarUrl("https://i.pravatar.cc/150?u=" + System.currentTimeMillis());
         }
         userMapper.insert(user);
+        // 访问统计拆表：注册时初始化 user_visit_stat 行（幂等兜底，正常由 upsert 自动建行）
+        if (user.getId() != null) {
+            userVisitStatMapper.initForUser(user.getId().longValue());
+        }
         return user;
     }
 

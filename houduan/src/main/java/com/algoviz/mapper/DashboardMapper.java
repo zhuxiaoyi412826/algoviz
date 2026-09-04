@@ -9,19 +9,20 @@ import java.util.Map;
 public interface DashboardMapper {
 
     /**
-     * 合并查询1：user 表一次性统计（替代原来 8 次全表扫描）
+     * 合并查询1：访问统计已拆至 user_visit_stat 表（1:1），JOIN user 过滤已删除用户
      * 返回：totalUsers, totalAIDialogues, todayAIDialogues, yesterdayAIDialogues,
      *       dsVisits, algoVisits, ojVisits, aiVisits
      */
     @Select("SELECT " +
-            "COUNT(*) AS totalUsers, " +
-            "IFNULL(SUM(ai_dialogues), 0) AS totalAIDialogues, " +
-            "IFNULL(SUM(CASE WHEN last_visit_time >= DATE_SUB(NOW(), INTERVAL 1 DAY) THEN ai_dialogues ELSE 0 END), 0) AS todayAIDialogues, " +
-            "IFNULL(SUM(CASE WHEN last_visit_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND last_visit_time < CURDATE() THEN ai_dialogues ELSE 0 END), 0) AS yesterdayAIDialogues, " +
-            "IFNULL(SUM(ds_visits), 0) AS dsVisits, " +
-            "IFNULL(SUM(algo_visits), 0) AS algoVisits, " +
-            "IFNULL(SUM(oj_visits), 0) AS ojVisits " +
-            "FROM user WHERE is_deleted = 0")
+            "(SELECT COUNT(*) FROM user WHERE is_deleted = 0) AS totalUsers, " +
+            "IFNULL(SUM(s.ai_dialogues), 0) AS totalAIDialogues, " +
+            "IFNULL(SUM(CASE WHEN s.last_visit_time >= DATE_SUB(NOW(), INTERVAL 1 DAY) THEN s.ai_dialogues ELSE 0 END), 0) AS todayAIDialogues, " +
+            "IFNULL(SUM(CASE WHEN s.last_visit_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND s.last_visit_time < CURDATE() THEN s.ai_dialogues ELSE 0 END), 0) AS yesterdayAIDialogues, " +
+            "IFNULL(SUM(s.ds_visits), 0) AS dsVisits, " +
+            "IFNULL(SUM(s.algo_visits), 0) AS algoVisits, " +
+            "IFNULL(SUM(s.oj_visits), 0) AS ojVisits " +
+            "FROM user_visit_stat s " +
+            "INNER JOIN user u ON u.id = s.user_id AND u.is_deleted = 0")
     Map<String, Object> getUserStats();
 
     /**
