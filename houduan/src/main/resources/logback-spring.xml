@@ -81,6 +81,46 @@
         </rollingPolicy>
     </appender>
 
+    <!-- DEBUG 镜像 Appender：完整镜像控制台输出（com.algoviz 全级别 + root INFO 级），
+         用于本地排障时把控制台内容同步落盘到 DEBUG.txt。
+         append="false"：每次应用启动自动截断重置该文件（与"控制台每次启动清空"行为一致）。 -->
+    <appender name="DEBUG_FILE" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_PATH}/DEBUG.txt</file>
+        <createDirs>true</createDirs>
+        <append>false</append>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ============================================================
+         JDK 内置 java.util.logging(JUL) 桥接类别配置（jul-to-slf4j 已由 starter-logging 提供）
+         这些 logger 名 = JDK 内部 JUL logger 名，由 SLF4JBridgeHandler 转发到 logback：
+             SEVERE -> ERROR、WARNING -> WARN、INFO -> INFO、FINE -> DEBUG
+         统一设 WARN：只放行 WARNING/SEVERE（JUL 的 INFO/低级别噪音被过滤），
+         并继承 root 的 appender（控制台 / DEBUG.txt / 分级文件）输出。
+         ============================================================
+         覆盖的常见输出来源：
+           - sun.net / java.net      : HttpURLConnection、DNS 解析、NIO/Socket
+           - javax.net / javax.net.ssl: SSL 握手、证书告警
+           - java.security / sun.security / javax.security: 加密算法、证书策略
+           - com.sun.org.apache      : JDK 内置 JAXP/Xerces/Xalan（XML 解析告警）
+           - org.jcp                 : XML 数字签名（JSR105）
+           - jdk.module              : 模块系统访问告警
+         注意：个别 JDK 提示（如 Illegal reflective access）由 JVM 直接写 stderr，
+               不经 JUL，无法被 logback 接管，仅会出现在控制台。
+         ============================================================ -->
+    <logger name="sun.net" level="WARN"/>
+    <logger name="java.net" level="WARN"/>
+    <logger name="javax.net" level="WARN"/>
+    <logger name="java.security" level="WARN"/>
+    <logger name="javax.security" level="WARN"/>
+    <logger name="sun.security" level="WARN"/>
+    <logger name="com.sun.org.apache" level="WARN"/>
+    <logger name="org.jcp" level="WARN"/>
+    <logger name="jdk.module" level="WARN"/>
+
     <!-- Spring Profile 配置 - 开发环境 -->
     <springProfile name="!prod">
         <!--
@@ -94,6 +134,7 @@
         -->
         <logger name="com.algoviz" level="DEBUG" additivity="false">
             <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="DEBUG_FILE"/>
             <appender-ref ref="INFO_FILE"/>
             <appender-ref ref="WARN_FILE"/>
             <appender-ref ref="ERROR_FILE"/>
@@ -102,6 +143,7 @@
         <!-- root logger: 其他包的日志只输出到控制台和 ERROR_FILE -->
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="DEBUG_FILE"/>
             <appender-ref ref="ERROR_FILE"/>
         </root>
     </springProfile>
