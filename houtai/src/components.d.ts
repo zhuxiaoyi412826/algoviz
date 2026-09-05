@@ -54,6 +54,7 @@ declare module 'vue' {
     MdSplitEditor: typeof import('./components/common/MdSplitEditor.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    Watermark: typeof import('./components/common/Watermark.vue')['default']
   }
   export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']

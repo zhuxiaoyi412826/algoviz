@@ -3,6 +3,7 @@ import { ref, provide, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import MainSidebar from './sider/index.vue'
 import MainHeader from './header/index.vue'
+import Watermark from '@/components/common/Watermark.vue'
 
 const route = useRoute()
 const isLoginPage = computed(() => route.path === '/login')
@@ -21,6 +22,8 @@ provide('layoutState', { sidebarCollapsed, headerCollapsed, toggleSidebar, toggl
     <router-view />
   </div>
   <div class="layout-container" :class="{ 'layout-container--sidebar-collapse': sidebarCollapsed }">
+    <!-- 全局水印：登录后 layout 常驻期间一直存在；退出登录销毁 layout 时由组件清理 -->
+    <Watermark />
     <MainSidebar />
     <div class="layout-main">
       <div class="header-wrapper" :class="{ 'header-wrapper--collapse': headerCollapsed }">
