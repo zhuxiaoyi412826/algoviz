@@ -35,7 +35,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 0) 接口级 IP 限流（防 CC 攻击，最先执行）
+        // 0) 接口级 IP 限流（防 CC 攻击）
         registry.addInterceptor(rateLimitInterceptor).addPathPatterns("/api/**");
 
         // 0.5) 防重放（nonce + 时间戳 + Redis 去重；未携带 nonce 的请求兼容放行）

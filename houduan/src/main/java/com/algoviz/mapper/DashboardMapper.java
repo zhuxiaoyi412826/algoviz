@@ -9,20 +9,23 @@ import java.util.Map;
 public interface DashboardMapper {
 
     /**
-     * 合并查询1：访问统计已拆至 user_visit_stat 表（1:1），JOIN user 过滤已删除用户
+     * 合并查询1：访问统计已拆至 user_visit_stat 表（1:1），is_deleted 冗余在 stat 表，
+     *            WHERE s.is_deleted=0 过滤已删除用户（不再 JOIN user，避免扫 356MB 大表）。
+     *            totalUsers 用 COUNT(*)：stat 表 user_id 主键 + 拆表兜底保证每 active user 一行，
+     *            与 user 表 COUNT(is_deleted=0) 结果一致（已验证 stat_active=user_active=942006）。
      * 返回：totalUsers, totalAIDialogues, todayAIDialogues, yesterdayAIDialogues,
      *       dsVisits, algoVisits, ojVisits, aiVisits
      */
     @Select("SELECT " +
-            "(SELECT COUNT(*) FROM user WHERE is_deleted = 0) AS totalUsers, " +
+            "COUNT(*) AS totalUsers, " +
             "IFNULL(SUM(s.ai_dialogues), 0) AS totalAIDialogues, " +
-            "IFNULL(SUM(CASE WHEN s.last_visit_time >= DATE_SUB(NOW(), INTERVAL 1 DAY) THEN s.ai_dialogues ELSE 0 END), 0) AS todayAIDialogues, " +
+            "IFNULL(SUM(CASE WHEN s.last_visit_time >= CURDATE() THEN s.ai_dialogues ELSE 0 END), 0) AS todayAIDialogues, " +
             "IFNULL(SUM(CASE WHEN s.last_visit_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND s.last_visit_time < CURDATE() THEN s.ai_dialogues ELSE 0 END), 0) AS yesterdayAIDialogues, " +
             "IFNULL(SUM(s.ds_visits), 0) AS dsVisits, " +
             "IFNULL(SUM(s.algo_visits), 0) AS algoVisits, " +
             "IFNULL(SUM(s.oj_visits), 0) AS ojVisits " +
             "FROM user_visit_stat s " +
-            "INNER JOIN user u ON u.id = s.user_id AND u.is_deleted = 0")
+            "WHERE s.is_deleted = 0")
     Map<String, Object> getUserStats();
 
     /**

@@ -14,6 +14,8 @@ import java.time.LocalDateTime;
 public class UserVisitStat {
     @Schema(description = "用户ID（user.id，1:1）")
     private Long userId;
+    @Schema(description = "逻辑删除冗余（与 user.is_deleted 同步）: 0=正常 1=已删除")
+    private Integer isDeleted;
     @Schema(description = "AI对话次数")
     private Integer aiDialogues;
     @Schema(description = "数据结构访问次数")
