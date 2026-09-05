@@ -1680,3 +1680,31 @@ ALTER TABLE `user`
 
 -- ⑤ 兜底补 stat 行（幂等）
 INSERT IGNORE INTO `user_visit_stat` (`user_id`) SELECT `id` FROM `user` WHERE `is_deleted`=0;
+
+-- ============================================================================
+-- 第 21 段：user_visit_stat 冗余 is_deleted（方案B：去掉 dashboard 聚合的 JOIN）
+--   背景：getUserStats 原需 INNER JOIN user 过滤 is_deleted=0，
+--         user 表 356MB + stat 表 66MB 远超 128MB buffer pool，
+--         JOIN 导致每次全表聚合约 3 秒。冗余 is_deleted 后聚合只需
+--         WHERE s.is_deleted=0 扫 66MB stat 表，无需 JOIN user。
+--   语义：与 INNER JOIN user ... is_deleted=0 完全等价（逻辑删除用户时须同步本表）。
+-- ============================================================================
+
+-- ① 加冗余列（默认 0）
+ALTER TABLE `user_visit_stat`
+    ADD COLUMN `is_deleted` TINYINT(1) NOT NULL DEFAULT 0
+    COMMENT '逻辑删除冗余（与 user.is_deleted 同步）: 0=正常 1=已删除' AFTER `user_id`;
+
+-- ② 存量同步（幂等；当前 is_deleted=1 用户数为 0，此句为严谨兜底）
+UPDATE `user_visit_stat` s
+INNER JOIN `user` u ON u.id = s.user_id
+SET s.is_deleted = u.is_deleted;
+
+-- ③ 注意：不要给 is_deleted 建索引！is_deleted=0 占全部行（选择性为 0），
+--    建索引反而导致 94万次随机回表（实测 2.5s），远慢于顺序全表扫（实测 0.3s）。
+--    若之前误建了 idx_uvs_deleted 索引，删除它，让 MySQL 自然全表扫：
+DROP INDEX `idx_uvs_deleted` ON `user_visit_stat`;
+
+-- ④ 核验（只读）：stat 表 is_deleted 分布应与 user 表一致
+-- SELECT s.is_deleted, COUNT(*) FROM user_visit_stat s GROUP BY s.is_deleted;
+-- SELECT u.is_deleted, COUNT(*) FROM user u GROUP BY u.is_deleted;

@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -92,7 +93,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User findById(Integer id) {
-        logger.info("获取用户：{}", id);
+        // 高频调用（AuthInterceptor 每个请求都实时校验账号状态），日志降为 debug 避免刷屏
+        logger.debug("获取用户：{}", id);
         return userMapper.findById(id);
     }
 
@@ -115,9 +117,12 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public void deleteUser(Integer id) {
         logger.info("删除用户：{}", id);
         userMapper.deleteById(id);
+        // 方案B：同步冗余到 stat 表，保证 dashboard 聚合 WHERE s.is_deleted=0 与 JOIN 语义一致
+        userVisitStatMapper.markDeleted(id.longValue());
     }
 
     @Override

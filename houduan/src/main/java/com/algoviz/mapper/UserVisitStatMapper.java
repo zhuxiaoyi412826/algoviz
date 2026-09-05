@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 /**
  * 用户模块访问统计 Mapper
@@ -37,6 +38,10 @@ public interface UserVisitStatMapper {
     /** 注册兜底：初始化 stat 行（幂等） */
     @Insert("INSERT IGNORE INTO user_visit_stat (user_id) VALUES (#{userId})")
     void initForUser(@Param("userId") Long userId);
+
+    /** 逻辑删除同步：与 user.is_deleted 保持一致（方案B：避免 dashboard 聚合 JOIN user） */
+    @Update("UPDATE user_visit_stat SET is_deleted = 1 WHERE user_id = #{userId}")
+    int markDeleted(@Param("userId") Long userId);
 
     @Select("SELECT * FROM user_visit_stat WHERE user_id = #{userId}")
     UserVisitStat findByUserId(@Param("userId") Long userId);
