@@ -1,6 +1,7 @@
 package com.algoviz.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
+import com.algoviz.annotation.ResponseWatermark;
 import com.algoviz.dto.AdminLoginRequest;
 import com.algoviz.dto.ApiResponse;
 import com.algoviz.aspect.LogOperation;
@@ -210,6 +211,7 @@ public class AdminAuthController {
     }
 
     @GetMapping("/system/admin")
+    @ResponseWatermark // 敏感接口示例：管理员账户列表（含邮箱/手机号/真实姓名），根节点追加 _watermark 溯源
     @Operation(summary = "管理员列表", description = "分页查询管理员账号列表")
     public ApiResponse<Map<String, Object>> getAdminList(
             @RequestParam(defaultValue = "1") int page,
