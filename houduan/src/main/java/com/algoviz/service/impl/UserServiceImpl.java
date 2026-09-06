@@ -74,6 +74,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public void updateProfile(Integer id, String nickname, String email, Integer gender, String avatarUrl) {
+        userMapper.updateProfile(id, nickname, email, gender, avatarUrl);
+    }
+
+    @Override
     public void updateLastLogin(Integer userId) {
         userMapper.updateLastLoginAt(userId);
     }

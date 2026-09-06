@@ -566,6 +566,7 @@ public class LoginController {
             userInfo.put("age", user.getAge());
             userInfo.put("gender", user.getGender());
             userInfo.put("avatarUrl", user.getAvatarUrl());
+            userInfo.put("hasPassword", user.getPassword() != null && !user.getPassword().isEmpty());
             userInfo.put("coins", user.getCoins() != null ? user.getCoins() : 0);
             userInfo.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().format(DATETIME_FMT) : null);
             userInfo.put("lastLoginAt", user.getLastLoginAt() != null ? user.getLastLoginAt().format(DATETIME_FMT) : null);
@@ -574,6 +575,211 @@ public class LoginController {
             result.put("success", false);
             result.put("message", "未登录");
         }
+        return result;
+    }
+
+    /**
+     * 个人中心修改资料：邮箱 + 昵称
+     * 约束：昵称非空且 <=30；邮箱格式合法；邮箱唯一（含已注销/删除也占用，但排除本人）
+     */
+    @PostMapping("/update-profile")
+    @Operation(summary = "修改个人资料", description = "已登录用户修改邮箱与昵称")
+    public Map<String, Object> updateProfile(@RequestBody Map<String, String> body,
+                                             HttpServletRequest request) {
+        Map<String, Object> result = new HashMap<>();
+
+        // 1. 获取当前登录用户（Session 优先，Cookie 兜底，与 /me 口径一致）
+        HttpSession session = request.getSession(false);
+        User user = null;
+        if (session != null) {
+            user = (User) session.getAttribute(AuthInterceptor.SESSION_USER);
+        }
+        if (user == null) {
+            String uid = AuthInterceptor.getCookieValue(request, AuthInterceptor.COOKIE_USER_ID);
+            if (uid != null) {
+                user = userService.findById(Integer.parseInt(uid));
+            }
+        }
+        if (user == null) {
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+
+        // 2. 昵称校验
+        String nickname = body.get("nickname") == null ? "" : body.get("nickname").trim();
+        if (nickname.isEmpty()) {
+            result.put("success", false);
+            result.put("message", "昵称不能为空");
+            return result;
+        }
+        if (nickname.length() > 30) {
+            result.put("success", false);
+            result.put("message", "昵称长度不能超过30个字符");
+            return result;
+        }
+        if (nickname.matches(".*[\\r\\n\\t\\u0000-\\u001F].*")) {
+            result.put("success", false);
+            result.put("message", "昵称含非法字符");
+            return result;
+        }
+
+        // 3. 邮箱格式校验
+        String email = body.get("email") == null ? "" : body.get("email").trim();
+        if (!email.matches("^[\\w.-]+@[\\w.-]+\\.\\w+$")) {
+            result.put("success", false);
+            result.put("message", "邮箱格式不正确");
+            return result;
+        }
+
+        // 4. 邮箱唯一性校验（改为他人已使用的邮箱则拒绝）
+        if (!email.equalsIgnoreCase(user.getEmail())) {
+            User owner = userService.findByEmailIncludeDeleted(email);
+            if (owner != null && !owner.getId().equals(user.getId())) {
+                result.put("success", false);
+                result.put("message", "该邮箱已被使用");
+                return result;
+            }
+        }
+
+        // 4.1 性别校验（空 = 保密；仅允许 0=女 1=男）
+        String genderStr = body.get("gender");
+        Integer gender = null;
+        if (genderStr != null && !genderStr.trim().isEmpty()) {
+            try {
+                int g = Integer.parseInt(genderStr.trim());
+                if (g != 0 && g != 1) {
+                    result.put("success", false);
+                    result.put("message", "性别取值不合法");
+                    return result;
+                }
+                gender = g;
+            } catch (NumberFormatException e) {
+                result.put("success", false);
+                result.put("message", "性别取值不合法");
+                return result;
+            }
+        }
+
+        // 4.2 头像校验（支持 http(s) 图片地址或单个 emoji；空=清空使用默认）
+        String avatarUrl = body.get("avatarUrl") == null ? "" : body.get("avatarUrl").trim();
+        if (!avatarUrl.isEmpty()) {
+            if (avatarUrl.length() > 500) {
+                result.put("success", false);
+                result.put("message", "头像地址过长");
+                return result;
+            }
+            if (avatarUrl.matches(".*[\\r\\n\\t\\u0000-\\u001F].*")) {
+                result.put("success", false);
+                result.put("message", "头像含非法字符");
+                return result;
+            }
+        }
+
+        // 5. 更新资料
+        userService.updateProfile(user.getId(), nickname, email, gender, avatarUrl.isEmpty() ? null : avatarUrl);
+
+        // 6. 刷新 Session 中的用户信息（避免后续 /me 读到旧昵称/旧邮箱）
+        User fresh = userService.findById(user.getId());
+        if (fresh != null && session != null) {
+            session.setAttribute(AuthInterceptor.SESSION_USER, fresh);
+        }
+
+        result.put("success", true);
+        result.put("message", "保存成功");
+        Map<String, Object> data = new HashMap<>();
+        data.put("nickname", nickname);
+        data.put("email", email);
+        data.put("gender", gender);
+        data.put("avatarUrl", avatarUrl.isEmpty() ? null : avatarUrl);
+        result.put("data", data);
+        return result;
+    }
+
+    /**
+     * 首次设置登录密码：仅允许当前无密码的账号（OAuth/微信扫码自动注册等）
+     * 设置成功后按修改密码同策略强制重新登录
+     */
+    @PostMapping("/set-password")
+    @Operation(summary = "设置登录密码", description = "当前无密码的账号首次设置登录密码（免旧密码）")
+    public Map<String, Object> setPassword(@RequestBody Map<String, String> body,
+                                           HttpServletRequest request,
+                                           HttpServletResponse response) {
+        Map<String, Object> result = new HashMap<>();
+        HttpSession session = request.getSession(false);
+        User user = null;
+        if (session != null) {
+            user = (User) session.getAttribute(AuthInterceptor.SESSION_USER);
+        }
+        if (user == null) {
+            String uid = AuthInterceptor.getCookieValue(request, AuthInterceptor.COOKIE_USER_ID);
+            if (uid != null) {
+                user = userService.findById(Integer.parseInt(uid));
+            }
+        }
+        if (user == null) {
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+        User dbUser = userService.findById(user.getId());
+        if (dbUser == null) {
+            result.put("success", false);
+            result.put("message", "用户不存在");
+            return result;
+        }
+        if (dbUser.getPassword() != null && !dbUser.getPassword().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "该账号已设置过密码，请使用「修改密码」");
+            return result;
+        }
+
+        String newPassword = body.get("newPassword");
+        String confirmPassword = body.get("confirmPassword");
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "请输入新密码");
+            return result;
+        }
+        if (newPassword.length() < 6 || newPassword.length() > 32) {
+            result.put("success", false);
+            result.put("message", "密码长度需在6-32位之间");
+            return result;
+        }
+        if (!newPassword.matches(".*[A-Z].*") || !newPassword.matches(".*[a-z].*")) {
+            result.put("success", false);
+            result.put("message", "密码需包含大小写字母");
+            return result;
+        }
+        if (!newPassword.matches(".*\\d.*")) {
+            result.put("success", false);
+            result.put("message", "密码需包含数字");
+            return result;
+        }
+        if (!newPassword.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) {
+            result.put("success", false);
+            result.put("message", "密码需包含特殊字符");
+            return result;
+        }
+        if (confirmPassword == null || !confirmPassword.equals(newPassword)) {
+            result.put("success", false);
+            result.put("message", "两次输入的密码不一致");
+            return result;
+        }
+
+        String encoded = PasswordEncoderUtil.bcryptEncode(newPassword);
+        userService.updatePassword(dbUser.getId(), encoded);
+        logger.info("账号首次设置密码成功: userId={}", dbUser.getId());
+
+        // 与修改密码同策略：标记离线并销毁会话，强制重新登录
+        userService.updateLoginStatus(dbUser.getId(), 1);
+        if (session != null) {
+            session.invalidate();
+        }
+        AuthInterceptor.removeCookie(response, AuthInterceptor.COOKIE_USER_ID);
+
+        result.put("success", true);
+        result.put("message", "密码设置成功，请重新登录");
         return result;
     }
 

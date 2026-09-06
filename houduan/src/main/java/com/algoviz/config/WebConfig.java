@@ -113,6 +113,9 @@ public class WebConfig implements WebMvcConfigurer {
                         // 前台公开接口（页脚动态配置等）
                         "/api/public",
                         "/api/public/**",
+                        // 第三方授权登录信息查询（公开：告知前端当前已配置哪些 OAuth 平台）
+                        "/api/oauth",
+                        "/api/oauth/**",
                         // Knife4j / Swagger 文档资源
                         "/doc.html",
                         "/webjars/**",

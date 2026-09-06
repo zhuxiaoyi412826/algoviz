@@ -78,6 +78,15 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- 第三方授权登录：Spring Security OAuth2 Client（GitHub + Gitee）
+             注意：会连带引入 spring-boot-starter-security，
+             必须在 config/security/OAuth2SecurityConfig 中放行除 OAuth 端点外的所有请求，
+             避免与前台 AuthInterceptor(Session) / 后台 Sa-Token 双轨鉴权冲突 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
+
         <!-- AOP支持 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

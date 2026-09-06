@@ -10,6 +10,25 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        /* 不透明表单化：main.css 未定义 --card-bg/--bg/--hover-bg，别名映射到已定义的实色变量，
+           关闭玻璃/透明效果，保证弹窗与资料卡片为不透明底色（随明暗主题取色） */
+        html,
+        html[data-theme="light"],
+        html[data-theme="dark"] {
+            --card-bg: var(--bg-card);
+            --bg: var(--bg-card);
+            --hover-bg: var(--bg-card-hover);
+        }
+        .modal-content,
+        .profile-sidebar,
+        .profile-content,
+        .profile-card,
+        .setting-form .form-input,
+        .form-input,
+        .form-select {
+            background-color: var(--bg-card) !important;
+        }
+
         /* 个人中心头像样式 */
         .nav-avatar {
             font-size: 1rem;
@@ -135,13 +154,17 @@
             width: 100px;
             height: 100px;
             border-radius: 50%;
-            background: var(--primary);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 4rem;
             color: white;
             margin-bottom: 1rem;
+            border: 3px solid #fff;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+            background-size: cover;
+            background-position: center;
         }
         
         .setting-form {
@@ -273,6 +296,7 @@
             max-width: 500px;
             max-height: 90vh;
             overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
         }
         
         .modal-header {
@@ -564,6 +588,26 @@
             }
         }
         
+        // 渲染头像（支持 http(s)/data 图片或单个表情）
+        function renderAvatar(value) {
+            var main = document.getElementById('profileAvatarMain');
+            var side = document.querySelector('.profile-avatar');
+            var list = [main, side];
+            list.forEach(function (el) {
+                if (!el) return;
+                el.textContent = '';
+                el.style.background = '';
+                el.style.backgroundImage = '';
+                if (value && /^(https?:|data:)/.test(value)) {
+                    el.style.backgroundImage = 'url(' + value + ')';
+                    el.style.backgroundSize = 'cover';
+                    el.style.backgroundPosition = 'center';
+                } else {
+                    el.textContent = value && value.trim() ? value.trim() : '👤';
+                }
+            });
+        }
+
         // 加载用户信息
         async function loadUserInfo() {
             var API_BASE_URL = window.getApiBaseUrl();
@@ -576,25 +620,162 @@
                 if (result.success && result.data) {
                     var user = result.data;
                     document.getElementById('profileUsername').textContent = user.username || '-';
-                    document.getElementById('profileEmail').textContent = user.email || '-';
-                    document.getElementById('profileNickname').textContent = user.nickname || '-';
+                    var emailInput = document.getElementById('profileEmailInput');
+                    if (emailInput) emailInput.value = user.email || '';
+                    var nickInput = document.getElementById('profileNicknameInput');
+                    if (nickInput) nickInput.value = user.nickname || '';
+                    var genderSel = document.getElementById('profileGenderInput');
+                    if (genderSel) genderSel.value = (user.gender === 1 || user.gender === 0) ? String(user.gender) : '';
+                    var avatarInput = document.getElementById('profileAvatarInput');
+                    if (avatarInput) avatarInput.value = user.avatarUrl || '';
+                    renderAvatar(user.avatarUrl);
                     document.getElementById('profileCoins').textContent = user.coins || 0;
                     document.getElementById('profileCreatedAt').textContent = user.createdAt || '-';
                     document.getElementById('profileLastLoginAt').textContent = user.lastLoginAt || '-';
-                    
-                    // 更新侧边栏头像显示
-                    if (user.username) {
-                        var avatarEl = document.querySelector('.profile-avatar');
-                        if (avatarEl) {
-                            avatarEl.textContent = user.username.charAt(0).toUpperCase();
-                        }
-                    }
+
+                    // 密码区：无密码 -> 显示“设置密码”；有密码 -> 显示“修改密码”
+                    var hasPwd = !!user.hasPassword;
+                    var setArea = document.getElementById('pwdSetArea');
+                    var chgArea = document.getElementById('pwdChangeArea');
+                    var tip = document.getElementById('pwdStatusTip');
+                    if (setArea) setArea.style.display = hasPwd ? 'none' : 'block';
+                    if (chgArea) chgArea.style.display = hasPwd ? 'block' : 'none';
+                    if (tip) tip.textContent = hasPwd
+                        ? '当前账号已设置登录密码，可修改密码；忘记密码请点击右上角「忘记密码？」按邮箱找回。'
+                        : '当前账号尚未设置登录密码（第三方/扫码注册），建议立即设置，之后即可用“用户名+密码”登录。';
                 }
             } catch (e) {
                 console.error('加载用户信息失败:', e);
             }
         }
         
+        // 保存资料（昵称/邮箱/性别/头像）
+        async function saveProfile() {
+            var msg = document.getElementById('profileSaveMsg');
+            var btn = document.getElementById('profileSaveBtn');
+            msg.style.display = 'none';
+            var nickname = (document.getElementById('profileNicknameInput').value || '').trim();
+            var email = (document.getElementById('profileEmailInput').value || '').trim();
+            var gender = document.getElementById('profileGenderInput').value;
+            var avatarUrl = (document.getElementById('profileAvatarInput').value || '').trim();
+
+            function showMsg(text, isError) {
+                msg.textContent = text;
+                msg.style.color = isError ? '#e74c3c' : '#27ae60';
+                msg.style.display = 'inline-block';
+            }
+
+            if (!nickname) { showMsg('昵称不能为空', true); return; }
+            if (nickname.length > 30) { showMsg('昵称长度不能超过30个字符', true); return; }
+            if (!/^[\w.-]+@[\w.-]+\.\w+$/.test(email)) { showMsg('邮箱格式不正确', true); return; }
+            if (avatarUrl && !/^(https?:|data:)/.test(avatarUrl) && avatarUrl.length > 16) { showMsg('头像地址须为图片URL，或使用单个表情符号', true); return; }
+
+            if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+            try {
+                var API_BASE_URL = window.getApiBaseUrl();
+                var res = await fetch(API_BASE_URL + '/api/login/update-profile', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname: nickname, email: email, gender: gender, avatarUrl: avatarUrl })
+                });
+                var result = await res.json();
+                if (result.success) {
+                    renderAvatar(avatarUrl);
+                    try {
+                        var info = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                        info.nickname = nickname;
+                        info.email = email;
+                        localStorage.setItem('userInfo', JSON.stringify(info));
+                    } catch (e) {}
+                    showMsg('保存成功', false);
+                    loadUserInfo();
+                } else {
+                    showMsg(result.message || '保存失败', true);
+                }
+            } catch (e) {
+                showMsg('网络异常，保存失败，请稍后重试', true);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '保存资料'; }
+            }
+        }
+
+        // 密码复杂度与一致性前端预校验
+        function validatePwd(newPwd, confirmPwd) {
+            if (!newPwd) return '请输入新密码';
+            if (newPwd.length < 6 || newPwd.length > 32) return '密码长度需在6-32位之间';
+            if (!/[A-Z]/.test(newPwd) || !/[a-z]/.test(newPwd)) return '密码需包含大小写字母';
+            if (!/\d/.test(newPwd)) return '密码需包含数字';
+            if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPwd)) return '密码需包含特殊字符';
+            if (!confirmPwd || confirmPwd !== newPwd) return '两次输入的密码不一致';
+            return '';
+        }
+
+        // 首次设置密码（无密码账号）
+        async function setPassword() {
+            var msg = document.getElementById('pwdMsg');
+            msg.style.display = 'none';
+            var err = validatePwd(document.getElementById('spNew').value, document.getElementById('spConfirm').value);
+            if (err) { msg.textContent = err; msg.style.color = '#e74c3c'; msg.style.display = 'block'; return; }
+            try {
+                var res = await fetch(window.getApiBaseUrl() + '/api/login/set-password', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newPassword: document.getElementById('spNew').value, confirmPassword: document.getElementById('spConfirm').value })
+                });
+                var result = await res.json();
+                msg.textContent = result.message || (result.success ? '密码设置成功' : '设置失败');
+                msg.style.color = result.success ? '#27ae60' : '#e74c3c';
+                msg.style.display = 'block';
+                if (result.success) {
+                    setTimeout(function () {
+                        localStorage.removeItem('isLoggedIn');
+                        localStorage.removeItem('userAvatar');
+                        window.location.href = '../index.html';
+                    }, 1500);
+                }
+            } catch (e) {
+                msg.textContent = '网络异常，请稍后重试';
+                msg.style.color = '#e74c3c';
+                msg.style.display = 'block';
+            }
+        }
+
+        // 修改密码（已有密码账号）
+        async function changePasswordNew() {
+            var msg = document.getElementById('pwdMsg');
+            msg.style.display = 'none';
+            var oldPwd = document.getElementById('cpOld').value;
+            var newPwd = document.getElementById('cpNew').value;
+            var err = validatePwd(newPwd, document.getElementById('cpConfirm').value);
+            if (!oldPwd) err = err || '请输入旧密码';
+            if (err) { msg.textContent = err; msg.style.color = '#e74c3c'; msg.style.display = 'block'; return; }
+            try {
+                var res = await fetch(window.getApiBaseUrl() + '/api/login/change-password', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ oldPassword: oldPwd, newPassword: newPwd, confirmPassword: document.getElementById('cpConfirm').value })
+                });
+                var result = await res.json();
+                msg.textContent = result.message || (result.success ? '密码修改成功' : '修改失败');
+                msg.style.color = result.success ? '#27ae60' : '#e74c3c';
+                msg.style.display = 'block';
+                if (result.success) {
+                    setTimeout(function () {
+                        localStorage.removeItem('isLoggedIn');
+                        localStorage.removeItem('userAvatar');
+                        window.location.href = '../index.html';
+                    }, 1500);
+                }
+            } catch (e) {
+                msg.textContent = '网络异常，请稍后重试';
+                msg.style.color = '#e74c3c';
+                msg.style.display = 'block';
+            }
+        }
+
         // 退出登录
         function logout() {
             // 调用后端退出登录接口
@@ -615,6 +796,10 @@
         
         window.toggleTheme = toggleTheme;
         window.logout = logout;
+        window.saveProfile = saveProfile;
+        window.setPassword = setPassword;
+        window.changePasswordNew = changePasswordNew;
+        window.renderAvatar = renderAvatar;
 
         // ========== 注销账号 ==========
         function openCancelModal() {
@@ -800,42 +985,6 @@
                                 </a>
                             </li>
                             <li class="profile-menu-item">
-                                <a href="#products" class="profile-menu-link" data-section="products">
-                                    <span class="profile-menu-icon">🛍️</span>
-                                    <span>产品/服务</span>
-                                </a>
-                            </li>
-                            <li class="profile-menu-item">
-                                <a href="#vip" class="profile-menu-link" data-section="vip">
-                                    <span class="profile-menu-icon">⭐</span>
-                                    <span>VIP会员</span>
-                                </a>
-                            </li>
-                            <li class="profile-menu-item">
-                                <a href="#tutor" class="profile-menu-link" data-section="tutor">
-                                    <span class="profile-menu-icon">👨‍🏫</span>
-                                    <span>一对一答疑</span>
-                                </a>
-                            </li>
-                            <li class="profile-menu-item">
-                                <a href="#benefits" class="profile-menu-link" data-section="benefits">
-                                    <span class="profile-menu-icon">🎁</span>
-                                    <span>福利/赠品</span>
-                                </a>
-                            </li>
-                            <li class="profile-menu-item">
-                                <a href="#qq" class="profile-menu-link" data-section="qq">
-                                    <span class="profile-menu-icon">💬</span>
-                                    <span>QQ交流群</span>
-                                </a>
-                            </li>
-                            <li class="profile-menu-item">
-                                <a href="#videos" class="profile-menu-link" data-section="videos">
-                                    <span class="profile-menu-icon">🎥</span>
-                                    <span>优质视频资料</span>
-                                </a>
-                            </li>
-                            <li class="profile-menu-item">
                                 <a href="#coins" class="profile-menu-link" data-section="coins">
                                     <span class="profile-menu-icon">🪙</span>
                                     <span>硬币余额</span>
@@ -859,18 +1008,6 @@
                                     <span>积分变动日志</span>
                                 </a>
                             </li>
-                            <li class="profile-menu-item">
-                                <a href="#change-password" class="profile-menu-link" data-section="change-password">
-                                    <span class="profile-menu-icon">🔒</span>
-                                    <span>修改密码</span>
-                                </a>
-                            </li>
-                            <li class="profile-menu-item">
-                                <a href="#settings" class="profile-menu-link" data-section="settings">
-                                    <span class="profile-menu-icon">⚙️</span>
-                                    <span>设置</span>
-                                </a>
-                            </li>
                         </ul>
                     </div>
                     
@@ -879,36 +1016,109 @@
                         <!-- 账号信息 -->
                         <div id="account-section" class="profile-section-content">
                             <h2>账号信息</h2>
+
+                            <!-- ① 基本资料（可修改项 + 固定只读项） -->
                             <div class="profile-card">
+                                <h3 style="margin-top:0;">基本资料</h3>
                                 <div class="profile-info">
+                                    <div class="profile-info-item" style="flex-wrap:wrap; gap:12px;">
+                                        <span class="profile-info-label">头像：</span>
+                                        <div style="display:flex; align-items:center; gap:12px; flex:1; flex-wrap:wrap;">
+                                            <div id="profileAvatarMain" onclick="openAvatarModal()" style="cursor:pointer; width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; overflow:hidden;">👤</div>
+                                            <button type="button" onclick="openAvatarModal()" class="save-btn" style="padding:6px 14px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem;">选择头像</button>
+                                            <span style="font-size:0.8rem; color:var(--text-secondary);">支持表情或图片URL（保存后生效）</span>
+                                        </div>
+                                    </div>
+                                    <!-- 头像取值暂存（由弹窗选择/URL填写，保存时一并提交） -->
+                                    <input type="hidden" id="profileAvatarInput" value="">
                                     <div class="profile-info-item">
                                         <span class="profile-info-label">用户名：</span>
                                         <span class="profile-info-value" id="profileUsername">加载中...</span>
+                                        <span class="profile-info-value" style="color:#999; font-size:0.8rem;">（不可修改）</span>
                                     </div>
-                                    <div class="profile-info-item">
-                                        <span class="profile-info-label">邮箱：</span>
-                                        <span class="profile-info-value" id="profileEmail">加载中...</span>
-                                    </div>
-                                    <div class="profile-info-item">
+                                    <div class="profile-info-item" style="flex-wrap:wrap; gap:8px;">
                                         <span class="profile-info-label">昵称：</span>
-                                        <span class="profile-info-value" id="profileNickname">-</span>
+                                        <input type="text" id="profileNicknameInput" class="form-input" maxlength="30" placeholder="请输入昵称" style="flex:1; min-width:200px; padding:8px 12px;">
+                                    </div>
+                                    <div class="profile-info-item" style="flex-wrap:wrap; gap:8px;">
+                                        <span class="profile-info-label">邮箱：</span>
+                                        <input type="email" id="profileEmailInput" class="form-input" maxlength="100" placeholder="请输入邮箱（第三方账号可改绑真实邮箱）" style="flex:1; min-width:200px; padding:8px 12px;">
+                                    </div>
+                                    <div class="profile-info-item" style="flex-wrap:wrap; gap:8px;">
+                                        <span class="profile-info-label">性别：</span>
+                                        <select id="profileGenderInput" class="form-input" style="flex:1; min-width:200px; padding:8px 12px;">
+                                            <option value="">保密</option>
+                                            <option value="1">男</option>
+                                            <option value="0">女</option>
+                                        </select>
+                                    </div>
+                                    <div class="profile-info-item" style="flex-wrap:wrap; gap:10px; margin-top:8px;">
+                                        <button class="save-btn" onclick="saveProfile()" style="padding:8px 22px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 500;">保存资料</button>
+                                        <span id="profileSaveMsg" style="font-size:0.9rem; display:none;"></span>
                                     </div>
                                     <div class="profile-info-item">
                                         <span class="profile-info-label">硬币余额：</span>
                                         <span class="profile-info-value" id="profileCoins">0</span>
+                                        <span class="profile-info-value" style="color:#999; font-size:0.8rem;">（不可修改）</span>
                                     </div>
                                     <div class="profile-info-item">
                                         <span class="profile-info-label">注册时间：</span>
                                         <span class="profile-info-value" id="profileCreatedAt">-</span>
+                                        <span class="profile-info-value" style="color:#999; font-size:0.8rem;">（不可修改）</span>
                                     </div>
                                     <div class="profile-info-item">
                                         <span class="profile-info-label">最后登录：</span>
                                         <span class="profile-info-value" id="profileLastLoginAt">-</span>
+                                        <span class="profile-info-value" style="color:#999; font-size:0.8rem;">（不可修改）</span>
                                     </div>
-                                    <div class="profile-info-item">
-                                        <button class="logout-btn" onclick="logout()">退出登录</button>
-                                        <button class="cancel-account-btn" onclick="openCancelModal()">注销账号</button>
+                                </div>
+                            </div>
+
+                            <!-- ② 账号安全（设置/修改密码 + 找回密码） -->
+                            <div class="profile-card" style="margin-top:1rem;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                                    <h3 style="margin:0;">账号安全</h3>
+                                    <a href="forgot-password.html" style="color:#667eea; text-decoration:none; font-size:0.9rem;">忘记密码？</a>
+                                </div>
+                                <p id="pwdStatusTip" style="color:#666; font-size:0.88rem; margin:0 0 1rem;"></p>
+
+                                <!-- 首次设置密码（无密码账号） -->
+                                <div id="pwdSetArea" style="display:none;">
+                                    <div class="form-group" style="margin-bottom:0.8rem;">
+                                        <label class="form-label">新密码</label>
+                                        <input type="password" id="spNew" class="form-input" placeholder="6-32位，含大小写字母、数字、特殊字符" autocomplete="new-password">
                                     </div>
+                                    <div class="form-group" style="margin-bottom:0.8rem;">
+                                        <label class="form-label">确认新密码</label>
+                                        <input type="password" id="spConfirm" class="form-input" placeholder="请再次输入新密码" autocomplete="new-password">
+                                    </div>
+                                    <button class="save-btn" onclick="setPassword()" style="padding:8px 22px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; border:none; border-radius:8px; cursor:pointer;">设置密码</button>
+                                </div>
+
+                                <!-- 修改密码（已有密码账号） -->
+                                <div id="pwdChangeArea" style="display:none;">
+                                    <div class="form-group" style="margin-bottom:0.8rem;">
+                                        <label class="form-label">旧密码</label>
+                                        <input type="password" id="cpOld" class="form-input" placeholder="请输入旧密码" autocomplete="current-password">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0.8rem;">
+                                        <label class="form-label">新密码</label>
+                                        <input type="password" id="cpNew" class="form-input" placeholder="6-32位，含大小写字母、数字、特殊字符" autocomplete="new-password">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0.8rem;">
+                                        <label class="form-label">确认新密码</label>
+                                        <input type="password" id="cpConfirm" class="form-input" placeholder="请再次输入新密码" autocomplete="new-password">
+                                    </div>
+                                    <button class="save-btn" onclick="changePasswordNew()" style="padding:8px 22px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; border:none; border-radius:8px; cursor:pointer;">修改密码</button>
+                                </div>
+                                <div id="pwdMsg" style="font-size:0.9rem; margin-top:0.8rem; display:none;"></div>
+                            </div>
+
+                            <!-- ③ 退出登录 / 注销账号 -->
+                            <div class="profile-card" style="margin-top:1rem;">
+                                <div class="profile-info-item">
+                                    <button class="logout-btn" onclick="logout()">退出登录</button>
+                                    <button class="cancel-account-btn" onclick="openCancelModal()">注销账号</button>
                                 </div>
                             </div>
                         </div>
@@ -1179,6 +1389,21 @@
                 </div>
                 <h4 style="margin-top: 2rem;">上传头像</h4>
                 <input type="file" id="avatarUpload" accept="image/*" onchange="uploadAvatar()" style="margin-top: 1rem;">
+                <div style="margin-top: 1.5rem;">
+                    <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                        <label for="modalAvatarUrl" style="font-weight:600; font-size:0.95rem; white-space:nowrap;">或使用图片URL：</label>
+                        <input type="text" id="modalAvatarUrl" oninput="onAvatarUrlInput()" maxlength="500"
+                               placeholder="粘贴图片链接，如 https://…/avatar.png"
+                               style="flex:1; min-width:200px; padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text-primary);">
+                    </div>
+                    <div id="modalAvatarPreview" style="display:none; margin-top:0.9rem; align-items:center; gap:0.75rem;">
+                        <div style="width:52px; height:52px; border-radius:50%; overflow:hidden; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center;">
+                            <img id="modalAvatarImg" alt="头像预览" style="width:100%; height:100%; object-fit:cover; display:none;">
+                        </div>
+                        <span id="modalAvatarOk" style="color:#27ae60; font-size:0.85rem;">URL 可用，已应用到头像（关闭后记得点「保存资料」）</span>
+                    </div>
+                    <div id="modalAvatarErr" style="color:#e74c3c; font-size:0.85rem; margin-top:0.5rem; display:none;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -1299,15 +1524,59 @@
             } catch (e) { /* 忽略 */ }
         }
 
-        // 选择默认头像
+        // 头像图片URL实时校验与预览：URL 正确才应用到头像
+        function onAvatarUrlInput() {
+            var input = document.getElementById('modalAvatarUrl');
+            var value = (input && input.value || '').trim();
+            var prev = document.getElementById('modalAvatarPreview');
+            var err = document.getElementById('modalAvatarErr');
+            var img = document.getElementById('modalAvatarImg');
+            var hidden = document.getElementById('profileAvatarInput');
+            if (!value) {
+                if (prev) prev.style.display = 'none';
+                if (err) err.style.display = 'none';
+                return;
+            }
+            if (!/^https?:\/\//i.test(value)) {
+                if (prev) prev.style.display = 'none';
+                if (err) { err.textContent = '请输入以 http(s):// 开头的图片链接'; err.style.display = 'block'; }
+                return;
+            }
+            if (err) err.style.display = 'none';
+            if (img) {
+                img.onload = function () {
+                    if (prev) prev.style.display = 'flex';
+                    if (img) img.style.display = 'block';
+                    if (hidden) hidden.value = value;                       // 校验通过才写入待保存值
+                    if (window.renderAvatar) renderAvatar(value);           // 同步更新主头像/侧栏头像
+                };
+                img.onerror = function () {
+                    if (prev) prev.style.display = 'none';
+                    if (err) { err.textContent = '图片加载失败，请检查 URL 是否可访问'; err.style.display = 'block'; }
+                };
+                img.src = value;
+            }
+        }
+
+        // 打开头像弹窗时回填当前头像 URL，便于修改
+        function openAvatarModal() {
+            document.getElementById('avatarModal').style.display = 'flex';
+            var hidden = document.getElementById('profileAvatarInput');
+            var urlInput = document.getElementById('modalAvatarUrl');
+            if (hidden && urlInput) urlInput.value = hidden.value || '';
+        }
+
+        // 选择默认头像：写入头像地址输入框并预览，点“保存资料”后生效
         function selectDefaultAvatar(avatar) {
-            const profileAvatar = document.querySelector('.profile-avatar');
-            profileAvatar.textContent = avatar;
+            var input = document.getElementById('profileAvatarInput');
+            if (input) input.value = avatar;
+            renderAvatar(avatar);
             closeAvatarModal();
-            alert('头像已更新！');
+            var msg = document.getElementById('profileSaveMsg');
+            if (msg) { msg.textContent = '已选择头像，点击「保存资料」生效'; msg.style.color = '#667eea'; msg.style.display = 'inline-block'; }
         }
         
-        // 上传本地头像
+        // 本地图片预览（仅预览不持久化：dataURL 过长不入库；长期保存请使用图片URL）
         function uploadAvatar() {
             const fileInput = document.getElementById('avatarUpload');
             const file = fileInput.files[0];
@@ -1315,15 +1584,13 @@
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const profileAvatar = document.querySelector('.profile-avatar');
-                    profileAvatar.style.background = `url(${e.target.result})`;
-                    profileAvatar.style.backgroundSize = 'cover';
-                    profileAvatar.style.backgroundPosition = 'center';
-                    profileAvatar.textContent = '';
+                    var url = e.target.result;
+                    if (window.renderAvatar) renderAvatar(url);              // 预览到主头像/侧栏头像
+                    var msg = document.getElementById('profileSaveMsg');
+                    if (msg) { msg.textContent = '本地上传仅预览（过长不入库），如需长期保存请在弹窗内使用图片URL'; msg.style.color = '#f59e0b'; msg.style.display = 'inline-block'; }
                 };
                 reader.readAsDataURL(file);
                 closeAvatarModal();
-                alert('头像已更新！');
             }
         }
     </script>
