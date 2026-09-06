@@ -1,5 +1,6 @@
 package com.algoviz.controller;
 
+import com.algoviz.annotation.ResponseWatermark;
 import com.algoviz.entity.User;
 import com.algoviz.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +35,7 @@ public class UserManagementController {
     private ObjectMapper objectMapper;
 
     @GetMapping
+    @ResponseWatermark // 敏感接口示例：真实用户列表（根节点为原始 Map，_watermark 直接追加在同层）
     @Operation(summary = "获取用户列表", description = "分页获取用户列表，支持关键词搜索、性别/账号状态/登录状态筛选、注册时间排序")
     public Map<String, Object> getUsers(
             @RequestParam(required = false) String keyword,
