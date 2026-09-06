@@ -554,7 +554,75 @@
             <button class="link-btn" onclick="goForgotPassword()">忘记密码？</button>
             <button class="link-btn" onclick="goRegister()">立即注册 →</button>
         </div>
+
+        <!-- 第三方授权登录（Spring Security OAuth2 Client：GitHub / Gitee） -->
+        <div style="margin-top:18px;">
+            <div style="display:flex;align-items:center;gap:8px;color:#8a8f98;font-size:12px;line-height:1;">
+                <span style="flex:1;height:1px;background:rgba(128,128,128,.35);"></span>
+                <span>或使用第三方账号登录</span>
+                <span style="flex:1;height:1px;background:rgba(128,128,128,.35);"></span>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:12px;">
+                <a id="oauthGithubBtn" class="oauth-btn" href="javascript:void(0)" onclick="oauthLogin('github')" title="使用 GitHub 账号登录" style="flex:1;text-align:center;padding:9px 0;border-radius:6px;font-size:13px;cursor:pointer;text-decoration:none;border:1px solid rgba(128,128,128,.45);background:rgba(255,255,255,.05);">GitHub 登录</a>
+                <a id="oauthGiteeBtn" class="oauth-btn" href="javascript:void(0)" onclick="oauthLogin('gitee')" title="使用 Gitee 账号登录" style="flex:1;text-align:center;padding:9px 0;border-radius:6px;font-size:13px;cursor:pointer;text-decoration:none;border:1px solid rgba(128,128,128,.45);background:rgba(255,255,255,.05);">Gitee 登录</a>
+            </div>
+            <div class="login-error" id="oauthError" style="display:none;margin-top:8px;text-align:center;"></div>
+            <div id="oauthTip" style="display:none;margin-top:8px;text-align:center;font-size:12px;color:#8a8f98;">第三方登录暂不可用，请使用其他方式登录</div>
+        </div>
     </div>
+
+    <script>
+    /* ==================== 第三方授权登录（GitHub / Gitee） ==================== */
+    function oauthLogin(provider) {
+        var protocol = window.location.protocol;
+        var host = window.location.hostname || 'dsaol.asia';
+        var base = (protocol === 'https:') ? ('https://' + host + ':3000') : ('http://' + host + ':80');
+        window.location.href = base + '/oauth2/authorization/' + provider;
+    }
+    (function () {
+        function getApiBaseUrl() {
+            var protocol = window.location.protocol;
+            var host = window.location.hostname || 'dsaol.asia';
+            return (protocol === 'https:') ? ('https://' + host + ':3000') : ('http://' + host + ':80');
+        }
+        var API = getApiBaseUrl();
+        var errEl = document.getElementById('oauthError');
+
+        // 1) 回调失败提示：后端 302 回跳带 oauth_error
+        (function () {
+            var m = /[?&]oauth_error=([^&]+)/.exec(window.location.search);
+            if (!m) return;
+            var msg = '第三方登录失败，请重试或改用其他方式登录';
+            try {
+                var raw = decodeURIComponent(m[1]);
+                if (raw && raw !== '1') msg = '第三方登录失败：' + raw;
+            } catch (e) {}
+            if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+        })();
+
+        // 2) 探测后端已配置的平台：未配置的按钮置灰禁用，避免点了报错；全未配置时提示不可用
+        fetch(API + '/api/oauth/providers', { credentials: 'include' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var list = (d && d.providers) || [];
+                ['github', 'gitee'].forEach(function (p) {
+                    var id = 'oauth' + p.charAt(0).toUpperCase() + p.slice(1) + 'Btn';
+                    var btn = document.getElementById(id);
+                    if (btn && list.indexOf(p) === -1) {
+                        btn.style.opacity = '.45';
+                        btn.style.pointerEvents = 'none';
+                        btn.title = '该平台未在服务端配置（OAUTH_' + p.toUpperCase() + '_CLIENT_ID）';
+                    }
+                });
+                // 全部平台都未配置：提示第三方登录暂不可用（服务端优雅降级场景）
+                if (list.length === 0) {
+                    var tip = document.getElementById('oauthTip');
+                    if (tip) tip.style.display = 'block';
+                }
+            })
+            .catch(function () {});
+    })();
+    </script>
 
     <script>
     (function() {

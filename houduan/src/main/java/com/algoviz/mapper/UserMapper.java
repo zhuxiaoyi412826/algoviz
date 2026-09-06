@@ -14,6 +14,15 @@ public interface UserMapper {
     User findByEmailIncludeDeleted(@Param("email") String email);
     void insert(User user);
     void update(User user);
+    /** 个人中心修改资料（昵称/邮箱/性别/头像；不触碰用户名、密码、状态等） */
+    @Update("UPDATE user SET nickname = #{nickname}, email = #{email}, gender = #{gender}, " +
+            "avatar_url = #{avatarUrl}, updated_at = CURRENT_TIMESTAMP " +
+            "WHERE id = #{id} AND is_deleted = 0")
+    int updateProfile(@Param("id") Integer id,
+                      @Param("nickname") String nickname,
+                      @Param("email") String email,
+                      @Param("gender") Integer gender,
+                      @Param("avatarUrl") String avatarUrl);
     /** 最后登录时间已拆至 user_visit_stat（XML 实现为 upsert） */
     void updateLastLoginAt(@Param("id") Integer id);
 

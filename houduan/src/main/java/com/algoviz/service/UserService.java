@@ -12,6 +12,8 @@ public interface UserService {
     User findByEmailIncludeDeleted(String email);
     User createUser(User user);
     User updateUser(User user);
+    /** 个人中心：修改昵称/邮箱/性别/头像（校验在 Controller 层完成） */
+    void updateProfile(Integer id, String nickname, String email, Integer gender, String avatarUrl);
     void updateLastLogin(Integer userId);
 
     List<User> getAllUsers();

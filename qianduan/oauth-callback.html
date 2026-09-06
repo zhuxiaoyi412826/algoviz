@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录中...</title>
+    <style>
+        html, body { height: 100%; margin: 0; }
+        body {
+            display: flex; align-items: center; justify-content: center;
+            font-family: "Microsoft YaHei", -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff; font-size: 16px; letter-spacing: 1px;
+        }
+        .tip { opacity: .9; animation: pulse 1.2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100% { opacity:.6; } 50% { opacity:1; } }
+    </style>
+</head>
+<body>
+    <div class="tip">登录成功，正在进入首页...</div>
+    <script>
+    (function () {
+        function getApiBaseUrl() {
+            var protocol = window.location.protocol;
+            var host = window.location.hostname || 'dsaol.asia';
+            return (protocol === 'https:') ? ('https://' + host + ':3000') : ('http://' + host + ':80');
+        }
+        // 用服务端会话确认登录态，并按既有登录口径写入 localStorage（index.html 顶部据此展示已登录）
+        fetch(getApiBaseUrl() + '/api/login/me', { credentials: 'include' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d && d.success) {
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('userAvatar', '👤');
+                    localStorage.setItem('userInfo', JSON.stringify(d.data || {}));
+                    localStorage.setItem('token', '');
+                }
+                // 无论校验结果如何都落到首页（未登录时首页仅展示登录按钮，不强制跳转）
+                window.location.replace('index.html');
+            })
+            .catch(function () {
+                window.location.replace('index.html');
+            });
+    })();
+    </script>
+</body>
+</html>
