@@ -122,7 +122,7 @@
         <dependency>
             <groupId>io.github.openfeign</groupId>
             <artifactId>feign-hc5</artifactId>
-            <version>13.2.1</version>
+            <version>13.14</version>
         </dependency>
 
         <!-- ==================== RBAC 权限体系（Sa-Token + 三层加密） ==================== -->
