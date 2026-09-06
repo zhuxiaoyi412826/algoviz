@@ -5,6 +5,7 @@ import com.algoviz.common.exception.BusinessException;
 import com.algoviz.entity.User;
 import com.algoviz.service.OauthLoginService;
 import com.algoviz.service.UserService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -44,6 +45,9 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     /** 前台地址（application.yml: app.frontend-base-url，可含前端内容根路径前缀，如 http://localhost:5500/AlgoVize/qianduan） */
     @Value("${app.frontend-base-url:http://localhost:5500}")
     private String frontendBaseUrl;
@@ -72,8 +76,14 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             String login = asText(attrs.get("login"));
             String nickname = asText(attrs.get("name"));
             String avatar = asText(attrs.get("avatar_url"));
+            // OAuth 原始返回 JSON 快照（落 user_oauth.raw_profile，便于调试与后续扩展）
+            String rawProfile = null;
+            try {
+                rawProfile = objectMapper.writeValueAsString(attrs);
+            } catch (Exception ignored) {
+            }
 
-            User user = oauthLoginService.loginOrRegister(provider, openId, login, nickname, avatar);
+            User user = oauthLoginService.loginOrRegister(provider, openId, login, nickname, avatar, rawProfile);
 
             // 与 LoginController 账号密码登录完全一致的登录态建立
             HttpSession session = request.getSession(true);

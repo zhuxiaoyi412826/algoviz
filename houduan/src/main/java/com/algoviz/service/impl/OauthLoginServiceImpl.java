@@ -18,10 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>数据规则：</p>
  * <pre>
- *   1. user_oauth 命中 (provider, open_id) → 取绑定的 user_id 登录（校验 status / is_deleted）
- *   2. 未命中 → 自动注册：用户名 = {provider}_{openId}，邮箱 = {provider}_{openId}@oauth.local
- *      （前缀 + 数字 ID 跨平台不冲突，且与真实用户命名空间隔离）
+ *   1. user_oauth 命中 (provider, open_id) 且 bind_status=0 / is_deleted=0 → 登录并累计 login_count
+ *   2. 未命中 → 自动注册：bind_scene=1，用户名 {provider}_{openId}，邮箱 {provider}_{openId}@oauth.local
  *   3. 冲突兜底：注册重名时追加 _1/_2... 后缀（最多 5 次）
+ *   4. 第三方 token 列当前不持久化（业务暂不需要主动调用第三方 API）
  * </pre>
  */
 @Service
@@ -35,6 +35,11 @@ public class OauthLoginServiceImpl implements OauthLoginService {
     /** 昵称/头像入库最大长度（对齐 user 表列宽，避免超长截断异常） */
     private static final int MAX_NICKNAME = 100;
     private static final int MAX_AVATAR = 500;
+    /** raw_profile 快照上限（TEXT 单值建议上限），超出截断只保留头部 */
+    private static final int MAX_RAW_PROFILE = 60000;
+
+    /** bind_scene：1 注册自动绑定；2 用户手动账号绑定（后续迭代） */
+    private static final int BIND_SCENE_AUTO_REGISTER = 1;
 
     @Autowired
     private UserOauthMapper userOauthMapper;
@@ -45,8 +50,8 @@ public class OauthLoginServiceImpl implements OauthLoginService {
     @Override
     @Transactional
     public User loginOrRegister(String provider, String openId, String login,
-                                String nickname, String avatarUrl) {
-        // 1. 已有绑定 → 直接登录（校验账号可用性）
+                                String nickname, String avatarUrl, String rawProfile) {
+        // 1. 已有有效绑定 → 直接登录（校验账号可用性）
         UserOauth bound = userOauthMapper.findByProviderAndOpenId(provider, openId);
         if (bound != null && bound.getUserId() != null) {
             User user = userService.findById(bound.getUserId());
@@ -54,12 +59,16 @@ public class OauthLoginServiceImpl implements OauthLoginService {
                 throw new BusinessException("第三方账号绑定的本地账号不存在或已删除，请联系管理员");
             }
             assertActive(user);
+            if (bound.getId() != null) {
+                userOauthMapper.increaseLoginCount(bound.getId());   // 登录成功次数 +1
+            }
             return user;
         }
 
         // 2. 未绑定 → 自动注册本地账号
         String nicknameCleaned = sanitizeText(nickname, login, openId, MAX_NICKNAME);
         String avatarCleaned = sanitizeText(avatarUrl, null, null, MAX_AVATAR);
+        String rawCleaned = sanitizeText(rawProfile, null, null, MAX_RAW_PROFILE);
 
         User created = null;
         for (int i = 0; i < MAX_RETRY; i++) {
@@ -93,8 +102,10 @@ public class OauthLoginServiceImpl implements OauthLoginService {
         oauth.setUserId(created.getId());
         oauth.setProvider(provider);
         oauth.setOpenId(openId);
+        oauth.setBindScene(BIND_SCENE_AUTO_REGISTER);   // 注册自动绑定
         oauth.setNickname(nicknameCleaned);
         oauth.setAvatarUrl(avatarCleaned);
+        oauth.setRawProfile(rawCleaned);
         try {
             userOauthMapper.insert(oauth);
         } catch (DuplicateKeyException e) {
@@ -105,10 +116,17 @@ public class OauthLoginServiceImpl implements OauthLoginService {
                 User user = userService.findById(again.getUserId());
                 if (user != null) {
                     assertActive(user);
+                    if (again.getId() != null) {
+                        userOauthMapper.increaseLoginCount(again.getId());
+                    }
                     return user;
                 }
             }
             throw new BusinessException("第三方账号绑定冲突，请刷新后重试");
+        }
+        // 首次登录也计入 login_count（INSERT 默认 0，自增后 +1 = 1）
+        if (oauth.getId() != null) {
+            userOauthMapper.increaseLoginCount(oauth.getId());
         }
         return created;
     }
