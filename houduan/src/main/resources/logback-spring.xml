@@ -2,6 +2,8 @@
 <configuration>
 
     <property name="LOG_PATH" value="D:/rizi"/>
+    <!-- 主机名：用于慢 SQL 文件命名 {主机名}-slow.log；HOSTNAME 缺失时回退 COMPUTERNAME，再回退 host -->
+    <property name="HOST" value="${HOSTNAME:-${COMPUTERNAME:-host}}"/>
     <!-- 日志格式：时间 [TraceId] [线程] 级别 Logger - 消息 -->
     <!-- %X{trace_id} 引用 MDC 中的 TraceId，由 TraceIdFilter 设置 -->
     <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{trace_id:-no-trace}] [%thread] %-5level %logger{36} - %msg%n"/>
@@ -94,6 +96,24 @@
         </encoder>
     </appender>
 
+    <!-- 慢 SQL Appender：MyBatis SlowSqlInterceptor 输出执行超过 100ms 的 SQL。
+         输出目录 D:/rizi/SQL，滚动文件命名 {主机名}-slow.log（跨天/超限滚动），UTF-8。 -->
+    <appender name="SLOW_SQL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/SQL/${HOST}-slow.log</file>
+        <createDirs>true</createDirs>
+        <append>true</append>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/SQL/${HOST}-slow.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>20MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
     <!-- ============================================================
          JDK 内置 java.util.logging(JUL) 桥接类别配置（jul-to-slf4j 已由 starter-logging 提供）
          这些 logger 名 = JDK 内部 JUL logger 名，由 SLF4JBridgeHandler 转发到 logback：
@@ -120,6 +140,14 @@
     <logger name="com.sun.org.apache" level="WARN"/>
     <logger name="org.jcp" level="WARN"/>
     <logger name="jdk.module" level="WARN"/>
+
+    <!-- 慢 SQL 日志类别：MyBatis SlowSqlInterceptor（FQCN）专属输出。
+         additivity="false"：只进 SLOW_SQL_FILE + CONSOLE，不重复进 INFO/WARN/DEBUG 等常规文件。
+         level="INFO"：拦截器以 WARN 级别打印，确保在 INFO 生效环境也必然放行。 -->
+    <logger name="com.algoviz.config.SlowSqlInterceptor" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="SLOW_SQL_FILE"/>
+    </logger>
 
     <!-- Spring Profile 配置 - 开发环境 -->
     <springProfile name="!prod">

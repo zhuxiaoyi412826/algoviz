@@ -1708,3 +1708,58 @@ DROP INDEX `idx_uvs_deleted` ON `user_visit_stat`;
 -- ④ 核验（只读）：stat 表 is_deleted 分布应与 user 表一致
 -- SELECT s.is_deleted, COUNT(*) FROM user_visit_stat s GROUP BY s.is_deleted;
 -- SELECT u.is_deleted, COUNT(*) FROM user u GROUP BY u.is_deleted;
+
+--22 ============ 1. stat_total：全量累计指标（单行） ============
+CREATE TABLE IF NOT EXISTS `stat_total` (
+  `id`                   TINYINT UNSIGNED NOT NULL COMMENT '恒为1，保证单行',
+  `total_users`          BIGINT NOT NULL DEFAULT 0 COMMENT '有效用户数 user.is_deleted=0（含注销-1）',
+  `total_ds_visits`      BIGINT NOT NULL DEFAULT 0 COMMENT '数据结构累计访问(事件)',
+  `total_algo_visits`    BIGINT NOT NULL DEFAULT 0 COMMENT '算法累计访问(事件)',
+  `total_oj_visits`      BIGINT NOT NULL DEFAULT 0 COMMENT 'OJ累计访问(事件)',
+  `total_ai_dialogues`   BIGINT NOT NULL DEFAULT 0 COMMENT 'AI累计对话(事件)',
+  `updated_at`           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `chk_stat_total_single` CHECK (`id` = 1)
+) ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='写时累加-全量汇总指标(读时仅1行)';
+
+-- ============ 2. stat_daily：按自然日事件计数 ============
+CREATE TABLE IF NOT EXISTS `stat_daily` (
+  `stat_date`      DATE NOT NULL COMMENT '统计日期',
+  `ds_visits`      BIGINT NOT NULL DEFAULT 0 COMMENT '当日数据结构访问',
+  `algo_visits`    BIGINT NOT NULL DEFAULT 0 COMMENT '当日算法访问',
+  `oj_visits`      BIGINT NOT NULL DEFAULT 0 COMMENT '当日OJ访问',
+  `ai_dialogues`   BIGINT NOT NULL DEFAULT 0 COMMENT '当日AI对话',
+  `updated_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`stat_date`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='写时累加-自然日事件计数';
+
+-- ============ 3. 一次性回填 stat_total（幂等，可重跑） ============
+INSERT INTO `stat_total`
+  (`id`, `total_users`, `total_ds_visits`, `total_algo_visits`, `total_oj_visits`, `total_ai_dialogues`, `updated_at`)
+SELECT 1,
+       COUNT(*),
+       IFNULL(SUM(`ds_visits`),0),
+       IFNULL(SUM(`algo_visits`),0),
+       IFNULL(SUM(`oj_visits`),0),
+       IFNULL(SUM(`ai_dialogues`),0),
+       NOW()
+FROM `user_visit_stat` WHERE `is_deleted` = 0
+ON DUPLICATE KEY UPDATE
+  `total_users`         = VALUES(`total_users`),
+  `total_ds_visits`     = VALUES(`total_ds_visits`),
+  `total_algo_visits`   = VALUES(`total_algo_visits`),
+  `total_oj_visits`     = VALUES(`total_oj_visits`),
+  `total_ai_dialogues`  = VALUES(`total_ai_dialogues`),
+  `updated_at`          = NOW();
+
+-- ============ 4.（可选）每日校准语句：后端 @Scheduled 每天 03:10 自动执行，防写时累加漂移 ============
+UPDATE `stat_total` t
+JOIN (SELECT COUNT(*) AS c,
+             IFNULL(SUM(`ds_visits`),0)     AS d,
+             IFNULL(SUM(`algo_visits`),0)   AS a,
+             IFNULL(SUM(`oj_visits`),0)     AS o,
+             IFNULL(SUM(`ai_dialogues`),0)  AS ai
+      FROM `user_visit_stat` WHERE `is_deleted` = 0) s ON 1=1
+SET t.`total_users`=s.c, t.`total_ds_visits`=s.d, t.`total_algo_visits`=s.a,
+    t.`total_oj_visits`=s.o, t.`total_ai_dialogues`=s.ai, t.`updated_at`=NOW()
+WHERE t.`id` = 1;

@@ -22,8 +22,8 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class RateLimitInterceptor implements HandlerInterceptor {
 
-    private static final int WRITE_LIMIT = 20;
-    private static final int READ_LIMIT = 100;
+    private static final int WRITE_LIMIT = 5;
+    private static final int READ_LIMIT = 10;
 
     @Autowired
     private StringRedisTemplate redis;

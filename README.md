@@ -2,168 +2,148 @@
 
 ## 项目概览
 
-AlgoViz 是一个交互式的数据结构和算法可视化学习网站，帮助用户通过动画深入理解常见数据结构和经典算法的执行过程。
-**访问地址**:
+AlgoViz 是一个交互式的数据结构和算法可视化学习网站，帮助用户通过动画深入理解常见数据结构和经典算法的执行过程，并提供在线 OJ、AI 答疑、面试题库（双路检索）与付费解锁等能力。
 
-后台管理访问地址:5000
+**访问地址（本地开发）**
+- 前台门户：http://localhost:5500（VSCode Go Live 打开 `qianduan` 目录）
+- 后台管理：http://localhost:5000（Vite 开发服）
+- 后端 API ：http://localhost:80（Spring Boot；Knife4j 文档 /doc.html）
 
-前台访问管理地址: localhsot:5500
-
-后端地址:localhost:80
+---
 
 ## 技术栈
 
-| 层级     | 技术栈                                                       |
-| -------- | ------------------------------------------------------------ |
-| 前台门户 | 原生 HTML5 + CSS3 + JavaScript                               |
-| 后台管理 | Vue3 + Vite + Element Plus + ECharts                         |
-| 后端服务 | Spring Boot 3.2.0 + JDK 17 + MyBatis‑Plus SpringAI           |
+| 层级 | 技术栈 |
+| --- | --- |
+| 前台门户 | 原生 HTML5 + CSS3 + JavaScript |
+| 后台管理 | Vue3 + Vite + Element Plus + ECharts |
+| 后端服务 | Spring Boot 3.2.0 + JDK 17 + MyBatis 3.0.3 + Sa-Token（后台 RBAC）+ Spring Security OAuth2 Client |
+| 前台鉴权 | AuthInterceptor（Session + Cookie 双凭证，独立于后台 RBAC，另兼容 X-User-Id 头） |
 | 向量服务 | Python FastAPI + Uvicorn + SentenceTransformers（面试题）+ Java know-qrdant（算法题） |
-| 数据库   | MySQL 8.0（业务库） + ChromaDB 1.5.9（面试题向量）+ Qdrant（算法题向量）+ Redis（缓存） |
-| AI 模型  | DeepSeek（对话大模型） + BAAI/bge-small-zh-v1.5（面试题向量 512 维）+ BAAI/bge-large-zh-v1.5（算法题向量 1024 维，ONNX Runtime） |
+| 数据库 | MySQL 8.0（业务库）+ ChromaDB 1.5.9（面试题向量）+ Qdrant（算法题向量）+ Redis（缓存） |
+| AI 模型 | DeepSeek（对话大模型）+ BAAI/bge-small-zh-v1.5（面试题向量 512 维）+ BAAI/bge-large-zh-v1.5（算法题向量 1024 维，ONNX Runtime） |
 | 通信方式 | OpenFeign（Java ↔ Python）+ RESTful API + Dubbo 3（Java ↔ Java 子服务 know-qrdant） |
 
-| 技术                 | 版本        | 用途                                 |
-| -------------------- | ----------- | ------------------------------------ |
-| Spring Boot          | 3.2.0       | 后端主框架                           |
-| JDK                  | 17          | 运行环境                             |
-| MyBatis              | 3.0.3       | ORM 数据库操作                       |
-| MySQL Connector      | 父 pom 托管 | MySQL8.0 连接驱动                    |
-| Redis |  | 缓存数据 |
-| SentenceTransformers |             | 语句转换向量                         |
-| ChromaDB             | 1.59        | 存储向量                             |
-| FastAPI + Uvicorn    |             | 向量检索                             |
-| Knife4j              | 4.5.0       | API 文档                             |
-| Lombok               | 1.18.30     | 代码简化                             |
-| commons-lang3        | 3.14.0      | 通用工具                             |
-| POI                  | 5.2.5       | Excel 处理                           |
-| Maven Compiler       | 3.11.0      | 编译                                 |
-| Spring AI            | 1.0.0-M6    | 大模型接入、向量检索、RAG、Embedding |
-| Dubbo                | 3.2.20      | Java 子服务 RPC（主服务 ↔ know-qrdant 直连） |
-| Qdrant               | 1.x         | 算法题向量库（HNSW m=16 + Cosine，1024 维） |
-| onnxruntime          | 1.17.1      | Java 端 bge-large-zh-v1.5 模型推理 |
-| Nginx                |             |                                      |
-| OpenFeign            |             | 不同的组件之间通信使用               |
-| Elasticsearch        | 7.12.1      | 面试题全文检索 + 日志存储（IK 中文分词） |
-| IK Analyzer          | 7.12.1      | 中文分词插件（ik_max_word 索引 / ik_smart 搜索） |
-| Kibana               | 7.12.1      | 日志可视化看板                       |
-| Fluentd              | 4.3.3       | 日志采集                             |
-| Metricbeat | 7.12.1 | 采集**各类系统、服务的指标度量数据** |
+**核心组件版本**
+
+| 技术 | 版本 | 用途 |
+| --- | --- | --- |
+| Spring Boot | 3.2.0 | 后端主框架 |
+| JDK | 17 | 运行环境 |
+| MyBatis | 3.0.3 | ORM 数据库操作 |
+| Sa-Token | 1.37.0 | 后台管理员 RBAC 鉴权（双轨之一） |
+| Spring Security OAuth2 Client | Boot 3.2 托管 | 前台第三方登录（GitHub + Gitee 授权码） |
+| MySQL Connector | 父 pom 托管 | MySQL 8.0 连接驱动 |
+| Redis | - | 缓存 / 敏感词 / 去重 / 待审核队列 |
+| SentenceTransformers | - | 语句向量化（bge-small-zh-v1.5） |
+| ChromaDB | 1.5.9 | 面试题语义向量库 |
+| Qdrant | 1.x | 算法题向量库（HNSW m=16 + Cosine，1024 维） |
+| onnxruntime | 1.17.1 | Java 端 bge-large-zh-v1.5 模型推理 |
+| FastAPI + Uvicorn | - | Python 向量检索服务 |
+| Dubbo | 3.2.20 | 主服务 ↔ know-qrdant 直连 |
+| OpenFeign | - | Java ↔ Python 服务通信 |
+| Knife4j | 4.5.0 | API 文档 |
+| Apache POI | 5.2.5 | Excel 处理 |
+| Jsoup | 1.17.2 | Markdown 富文本 XSS 清洗 |
+| Lombok / commons-lang3 | 1.18.30 / 3.14.0 | 代码简化 / 工具 |
+| Nginx | - | 前台静态页 + 后台 dist + HTTPS |
+| Elasticsearch | 7.12.1 | 面试题全文检索 + 日志存储（IK 中文分词） |
+| IK Analyzer | 7.12.1 | 中文分词（ik_max_word 索引 / ik_smart 搜索） |
+| Kibana / Fluentd / Metricbeat | 7.12.1 / 4.3.3 / 7.12.1 | 日志可视化 / 采集 / 指标监控 |
+
+---
 
 ## 项目结构
 
-| 目录1     | 项目说明              |
-| -------- | --------------------- |
-| Agent    | 智能体 Agent 开发项目（Python 面试题向量检索） |
+| 目录 | 说明 |
+| --- | --- |
+| qianduan | 前台门户（原生静态页 + 中转页 oauth-callback.html） |
+| houtai | 后台管理系统（Vue3 + Element Plus） |
+| houduan | 后端核心业务服务（含 config/security OAuth2、水印切面等） |
 | algo-common-api | 公共模块：know-api（Dubbo 接口）+ know-qrdant（算法题向量检索独立子服务） |
-| houduan  | 后端核心业务服务      |
-| houtai   | 后台管理系统          |
-| qianduan | 前端门户网站          |
-| bin      | 快捷启动文件          |
+| Agent | 智能体 Agent 开发项目（Python 面试题向量检索） |
+| bin | 快捷启动文件 |
+| doc | 文档与脚本：测试文档/脚本、请求流程、OAuth 实现总结、上线工具、JVM 日志方案 |
+
+---
 
 ## 部署
 
 ### 开发环境
 
-#### 前置环境
+#### 前置环境与启动顺序
+```
+MySQL → Redis → Elasticsearch → Java 后端 → Agent 服务（含 ChromaDB）→ 前端页面
+```
 
-**启动顺序** 
-
-**MySQL → Redis → Elasticsearch → Java 后端 → Agent 服务（含 ChromaDB）→ 前端页面**。
-
-**后端业务、后台管理系统**
-
-- JDK
-- MySQL
-- Maven
-- Redis
-
-**Agent 智能体服务**
-
-依赖 Python 包：
-
-- fastapi
-- uvicorn
-- chromadb
-- sentence‑transformers（使用模型：BAAI/bge‑small‑zh‑v1.5）
-- numpy
-- pydantic
+- 后端/后台管理需：JDK 17、Maven、MySQL 8.0、Redis
+- Agent（Python）：fastapi / uvicorn / chromadb / sentence-transformers（BAAI/bge-small-zh-v1.5）/ numpy / pydantic
 
 #### 核心启动
 
-**1.后端Java服务**
-
+**1. 后端 Java 服务（houduan）**
 ```
 mvn spring-boot:run
 ```
+> 第三方登录（GitHub/Gitee）需先配置环境变量再启动；未配置时主程序照常运行，登录页第三方按钮置灰：
+> ```powershell
+> $env:OAUTH_GITHUB_CLIENT_ID="..."; $env:OAUTH_GITHUB_CLIENT_SECRET="..."
+> $env:OAUTH_GITEE_CLIENT_ID="...";  $env:OAUTH_GITEE_CLIENT_SECRET="..."
+> ```
+> 详细接入/回调/踩坑见 `doc/md/第三方授权登录实现总结-SpringSecurityOAuth2Client.md`
 
-**2. 前端门户网站（qianduan）**
-
-使用 VSCode `Go Live` 插件，直接打开访问 `index.html`
+**2. 前台门户（qianduan）**
+```
+使用 VSCode「Go Live」直接打开 qianduan/index.html
+```
 
 **3. 后台管理系统（houtai）**
-
 ```
 npm install
 npm run dev
 ```
 
-#### agent智能体启动
-
-agent/know-retrieval目录下
-
+**4. Agent 智能体（agent/know-retrieval）**
 ```
 python run.py
-```
-
-向量数据库启动
-
-```
+# 向量库
 chroma run --path ./chroma_data --host 0.0.0.0 --port 8000
 ```
 
-#### 算法题向量子服务启动（know-qrdant）
-
-前置：Qdrant、模型转换（一次性）
-
+**5. 算法题向量子服务（algo-common-api/know-qrdant）**
 ```
-# 1. 启动 Qdrant（Windows 可执行文件）
+# ① 启动 Qdrant（默认 REST 6333 / gRPC 6334）
 D:\software\Qdrant\qdrant-x86_64-pc-windows-msvc\qdrant.exe
-#   默认 REST 6333 / gRPC 6334
 
-# 2. 模型转换（一次性，产物：model.onnx + vocab.txt 到
-#    C:\Users\Administrator\.cache\huggingface\hub\java-bge-large-zh-v1.5\）
+# ② 模型转换（一次性，产物写入 ~/.cache/huggingface/hub/java-bge-large-zh-v1.5/）
 cd AlgoVize\algo-common-api\know-qrdant
 pip install onnxscript onnx
 python tools\export_onnx.py
 
-# 3. 启动子服务（Dubbo 20999 / HTTP 8090）
+# ③ 启动子服务（Dubbo 20999 / HTTP 8090）
 cd AlgoVize\algo-common-api\know-qrdant
 mvn spring-boot:run
-# 确认日志：Export dubbo service ... bind.port=20999
-# 探活：curl http://localhost:8090/health  → {"modelReady":true,"qdrantConnected":true}
+# 探活：curl http://localhost:8090/health → {"modelReady":true,"qdrantConnected":true}
 
-# 4. 主服务保持 80，通过 Dubbo 直连 20999 调用（check=false + mock 降级，
-#    子服务未启动不影响核心功能，仅算法题向量接口返回 404/离线）
+# ④ 主服务通过 Dubbo 直连 20999（check=false + mock 降级）；子服务未启动不影响核心功能
 ```
 
 ### 服务端部署
 
-**1.1基础软件按照**
-
+**1.1 基础软件安装**
 ```
 # JDK 17
-yum install -y java-17-openjdk java-17-openjdk-devel   # CentOS
-# 或 apt install -y openjdk-17-jdk                      # Ubuntu
+yum install -y java-17-openjdk java-17-openjdk-devel    # CentOS
+# apt install -y openjdk-17-jdk                          # Ubuntu
 
-# Maven（仅打包机需要，服务器可省略）
+# Maven（仅打包机需要）
 yum install -y maven
 
 # MySQL 8.0
 yum install -y mysql-community-server
 systemctl enable --now mysqld
 
-# Node.js 18+（用于 cors-proxy 与后台构建）
+# Node.js 18+（cors-proxy 与后台构建）
 curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
 yum install -y nodejs
 npm install -g pnpm
@@ -171,222 +151,190 @@ npm install -g pnpm
 # Nginx（托管前台静态页 + 后台 dist）
 yum install -y nginx
 systemctl enable --now nginx
-# git 下载代码
 ```
 
 **1.2 放行端口**
+| 端口 | 用途 |
+| --- | --- |
+| 80 | 后端 Spring Boot（HTTP） |
+| 443 | Nginx HTTPS 入口 |
+| 3000 | cors-proxy（HTTPS 反代后端） |
+| 3306 | MySQL（建议仅本机） |
+| 5000 | 后台 Vite 开发服（仅本地调试，生产不开放） |
+| 8000 | ChromaDB |
+| 8001 | Python know-retrieval 向量/ES 检索服务 |
+| 8090 | know-qrdant HTTP 探活（/health） |
+| 20999 | know-qrdant Dubbo RPC（主服务直连） |
+| 6333/6334 | Qdrant REST / gRPC |
+| 9200 / 9300 / 5601 | Elasticsearch / 集群通信 / Kibana |
 
-| 端口 | 用途                                         |
-| ---- | -------------------------------------------- |
-| 80   | 后端 Spring Boot（HTTP）                     |
-| 443  | Nginx HTTPS 入口                             |
-| 3000 | cors-proxy (HTTPS 反代后端)                  |
-| 3306 | MySQL（建议仅本机）                          |
-| 5000 | 后台 Vite 开发服（仅本地调试，生产无需开放） |
-| 8001 | Python know-retrieval 向量/ES 检索服务       |
-| 9200 | Elasticsearch（建议仅本机）                  |
-| 9300 | ES 集群通信                                  |
-| 5601 | Kibana                                       |
-| 8001 | Choma                                        |
-| 8090 | know-qrdant 子服务 HTTP 探活（/health）       |
-| 20999 | know-qrdant 子服务 Dubbo RPC（主服务直连）    |
-| 6333/6334 | Qdrant 向量库 REST / gRPC              |
-
-**1.3 导入SQL文件** 
+**1.3 导入 SQL**
+导入 `houduan/src/main/resources/db/algovize.sql`（含历史迁移段注释，按注释顺序执行）。
 
 **1.4 配置文件**
-
-（含明文密码、微信密钥），需手动放置到服务器： 修改yml 文件数据库配置  AI密钥注入环境变量
-
+配置文件（含数据库密码、微信/支付密钥）手动放到服务器后，修改 yml 数据库配置；AI 等密钥注入环境变量：
 ```
 echo 'export DEEPSEEK_API_KEY="sk-xxxxxxxxxxxx"' > /etc/profile.d/algoviz.sh
 source /etc/profile.d/algoviz.sh
 ```
 
-**1.5 下载代码打包**
-
-也可以上传直接打包好的jar包
-
+**1.5 下载代码并打包**
 ```
-https://github.com/zhuxiaoyi412826/algoviz.git
-git@github.com:zhuxiaoyi412826/algoviz.git
+git clone https://github.com/zhuxiaoyi412826/algoviz.git
+# Java 打成 jar；前端文件与 Vue(dist) 部署到 Nginx
 ```
-
-java 文件打成jar包  前端文件和vue部署在nginx中
-
+后台启动示例：
 ```
-1 nohup node server.js > cors-proxy.log 2>&1 &    后台启动日志在 cors-proxy.log    前台启动 
-2 nohup java -jar backend-1.0.0.jar > app.log 2>&1 &                             后台启动
- - nohup ... & ：脱离终端后台运行
-- --spring.config.additional-location ：加载外部 application.yml 覆盖 jar 内默认值
-- > app.log 2>&1 ：标准输出与错误流都写入 app.log
+# cors-proxy
+nohup node server.js > cors-proxy.log 2>&1 &
+# 后端
+nohup java -jar backend-1.0.0.jar > app.log 2>&1 &
+# 说明：--spring.config.additional-location=file:./config/ 可加载外部 application.yml 覆盖 jar 内默认值
 ```
 
-**1.6 验证是否启动成功**
-
+**1.6 验证启动**
 ```
-tail -f app.log          # 看到 "Started BackendApplication" 即成功
-curl http://127.0.0.1:80/api/xxx    # 接口可达
+tail -f app.log    # 看到 "Started BackendApplication" 即成功
+curl http://127.0.0.1:80/api/xxx
 ```
 
-**1.7 部署前台服务**
-
-上传静态文件
-
+**1.7 部署前台静态页 + Nginx**
 ```
-# 本地
 scp -r qianduan/* root@server:/usr/share/nginx/html/
 ```
-
-配置nginx
-
-```
+```nginx
 # /etc/nginx/conf.d/dsaol.conf
 server {
     listen 443 ssl;
     server_name dsaol.asia;
-
     ssl_certificate     /home/99/dsaol.asia_bundle.pem;
     ssl_certificate_key /home/99/dsaol.asia.key;
-
-    # 前台静态页
     root /usr/share/nginx/html;
     index index.html index.htm;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # 后台管理界面 dist
+    location / { try_files $uri $uri/ /index.html; }
     location /admin/ {
         alias /usr/share/nginx/admin/;
         try_files $uri $uri/ /admin/index.html;
     }
 }
-
 # 80 强制跳 443
-server {
-    listen 80;
-    server_name dsaol.asia;
-    return 301 https://$host$request_uri;
-}
+server { listen 80; server_name dsaol.asia; return 301 https://$host$request_uri; }
 ```
 
 ### Docker
+详细步骤见 `doc/txt/Docker部署流程.txt`。要点：后端 8080 由 Nginx(80/443) 统一接管；MySQL 首次启动通过 volume 挂载 `algovize.sql` 初始化；SSL 证书手动放入 `docker/ssl/` 且文件名与 nginx.conf 一致。
 
-
+---
 
 ## 功能特性
 
 ### 前台
 
 #### 支付
-
-1. **权限分级**：基础可视化功能免费开放；高清 GIF 导出、大文件解析、高阶算法模块（线段树、图复杂演示）需要解锁付费权限
-2. **支付流程**：前端生成微信支付二维码，轮询查询支付状态；后端对接微信支付 API，生成预支付订单，校验回调通知
-3. **订单管理**：生成用户订单记录，保存订单号、支付时间、过期时长；支付成功自动解锁对应功能权限，权限和用户账号绑定
-4. **回调与异常处理**：处理支付超时、用户取消支付、重复回调；支付失败支持重新唤起支付；支付成功实时刷新页面解锁功能，无需刷新页面
+1. **权限分级**：基础可视化免费；高清 GIF 导出、大文件解析、高阶算法模块（线段树、图复杂演示）需付费解锁
+2. **支付流程**：前端生成微信支付二维码并轮询状态；后端对接微信支付 API 生成预支付单、校验回调
+3. **订单管理**：保存订单号/支付时间/过期时长，支付成功自动解锁权限（绑定账号）
+4. **回调与异常**：处理超时、取消、重复回调；失败可重新唤起支付；成功后实时解锁无需刷新
 
 #### 数据结构可视化
-
-- 10 种数据结构 ：数组、链表、栈、队列、哈希表、堆、树、图、线段树、并查集、Trie、KMP、UnionFind 等
-- 自定义数据输入 ：支持 .txt / .json / .csv 文件上传、随机生成、近乎有序、倒序预设、手动输入
-- 动画演示 ：逐步执行过程可视化
-- 动画导出 ：算法执行过程导出为 GIF 动画（带进度条）
+- 数组、链表、栈、队列、哈希表、堆、树、图、线段树、并查集、Trie、KMP、UnionFind 等
+- 支持 .txt / .json / .csv 上传、随机生成、近乎有序/倒序预设、手动输入
+- 逐步动画演示；执行过程导出 GIF（带进度条）
 
 #### 算法可视化演示
+- 排序：冒泡/选择/插入/希尔/归并/快速/堆/桶/计数/基数
+- 经典：动态规划、BFS/DFS、贪心、递归、字符串匹配、Dijkstra、KMP 等
 
-- 排序算法 ：冒泡、选择、插入、希尔、归并、快速、堆、桶、计数、基数（10 种）
-- 经典算法 ：动态规划、图搜索（BFS/DFS）、贪心、递归、字符串匹配、Dijkstra、KMP 等
+#### 在线 OJ
+- CodeMirror 编辑器（Java/Python/C++/JavaScript 高亮），格式化/清空/复制/重置
+- 模拟判题：AC/WA/CE/RE/TLE/MLE，展示执行时间/内存/结果对比
+- 统一分页条（≤8 全显示、首尾省略号、当前页高亮、跳页钳制）+ 状态记忆（localStorage 保存分页/排序/筛选，返回自动恢复）
 
-#### 在线OJ功能
+#### 🤖 智能 AI 助手（DeepSeek）
+- 多轮对话（新建/历史切换）、代码块高亮与一键复制、流式输出可中断、常用 Prompt 胶囊
 
-- **代码编辑器**: 基于 CodeMirror，支持多语言语法高亮（Java、Python、C++、JavaScript）
-- **题目管理**: 题目列表、难度筛选、标签筛选
-- **判题系统**: 模拟判题逻辑，支持 AC/WA/CE/RE/TLE/MLE 等状态反馈
-- **编辑器功能**: 格式化、清空、复制、重置代码
-- **结果展示**: 执行时间、内存占用、运行结果对比
-- **分页浏览**: 统一数字按钮 + 省略号分页条（总页数 ≤ 8 全显示；当前页在头 7 页时 `1..7 … 末页`，在尾 7 页时 `1 … 末-6..末页`，中间区 `1 … cur-2 cur-1 [cur] cur+1 cur+2 … 末`），当前页高亮（蓝底白字阴影）；右侧"共 X 页 / Y 个，跳至 [输入框] 页"，输入数字回车即跳转，超限自动钳制到首/末页
-- **状态记忆**: 页码、每页条数、排序（ID/时间升降序）、搜索词、难度、标签筛选条件全部存入 localStorage，刷新或返回页面自动恢复到上次停留的页与筛选状态
-
-#### 🤖 智能 AI 助手 (DeepSeek)
-
-- **多轮对话管理**: 左侧侧边栏支持创建新对话和历史记录切换。
-- **强大的代码支持**: 支持代码块语言高亮识别，提供一键复制功能。
-- **实时流式输出**: 接入真实的 DeepSeek 接口，支持打字机效果及生成中断。
-- **快捷提问**: 提供常用的算法学习 Prompt 胶囊按钮。
-
-**暗色模式**
-
-- 导航栏右侧提供主题切换按钮（☀️/🌙）
-- 支持亮色/暗色模式切换，自动保存到 LocalStorage
-- 所有页面保持一致的主题偏好
+#### 暗色模式
+- 全局主题切换（☀️/🌙），LocalStorage 持久化，跨页一致
 
 #### 面试题库（双模式搜索）
-- 关键词搜索（ES IK 分词）+ AI 语义搜索（向量召回）（双搜索框）
-- ES 搜索：多字段加权打分（标题 4.0 > 标签 3.0 > 分类 1.5 > 描述 1.0）、命中关键词高亮、难度过滤、服务异常自动降级 MySQL LIKE
-- 语义搜索：句向量近邻召回，解决"意思相近但用词不同"的检索需求
-- 题目分页浏览、难度/标签/分类筛选
-- 做题状态标记（待做/已做/收藏/点赞）
-- 题目详情 + Markdown 题解渲染
-- **统一分页条**: 数字按钮 + 省略号格式（总页数 ≤ 8 全显示；当前页在头 7 页时显示 `1 2 3 4 5 6 7 … 末页`，在尾 7 页时显示 `1 … 末-6 … 末页`，中间区显示 `1 … cur-2 cur-1 [cur] cur+1 cur+2 … 末`，左 2 右 2 + 首尾页），当前页蓝/紫底白字阴影高亮；右侧"共 X 页 / Y 个，跳至 [输入框] 页"，输入数字按回车即跳转，超限自动钳制
-- **状态持久化**: 页码、每页条数、搜索词、难度、标签、排序条件全部存入 localStorage（单一真源 `algovize:interview-list.state`），刷新页面或从详情返回列表时自动恢复上次停留的页码与筛选条件；筛选变化时自动重置为第 1 页并同步缓存
-####  用户系统
+- 关键词搜索（ES IK 分词）：多字段加权（标题 4.0 > 标签 3.0 > 分类 1.5 > 描述 1.0）+ 命中高亮 + 降级 MySQL LIKE
+- 语义搜索：bge-small-zh 句向量近邻召回
+- 做题状态（待做/已做/收藏/点赞）、Markdown 题解、统一分页条与状态持久化（单一真源 `algovize:interview-list.state`）
 
-- 微信公众号验证码登录（6 位数字验证码 + 2 秒轮询）
-- 暗色/亮色主题切换（LocalStorage 持久化）
-- 用户个人中心、金币系统、产品购买
+#### 用户系统
+- 微信公众号验证码登录（6 位验证码 + 2 秒轮询）
+- 个人中心、金币系统、产品购买、主题切换
 
-#### 登录
+#### 登录方式
+- **微信公众号登录**：验证码登录 + 实时轮询 + 消息签名/加密解密
+- **账号密码登录**（图形验证码）
+- **邮箱验证码登录**
+- **第三方授权登录（GitHub / Gitee）**：Spring Security OAuth2 Client 授权码模式；首次授权自动注册（`user_oauth` 绑定：bind_scene=1、登录计数、raw_profile 快照），再次授权直接登录；未配置平台优雅降级（按钮置灰）；成功经中转页直达首页
 
-**🔐 微信公众号登录**
-
-- **验证码登录**: 用户在网页获取6位数字验证码，在微信公众号输入验证码完成登录
-- **实时状态轮询**: 前端每2秒轮询一次登录状态
-- **安全验证**: 支持微信消息签名验证和加密消息解密
-
-**账号密码登录**
+#### 用户中心（个人中心）
+- 修改邮箱 / 昵称 / 性别 / 头像（emoji 或图片 URL，URL 实时校验预览）
+- 无密码账号首次「设置密码」/ 已有密码「修改密码」/ 「忘记密码」找回
+- 只读：用户名、硬币余额、注册时间、最后登录
 
 ### 后台
 
 #### 1. 内容管理
-- 算法/数据结构配置、动画配置、题目管理、测试用例、判题配置
-- 面试题目管理 ：新增/编辑/删除、JSON 批量导入、Excel 导入、AI 批量生成
-- 向量数据库管理 （VectorManage）：向量数量/维度实时监控、向量数值查看、全量同步、向量列表分页
-- ES 索引管理 （EsManage）：索引统计/mapping 查看、全量同步到 ES、重建索引（IK 分词器）、IK 分词效果测试
-- 算法题目向量管理 （AlgorithmVector）：算法题（oj_problem）全量同步/取消/清空、进度条（已导入/失败/总数/耗时）、服务状态
-- Qdrant 实时检测 （QdrantMonitor）：集合信息（名称/总数/维度/距离度量）、向量列表（按题目ID/标题/难度/标签组合搜索 + 分页）、向量 1024 维数值查看
-- 前台 OJ 语义搜索：oj-list.html 输入题目名称/标签/自然语言 → Qdrant 向量语义检索 → 相似度列表 → 点击进入题目
+- 算法/数据结构、动画配置、OJ 题目、测试用例、判题配置
+- 面试题：CRUD、JSON/Excel 批量导入、AI 批量生成
+- 向量库管理（VectorManage）：数量/维度监控、全量同步、分页查看
+- ES 索引管理（EsManage）：统计/mapping、全量同步、重建（IK）、分词测试
+- 算法题目向量管理（AlgorithmVector）：全量同步/取消/清空 + 进度条
+- Qdrant 实时检测（QdrantMonitor）：集合信息 + 向量检索查看
+- OJ 语义搜索链路
+
 #### 2. AI 配置
-- AI 模型配置（AIConfig）、Prompt 模板管理（AIPrompt）
-#### 3. 金币/订单系统
-- 金币商品管理、购买记录、订单列表、支付管理（微信支付）
-- 后台管理系统可查看全部支付订单、订单状态统计、用户付费记录，支持订单导出
+- AIConfig（模型接口）、AIPrompt（快捷提示词）
+
+#### 3. 金币 / 订单系统
+- 商品管理、购买记录、微信支付管理；全量订单、状态统计、付费记录、订单导出
+
 #### 4. 用户管理
-- 用户列表、用户行为分析、登录记录、管理员管理
+- 用户列表、行为分析、登录记录、管理员账号（RBAC 多角色分级）
+- 账号状态三态（1 正常 / 0 封禁 / -1 注销）+ 逻辑删除（is_deleted），注销/删除即时踢下线，后台三种状态均可见
+- 用户访问统计独立 `user_visit_stat` 表（高频计数器拆表，解耦 user 主表）
+
 #### 5. 统计与监控
-- 数据看板（Dashboard）、数据导出、OJ 分析、可视化分析
-- 系统监控、资源监控、告警、操作日志、登录日志
+- Dashboard / 数据导出 / OJ 分析 / 可视化分析
+- 系统与资源监控、告警、操作日志、登录日志
+- Dashboard 首屏优化：去除低选择性索引、只读 stat 表 `COUNT(*)` 聚合，消除首访 3s 卡顿
+
 #### 6. 系统扩展
-- 公告管理、反馈管理、数据备份、第三方配置、系统配置
+- 公告、反馈、数据备份、第三方配置、系统配置
+
+#### 7. 安全与合规
+- **后台页面全局水印**：登录后全屏 Canvas 防截图水印，侧栏不覆盖、折叠联动、MutationObserver 防删防隐藏自动恢复，样式可配，super_admin 同样生效
+- **登录页合规条款**：左侧保密条例（3 条）+ 员工守则（2 条）
+- **接口水印（@ResponseWatermark + ResponseBodyAdvice）**：敏感接口 JSON 根节点追加 `_watermark`（userId/username/tenantId/clientIp/traceId/accessTime）事后溯源；未标注接口零开销
+- 操作审计日志（OperationLogAspect 自动记录后台写操作）
+
+---
 
 ## 核心业务模块
 
-### 1. 核心业务模块（27 个 Controller）
-- 认证 ：登录、管理员认证、微信登录
-- 面试题 ：管理端 CRUD + 用户端查询/点赞/收藏/浏览记录
-- OJ ：题目管理、提交判题、代码运行
-- AI ：AI 对话、AI 生成题目
-- 支付 ：微信支付、订单管理、金币系统
-- 内容 ：算法/数据结构/公告/反馈/文件上传导出
-- 向量 ：面试题语义搜索（Chroma）+ 关键词搜索（ES IK）、算法题语义搜索（Qdrant + Dubbo）、同步进度监控、向量/索引管理
+### 1. 业务模块（40+ Controller，按功能分域）
+- 认证：账号密码/邮箱/微信扫码/第三方 OAuth（GitHub、Gitee）
+- 面试题：管理端 CRUD + 用户端查询/点赞/收藏/浏览记录
+- OJ：题目管理、提交判题、代码运行
+- AI：对话、AI 生成题目
+- 支付：微信支付、订单、金币
+- 内容：算法/数据结构/公告/反馈/文件上传导出
+- 用户：个人资料、注销、访问统计上报
+- 向量：Chroma 语义 + ES 关键词 + Qdrant 算法题检索、同步进度监控、索引管理
+
 ### 2. 特色技术点
-- XSS 过滤 ：Jsoup 1.17.2 清洗 Markdown 富文本
-- Excel 导入导出 ：Apache POI 5.2.5
-- API 文档 ：Knife4j 4.5.0（自动生成中文接口文档）
-- AOP 日志 ：接口调用日志切面
-- 文件上传 ：10MB 限制，本地存储
-- EFK日志查看
+- **双轨鉴权**：前台 AuthInterceptor(Session/Cookie/X-User-Id) 与后台 Sa-Token RBAC 相互独立；Spring Security OAuth2 Client 仅接管第三方授权端点（permitAll 兼容层 + 优雅降级 + 可空仓库）
+- **页面 + 接口双层水印**：Canvas 页面水印 + ResponseBodyAdvice `_watermark` 接口水印
+- TraceId 全链路：日志 / 响应头 / 接口水印三处一致
+- XSS 过滤：Jsoup 清洗 Markdown 富文本；Excel 导入导出（POI）
+- AOP 操作审计日志；API 文档（Knife4j）；文件上传 10MB 本地存储
+- EFK 日志链路（Logstash → ES → Kibana）+ 敏感词 DFA 审核体系
+
+---
 
 ## 功能实现
 
@@ -405,25 +353,21 @@ server {
                               └←─── 按相关性顺序返回题目 ID ────┘
 ```
 
-**两条检索链路**
-
 | 能力 | 语义搜索 | 关键词搜索 |
-|------|---------|-----------|
+| --- | --- | --- |
 | 底层 | ChromaDB HNSW + sentence-transformers | ES 7.12.1 + IK 分词器 |
-| 向量/分词 | bge-small-zh-v1.5，512 维 float32 | ik_max_word 索引（细粒度高召回）/ ik_smart 搜索（粗粒度高精度） |
-| 原理 | 句向量余弦近邻召回 | 多字段加权（标题 4.0 / 标签 3.0 / 分类 1.5 / 描述 1.0 / content 0.5）+ match_phrase 短语 + BM25 |
-| 适用 | "意思相近但用词不同" | 术语精确命中（单调栈/红黑树） |
+| 向量/分词 | bge-small-zh-v1.5，512 维 float32 | ik_max_word 索引 / ik_smart 搜索 |
+| 原理 | 句向量余弦近邻召回 | 多字段加权（标题 4.0 / 标签 3.0 / 分类 1.5 / 描述 1.0 / content 0.5）+ match_phrase + BM25 |
+| 适用 | “意思相近但用词不同” | 术语精确命中（单调栈/红黑树） |
 
-**全量同步与实时进度条**
+**全量同步与实时进度**
+- 触发：管理页「全量同步」（向量 100 条/批、ES 200 条/批）与导入后增量同步
+- 进度：`SyncProgressHolder` + `GET /api/vector/admin/sync/progress`，前端 1 秒轮询展示进度/失败/剩余/耗时
+- 幂等：ES `_id` / Chroma ID 均取 MySQL 主键，重复同步覆盖写
+- 降级：ES/向量异常自动降级 MySQL LIKE
+- 落盘：`Agent/know-retrieval/data/chroma_db/`，备份需整目录拷贝
 
-- 触发场景：管理页「全量同步」（异步分批：向量 100 条/批、ES 200 条/批）与题目导入后增量随批同步
-- 进度上报：Java `SyncProgressHolder` 全局内存状态 + `GET /api/vector/admin/sync/progress` 快照接口
-- 前端展示：1 秒轮询，实时显示 进度% / 已导入 / 失败 / 总数 / 剩余 / 已用时间 / 预计剩余，任务完成后保留 10 秒
-- 幂等写入：ES `_id` 与 Chroma ID 均取 MySQL 主键，重复同步为覆盖写
-- 降级策略：ES/向量服务异常时搜索自动降级 MySQL LIKE
-- 数据落盘：向量存 `Agent/know-retrieval/data/chroma_db/`（sqlite 账本 + HNSW 二进制段），备份需整目录拷贝
-
-> 详细设计文档见 `doc/txt/ES分词搜索与索引同步全流程文档.md`
+> 详细设计见 `doc/txt/ES分词搜索与索引同步全流程文档.md`
 
 ### 算法题语义检索（Qdrant + Dubbo 3 子服务）
 
@@ -438,16 +382,15 @@ server {
                                                                HNSW + Cosine
 ```
 
-- 索引：后台「算法题目向量管理」手动全量同步（只向量化**题目标题**，737 道），稳定 UUID 点 id 幂等覆盖，支持进度条/取消/清空
-- 检索：输入题目名称/标签/自然语言 → 向量化 → Qdrant 余弦近邻 → 按 algorithmId 回查 MySQL → 返回题目+相似度
-- 通信：主服务 `@DubboReference(check=false, mock降级, url=dubbo://127.0.0.1:20999)` 直连子服务，**子服务未启动不影响核心功能**（算法题向量接口返回 404/离线）
-- 模型：bge-large-zh-v1.5（1024 维），`tools/export_onnx.py` 一次性转换（合并单文件 + IR9 兼容 onnxruntime 1.17）
+- 索引：后台「算法题目向量管理」手动全量同步（只向量化题目标题），稳定点 id 幂等覆盖，支持进度/取消/清空
+- 检索：输入题目名称/标签/自然语言 → 向量化 → Qdrant 余弦近邻 → 按 ID 回查 MySQL
+- 通信：`@DubboReference(check=false, mock降级, url=dubbo://127.0.0.1:20999)`；子服务未启动不影响核心功能
+- 模型：bge-large-zh-v1.5（1024 维），`tools/export_onnx.py` 一次性转换（IR9 兼容 onnxruntime 1.17）
 - 详细设计见 `doc/算法题目向量检索子服务know-qrdant方案总结.md`
 
-### EFK
+### EFK 日志与敏感词审核
 
 **架构总览**
-
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        SpringBoot 应用层                          │
@@ -455,7 +398,6 @@ server {
 │  │ 业务模块 │  │日志埋点  │  │MDC链路ID │  │关键词过滤服务   │ │
 │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────────┬────────┘ │
 └───────┼─────────────┼─────────────┼───────────────────┼──────────┘
-        │             │             │                   │
         └─────────────┴──────┬──────┴───────────────────┘
                              │ Logback TCP
                              ▼
@@ -467,7 +409,6 @@ server {
 │  └──────────┘    └──────┬───────┘    └──────────────────────┘  │
 │                         │ IK分词器                               │
 └─────────────────────────┼───────────────────────────────────────┘
-                          │
                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      业务功能层                                   │
@@ -475,7 +416,6 @@ server {
 │  │分词日志查询  │  │关键词屏蔽系统│  │定时分析+人工审核     │  │
 │  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘  │
 └─────────┼─────────────────┼──────────────────────┼──────────────┘
-          │                 │                      │
           ▼                 ▼                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                        MySQL 数据层                               │
@@ -483,46 +423,6 @@ server {
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**引入敏感词库**
+**敏感词审核闭环**：DFA 实时过滤器 → 命中审计 → 候选词/置信度 → 人工审核 → 正式词库热加载；ES 高频可疑词定时分析触发告警，与 Kibana 看板联动。
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                    Windows 开发机                                           │
-│                                                                                            │
-│  ┌──────────────┐        JSON over TCP        ┌────────────┐ 写入索引 ┌────────────────┐  │
-│  │  Spring Boot  │◄──────────────────────────▶  Logstash   │─────────▶│ Elasticsearch   │  │
-│  │  刷题网站      │    :5044                   │            │          │                │  │
-│  └───┬──────┬───┘                             └─────┬──────┘          └───────┬────────┘  │
-│      │      │                                         │                       │           │
-│      │      │ DFA命中审计日志                          │死信(失败日志)         │定时任务分析高频可疑词
-│      │      └─────────────────────────────────────────┘                       ▼           │
-│      │                                                                 ┌──────────────┐  │
-│      │ MySQL业务库                                                     │敏感词候选表 │  │
-│      │                                                                 └───┬─────┬────┘  │
-│      │                                                                     │     │置信度字段
-│      ▼                                                                     │     │
-│┌────────────────┐                                                          │     │
-││用户黑名单表     │◀────多次违规触发                                         │人工审核│
-│└────────────────┘                                                          ▼     │
-│                                                                            │     │
-│      ┌────────────────┐      ┌────────────────┐                      ┌──────────────┐ │
-│      │ 敏感词正式库    │◄─────│ 审核操作日志表 │◄─────────────────────┤告警通知模块  │ │
-│      └──────┬─────────┘      └────────────────┘                      └───────▲──────┘ │
-│             │▲                                                                 │        │
-│             ││人工审核通过写入                                                  │        │
-│             ││                                                                 │        │
-│             │└─────────────────────────────────────────────────────────────────┘        │
-│             │热加载DFA词库                                                      │        │
-│             ▼                                                                  │        │
-│      ┌────────────────┐                                                        │        │
-│      │ DFA实时过滤器   │◄── 用户请求前置拦截               ES大量违规 /高分候选词触发 │        │
-│      └────────────────┘                                                               │        │
-│                                                                          ┌─────▼─────┐│
-│                                                                          │  Kibana    ││
-│                                                                          │ 可视化查询 ││
-│                                                                          └───────────┘│
-└────────────────────────────────────────────────────────────────────────────────────────────┘
-
-```
-
-![](https://zhuxiaoyi-1300958454.cos.ap-guangzhou.myqcloud.com/img/image-20260816221302185.png)
+> 图：![敏感词审核流程](https://zhuxiaoyi-1300958454.cos.ap-guangzhou.myqcloud.com/img/image-20260816221302185.png)
