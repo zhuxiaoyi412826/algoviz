@@ -9,23 +9,26 @@ import java.util.Map;
 public interface DashboardMapper {
 
     /**
-     * 合并查询1：访问统计已拆至 user_visit_stat 表（1:1），is_deleted 冗余在 stat 表，
-     *            WHERE s.is_deleted=0 过滤已删除用户（不再 JOIN user，避免扫 356MB 大表）。
-     *            totalUsers 用 COUNT(*)：stat 表 user_id 主键 + 拆表兜底保证每 active user 一行，
-     *            与 user 表 COUNT(is_deleted=0) 结果一致（已验证 stat_active=user_active=942006）。
-     * 返回：totalUsers, totalAIDialogues, todayAIDialogues, yesterdayAIDialogues,
-     *       dsVisits, algoVisits, ojVisits, aiVisits
+     * 合并查询1（写时累加改造）：不再全表 COUNT/SUM user_visit_stat，
+     * 改为读 stat_total（单行）+ stat_daily（今/昨各 1 行）——O(1) 主键查询。
+     * 返回字段名与旧实现完全一致：
+     *   totalUsers, totalAIDialogues, todayAIDialogues, yesterdayAIDialogues,
+     *   dsVisits, algoVisits, ojVisits
+     * 口径说明：
+     *   - totalUsers/totalAIDialogues/ds/algo/ojVisits = stat_total（注册+1、删除-1/扣贡献、每日校准）
+     *   - todayAIDialogues/yesterdayAIDialogues = stat_daily 自然日真实事件（旧近似口径已废弃）
      */
-    @Select("SELECT " +
-            "COUNT(*) AS totalUsers, " +
-            "IFNULL(SUM(s.ai_dialogues), 0) AS totalAIDialogues, " +
-            "IFNULL(SUM(CASE WHEN s.last_visit_time >= CURDATE() THEN s.ai_dialogues ELSE 0 END), 0) AS todayAIDialogues, " +
-            "IFNULL(SUM(CASE WHEN s.last_visit_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND s.last_visit_time < CURDATE() THEN s.ai_dialogues ELSE 0 END), 0) AS yesterdayAIDialogues, " +
-            "IFNULL(SUM(s.ds_visits), 0) AS dsVisits, " +
-            "IFNULL(SUM(s.algo_visits), 0) AS algoVisits, " +
-            "IFNULL(SUM(s.oj_visits), 0) AS ojVisits " +
-            "FROM user_visit_stat s " +
-            "WHERE s.is_deleted = 0")
+    @Select("SELECT t.total_users AS totalUsers, " +
+            "t.total_ai_dialogues AS totalAIDialogues, " +
+            "t.total_ds_visits AS dsVisits, " +
+            "t.total_algo_visits AS algoVisits, " +
+            "t.total_oj_visits AS ojVisits, " +
+            "IFNULL(d.ai_dialogues, 0) AS todayAIDialogues, " +
+            "IFNULL(dy.ai_dialogues, 0) AS yesterdayAIDialogues " +
+            "FROM stat_total t " +
+            "LEFT JOIN stat_daily d  ON d.stat_date = CURDATE() " +
+            "LEFT JOIN stat_daily dy ON dy.stat_date = DATE_SUB(CURDATE(), INTERVAL 1 DAY) " +
+            "WHERE t.id = 1")
     Map<String, Object> getUserStats();
 
     /**

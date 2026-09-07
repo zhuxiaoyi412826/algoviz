@@ -38,9 +38,9 @@ public class AuditPullTask {
     private int batchSize;
 
     /**
-     * 默认每 60 秒执行一次（audit.pull-interval-ms 可配），启动后 20 秒先跑一轮
+     * 默认每 24 小时执行一次（audit.pull-interval-ms 可配），启动后 20 秒先跑一轮
      */
-    @Scheduled(fixedDelayString = "${audit.pull-interval-ms:60000}", initialDelay = 20000)
+    @Scheduled(fixedDelayString = "${audit.pull-interval-ms:86400000}", initialDelay = 20000)
     public void pull() {
         // 检查 ES 是否可用，不可用时静默跳过
         if (!esClient.available()) {
