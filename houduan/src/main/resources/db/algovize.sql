@@ -64,6 +64,7 @@ CREATE TABLE `product` (
     `price`        INT           NOT NULL COMMENT '单位：分',
     `category`     VARCHAR(50),
     `icon`         VARCHAR(50),
+    `material_url` VARCHAR(500)  DEFAULT NULL COMMENT '购买成功后资料下载链接（仅随订单邮件发放，公开接口不下发）',
     `created_at`   DATETIME      DEFAULT CURRENT_TIMESTAMP,
     `updated_at`   DATETIME      DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
@@ -1763,3 +1764,21 @@ JOIN (SELECT COUNT(*) AS c,
 SET t.`total_users`=s.c, t.`total_ds_visits`=s.d, t.`total_algo_visits`=s.a,
     t.`total_oj_visits`=s.o, t.`total_ai_dialogues`=s.ai, t.`updated_at`=NOW()
 WHERE t.`id` = 1;
+
+--22 ============ product_category 商品分类字典表 ============
+CREATE TABLE IF NOT EXISTS `product_category` (
+  `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '分类ID',
+  `name`       VARCHAR(50)  NOT NULL                COMMENT '分类名称（与 product.category 字符串一致）',
+  `sort`       INT          NOT NULL DEFAULT 0      COMMENT '排序值（越小越前）',
+  `status`     TINYINT(1)   NOT NULL DEFAULT 1      COMMENT '1 启用 0 停用',
+  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_product_category_name` (`name`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品分类字典（product.category 冗余显示名）';
+
+
+INSERT INTO `product_category` (`name`, `sort`)
+SELECT DISTINCT TRIM(`category`), 0 FROM `product`
+WHERE `category` IS NOT NULL AND TRIM(`category`) <> ''
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);

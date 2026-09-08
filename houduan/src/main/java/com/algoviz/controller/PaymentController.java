@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.HashMap;
 import java.util.List;
@@ -65,13 +66,39 @@ public class PaymentController {
      */
     @PostMapping("/order")
     @Operation(summary = "创建订单", description = "创建微信支付订单")
-    public CreateOrderResponse createOrder(@RequestBody CreateOrderRequest request) {
+    public CreateOrderResponse createOrder(@RequestBody CreateOrderRequest request, HttpServletRequest httpRequest) {
         logger.info("创建订单，商品ID：{}", request.getProductId());
-        
-        // 获取用户ID（实际项目中从登录状态获取）
-        Long userId = 1L;
-        
+
+        // 获取当前登录用户ID（Session/Cookie）；未登录时回退为 1（兼容历史模拟支付）
+        Long userId = getCurrentUserId(httpRequest);
+        if (userId == null) {
+            logger.warn("未获取到登录用户，回退为 userId=1 创建订单");
+            userId = 1L;
+        }
+
         return paymentService.createOrder(request.getProductId(), userId);
+    }
+
+    /**
+     * 从 Session / Cookie 读取当前前台用户 ID（与 CoinController 同口径）
+     */
+    private Long getCurrentUserId(HttpServletRequest request) {
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        if (session != null) {
+            Object obj = session.getAttribute(com.algoviz.config.AuthInterceptor.SESSION_USER);
+            if (obj instanceof com.algoviz.entity.User) {
+                com.algoviz.entity.User user = (com.algoviz.entity.User) obj;
+                if (user.getId() != null) return user.getId().longValue();
+            }
+        }
+        String uid = com.algoviz.config.AuthInterceptor.getCookieValue(
+                request, com.algoviz.config.AuthInterceptor.COOKIE_USER_ID);
+        if (uid != null) {
+            try {
+                return Long.parseLong(uid);
+            } catch (NumberFormatException ignored) {}
+        }
+        return null;
     }
     
     /**

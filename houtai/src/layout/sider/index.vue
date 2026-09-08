@@ -122,7 +122,6 @@ const fullMenuList: MenuItem[] = [
     children: [
       { path: '/order/list', name: 'OrderList', meta: { title: '订单列表' }, menuGroup: 'order' },
       { path: '/order/coin-dashboard', name: 'CoinDashboard', meta: { title: '硬币收入看板' }, menuGroup: 'order' },
-      { path: '/order/coin-products', name: 'CoinProductManage', meta: { title: '硬币商品管理' }, menuGroup: 'order' },
       { path: '/order/coin-purchase', name: 'CoinPurchase', meta: { title: '硬币购买记录' }, menuGroup: 'order' }
     ]
   },
@@ -137,6 +136,17 @@ const fullMenuList: MenuItem[] = [
       { path: '/extension/changelog', name: 'Changelog', meta: { title: '更新日志' }, menuGroup: 'extension' },
       { path: '/extension/backup', name: 'Backup', meta: { title: '数据备份' }, menuGroup: 'extension' },
       { path: '/extension/third-party', name: 'ThirdParty', meta: { title: '第三方集成' }, menuGroup: 'extension' }
+    ]
+  },
+  {
+    path: '/product',
+    name: 'Product',
+    meta: { title: '商品管理', icon: 'Goods' },
+    menuGroup: 'product',
+    children: [
+      { path: '/product/list', name: 'ProductManage', meta: { title: '商品列表' }, menuGroup: 'product' },
+      { path: '/product/coin', name: 'ProductCoinManage', meta: { title: '金币商品' }, menuGroup: 'product' },
+      { path: '/product/category', name: 'ProductCategoryManage', meta: { title: '商品分类' }, menuGroup: 'product' }
     ]
   }
 ]
@@ -234,7 +244,7 @@ const handleSelect = (index: string) => {
   height: 100vh;
   background-color: var(--color-bg-sidebar);
   transition: width 0.3s ease;
-  overflow-x: hidden;
+  overflow: hidden auto;
   flex-shrink: 0;
   position: relative;
 

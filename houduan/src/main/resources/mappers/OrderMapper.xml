@@ -104,4 +104,10 @@
     <select id="sumAmountByStatus">
         SELECT status, SUM(amount) as total FROM orders GROUP BY status
     </select>
+
+    <!-- 删除商品前的引用保护：按 商品编号/商品ID 统计订单数 -->
+    <select id="countByProduct" resultType="long">
+        SELECT COUNT(*) FROM orders
+        WHERE product_id = #{productId} OR product_id_ref = #{productRefId}
+    </select>
 </mapper>

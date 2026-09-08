@@ -7,10 +7,14 @@ import {
 } from 'element-plus'
 import { Check, Refresh, Upload as UploadIcon } from '@element-plus/icons-vue'
 import { systemConfigApi } from '@/api/system'
+import { useWatermarkStore } from '@/stores/watermark'
 import type { SystemConfig } from '@/types'
 import type { UploadRequestOptions } from 'element-plus'
 
 const activeTab = ref('basic')
+
+// 全局水印开关（store 持久化 localStorage，Watermark 组件 watch 后自动重绘）
+const watermarkStore = useWatermarkStore()
 
 // ========== 基础配置（与后端 keys 一一对应）==========
 const basicForm = reactive({
@@ -61,7 +65,7 @@ const uploadLoading = ref(false)
  */
 const applyConfigs = (list: SystemConfig[]) => {
   const map: Record<string, string> = {}
-  list.forEach(c => { map[c.key] = c.value ?? '' })
+  list.forEach(c => { map[c.key] = String(c.value ?? '') })
   basicForm.site_name = map.site_name ?? 'AlgoViz'
   basicForm.site_logo = map.site_logo ?? ''
   basicForm.icp_number = map.icp_number ?? '豫ICP备12345678号'
@@ -297,6 +301,12 @@ const ensureLogoUrlPrefix = () => {
             <el-form-item label="AI助手"><el-switch /></el-form-item>
             <el-form-item label="OJ在线评测"><el-switch /></el-form-item>
             <el-form-item label="数据可视化"><el-switch /></el-form-item>
+            <el-form-item label="全局水印">
+              <el-switch
+                :model-value="watermarkStore.config.enabled"
+                @change="(v) => { if (v) watermarkStore.enableWatermark(); else watermarkStore.disableWatermark() }"
+              />
+            </el-form-item>
 
             <el-divider content-position="left">性能优化</el-divider>
             <el-form-item label="开启缓存"><el-switch v-model="performanceForm.enableCache" /></el-form-item>

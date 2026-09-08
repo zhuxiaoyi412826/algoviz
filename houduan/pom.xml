@@ -87,6 +87,12 @@
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
         </dependency>
 
+        <!-- GraphQL：后台商品管理 CRUD 使用（自带 /graphiql 调试面板，不纳入 Knife4j） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-graphql</artifactId>
+        </dependency>
+
         <!-- AOP支持 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

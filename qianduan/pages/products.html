@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -397,6 +397,8 @@
                 
                 <!-- Products Grid -->
                 <div class="products-grid" id="productsGrid">
+                    <!-- 人民币商品：静态兜底（接口返回数据后隐藏，改由 moneyProductsContainer 动态渲染） -->
+                    <div id="staticMoneyProducts" style="display:contents;">
                     <!-- 笔记类商品 -->
                     <div class="product-card" data-category="notes" data-product="notes-basic">
                         <div class="product-icon">📝</div>
@@ -455,6 +457,10 @@
                         <div class="product-price">¥299.9</div>
                         <button class="product-button" onclick="openPaymentModal('project-advanced')">购买</button>
                     </div>
+                    </div><!-- /staticMoneyProducts -->
+
+                    <!-- 人民币商品（动态加载，数据源 product 表，后台商品管理可增删改） -->
+                    <div id="moneyProductsContainer" style="display:contents;"></div>
 
                     <!-- 硬币商品（动态加载） -->
                     <div id="coinProductsContainer" style="display:contents;"></div>
@@ -550,9 +556,10 @@
                 var apiUrl = getApiBaseUrl() + '/api/payment/order';
                 console.log('API地址:', apiUrl);
                 
-                // 调用后端API创建订单
+                // 调用后端API创建订单（credentials 必须携带登录 Cookie，后端才能识别买家并发送资料邮件）
                 var response = await fetch(apiUrl, {
                     method: 'POST',
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -702,7 +709,9 @@
             
             pollInterval = setInterval(async function() {
                 try {
-                    var response = await fetch(getApiBaseUrl() + '/api/payment/order/' + orderId);
+                    var response = await fetch(getApiBaseUrl() + '/api/payment/order/' + orderId, {
+                        credentials: 'include'
+                    });
                     var result = await response.json();
                     
                     console.log('订单状态：', result);
@@ -737,7 +746,8 @@
         async function mockPayment(orderId) {
             try {
                 var response = await fetch(getApiBaseUrl() + '/api/payment/order/' + orderId + '/mock-pay', {
-                    method: 'POST'
+                    method: 'POST',
+                    credentials: 'include'
                 });
                 
                 var result = await response.json();
@@ -759,27 +769,11 @@
         
         // 分类切换功能
         document.addEventListener('DOMContentLoaded', function() {
+            loadRmbProducts();
             loadCoinProducts();
             loadCoinBalance();
 
-            const categoryTabs = document.querySelectorAll('.category-tab');
-            
-            categoryTabs.forEach(tab => {
-                tab.addEventListener('click', function() {
-                    categoryTabs.forEach(t => t.classList.remove('active'));
-                    this.classList.add('active');
-                    
-                    const category = this.dataset.category;
-                    const productCards = document.querySelectorAll('.product-card');
-                    productCards.forEach(card => {
-                        if (category === 'all' || card.dataset.category === category) {
-                            card.style.display = 'block';
-                        } else {
-                            card.style.display = 'none';
-                        }
-                    });
-                });
-            });
+            bindCategoryTabs();
         });
 
         // ===== 硬币系统 =====
@@ -853,6 +847,106 @@
                 '<button onclick="this.parentElement.parentElement.remove();" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:white;border:none;padding:12px 40px;border-radius:30px;font-size:16px;cursor:pointer;">确定</button>';
             modal.appendChild(content);
             document.body.appendChild(modal);
+        }
+
+        // ===== 人民币商品（动态加载 product 表，后台商品管理同源） =====
+
+        function escAttr(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        // 分 → 元（去掉无意义的小数尾零）
+        function fmtYuan(cents) {
+            var s = (Number(cents) / 100).toFixed(2);
+            if (s.indexOf('.') >= 0) {
+                s = s.replace(/0+$/, '').replace(/\.$/, '');
+            }
+            return s;
+        }
+
+        // icon 支持 emoji 或图片 URL（http/data:）
+        function iconInner(icon) {
+            icon = icon || '🛒';
+            if (icon.indexOf('http') === 0 || icon.indexOf('data:') === 0) {
+                return '<img src="' + escAttr(icon) + '" alt="商品图标" style="width:44px;height:44px;object-fit:contain;border-radius:8px;" onerror="this.outerHTML=\'🛒\'">';
+            }
+            return escAttr(icon);
+        }
+
+        function moneyCardHtml(p) {
+            return '<div class="product-card" data-category="' + escAttr(p.category || '') + '" data-product="' + escAttr(p.productId) + '">' +
+                '<div class="product-icon">' + iconInner(p.icon) + '</div>' +
+                '<h3 class="product-title">' + escAttr(p.productName) + '</h3>' +
+                '<p class="product-description">' + escAttr(p.description || '') + '</p>' +
+                '<div class="product-price">¥' + fmtYuan(p.price) + '</div>' +
+                '<button class="product-button" onclick="openPaymentModal(\'' + escAttr(p.productId) + '\')">购买</button>' +
+                '</div>';
+        }
+
+        function applyCurrentFilter() {
+            var activeTab = document.querySelector('.category-tab.active');
+            if (!activeTab) return;
+            var category = activeTab.dataset.category;
+            document.querySelectorAll('.product-card').forEach(function (card) {
+                card.style.display = (category === 'all' || card.dataset.category === category) ? 'block' : 'none';
+            });
+        }
+
+        function bindCategoryTab(tab) {
+            if (tab.dataset.bound) return;
+            tab.dataset.bound = '1';
+            tab.addEventListener('click', function () {
+                document.querySelectorAll('.category-tab').forEach(function (t) { t.classList.remove('active'); });
+                this.classList.add('active');
+                applyCurrentFilter();
+            });
+        }
+
+        function bindCategoryTabs() {
+            document.querySelectorAll('.category-tab').forEach(bindCategoryTab);
+        }
+
+        // 商品数据中出现新分类时，动态补一个分类 Tab
+        function addDynamicCategoryTabs(products) {
+            var tabsWrap = document.querySelector('.category-tabs');
+            if (!tabsWrap) return;
+            var existing = {};
+            document.querySelectorAll('.category-tab').forEach(function (t) { existing[t.dataset.category] = true; });
+            products.forEach(function (p) {
+                var c = (p.category || '').trim();
+                if (c && !existing[c]) {
+                    existing[c] = true;
+                    var tab = document.createElement('div');
+                    tab.className = 'category-tab';
+                    tab.dataset.category = c;
+                    tab.textContent = c;
+                    tab.style.cursor = 'pointer';
+                    tabsWrap.appendChild(tab);
+                    bindCategoryTab(tab);
+                }
+            });
+        }
+
+        async function loadRmbProducts() {
+            try {
+                var resp = await fetch(getApiBaseUrl() + '/api/products', { credentials: 'include' });
+                var data = await resp.json();
+                if (!data.success || !data.products || data.products.length === 0) {
+                    // 接口无数据：保留静态商品作为兜底
+                    return;
+                }
+                var container = document.getElementById('moneyProductsContainer');
+                container.innerHTML = data.products.map(moneyCardHtml).join('');
+                // 有真实数据后隐藏静态兜底，避免重复
+                var staticWrap = document.getElementById('staticMoneyProducts');
+                if (staticWrap) staticWrap.style.display = 'none';
+                addDynamicCategoryTabs(data.products);
+                applyCurrentFilter();
+            } catch (e) {
+                console.error('加载人民币商品失败(保留静态展示):', e);
+            }
         }
 
         window.purchaseCoinProduct = purchaseCoinProduct;

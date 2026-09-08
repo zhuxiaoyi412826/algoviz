@@ -49,14 +49,18 @@
         VALUES (#{productId}, #{productName}, #{description}, #{coinPrice}, #{category}, #{icon}, #{status})
     </insert>
 
+    <!-- 动态更新：仅更新入参中非 null 的字段，避免 Knife4j/REST 表单漏传字段把名称/价格/图标等覆盖为 null -->
     <update id="updateProduct">
-        UPDATE coin_product SET
-            product_name = #{productName},
-            description  = #{description},
-            coin_price   = #{coinPrice},
-            category     = #{category},
-            icon         = #{icon},
-            status       = #{status}
+        UPDATE coin_product
+        <set>
+            <if test="productName != null">product_name = #{productName},</if>
+            <if test="description != null">description  = #{description},</if>
+            <if test="coinPrice != null">coin_price   = #{coinPrice},</if>
+            <if test="category != null">category     = #{category},</if>
+            <if test="icon != null">icon         = #{icon},</if>
+            <if test="status != null">status       = #{status},</if>
+            updated_at = NOW()
+        </set>
         WHERE product_id = #{productId}
     </update>
 
@@ -109,8 +113,64 @@
         SELECT COALESCE(SUM(coin_price), 0) FROM coin_purchase WHERE status = 'SUCCESS'
     </select>
 
+    <select id="searchCoinProducts" resultMap="CoinProductMap">
+        SELECT * FROM coin_product
+        <where>
+            <if test="keyword != null and keyword != ''">
+                product_name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="startDate != null and startDate != ''">
+                AND created_at &gt;= #{startDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                AND created_at &lt; DATE_ADD(#{endDate}, INTERVAL 1 DAY)
+            </if>
+        </where>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countSearchCoinProducts" resultType="long">
+        SELECT COUNT(*) FROM coin_product
+        <where>
+            <if test="keyword != null and keyword != ''">
+                product_name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="startDate != null and startDate != ''">
+                AND created_at &gt;= #{startDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                AND created_at &lt; DATE_ADD(#{endDate}, INTERVAL 1 DAY)
+            </if>
+        </where>
+    </select>
+
     <select id="countAllPurchases" resultType="int">
         SELECT COUNT(*) FROM coin_purchase WHERE status = 'SUCCESS'
+    </select>
+
+    <!-- ===== 删除引用保护 ===== -->
+
+    <!-- 指定分类下金币商品数（删除分类前检查） -->
+    <select id="countCoinProductsByCategory" resultType="long">
+        SELECT COUNT(*) FROM coin_product WHERE category = #{category}
+    </select>
+
+    <!-- 指定金币商品的购买记录数（删除金币商品前检查） -->
+    <select id="countPurchasesByProductId" resultType="long">
+        SELECT COUNT(*) FROM coin_purchase WHERE product_id = #{productId}
     </select>
 
 </mapper>

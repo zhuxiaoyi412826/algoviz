@@ -18,6 +18,9 @@ public class WebConfig implements WebMvcConfigurer {
     @Autowired
     private NonceReplayInterceptor nonceReplayInterceptor;
 
+    @Autowired
+    private GraphqlSaAuthInterceptor graphqlSaAuthInterceptor;
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // Knife4j 资源映射
@@ -40,6 +43,10 @@ public class WebConfig implements WebMvcConfigurer {
 
         // 0.5) 防重放（nonce + 时间戳 + Redis 去重；未携带 nonce 的请求兼容放行）
         registry.addInterceptor(nonceReplayInterceptor).addPathPatterns("/api/**");
+
+        // 0.6) GraphQL 商品管理：统一 Sa-Token 登录校验（面板页 /graphiql 不拦截）
+        registry.addInterceptor(graphqlSaAuthInterceptor)
+                .addPathPatterns("/graphql", "/graphql/**");
 
         // 1) 注册登录拦截器：Cookie + Session + 14天双重校验
         registry.addInterceptor(authInterceptor)
@@ -65,6 +72,9 @@ public class WebConfig implements WebMvcConfigurer {
                         // 硬币商品浏览（公开，购买需登录）
                         "/api/coin/products",
                         "/api/coin/products/**",
+                        // 人民币商品浏览（公开，前台商品中心展示，购买走支付流程）
+                        "/api/products",
+                        "/api/products/**",
                         // 后台管理接口（使用独立 Bearer Token 鉴权，不走前台 Cookie/Session）
                         // 注意：Spring Boot 3.x PathPattern 中 /xxx/** 不匹配 /xxx 本身，需同时排除
                         "/api/admin",

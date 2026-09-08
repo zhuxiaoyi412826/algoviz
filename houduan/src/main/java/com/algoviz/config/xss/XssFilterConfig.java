@@ -51,6 +51,14 @@ public class XssFilterConfig {
         protected void doFilterInternal(HttpServletRequest request,
                                         HttpServletResponse response,
                                         FilterChain chain) throws ServletException, IOException {
+            // multipart 文件上传必须放行原请求：
+            // wrapper 构造时会预读并消费原始 body，而 Tomcat multipart 是懒解析（首次 getParts() 才读流），
+            // 一旦被预读会导致 "Required part 'file' is not present"；文件二进制也不做文本 XSS 清洗。
+            String contentType = request.getContentType();
+            if (contentType != null && contentType.toLowerCase(java.util.Locale.ROOT).startsWith("multipart/")) {
+                chain.doFilter(request, response);
+                return;
+            }
             String uri = request.getRequestURI();
             String contextPath = request.getContextPath();
             if (contextPath != null && !contextPath.isEmpty() && uri.startsWith(contextPath)) {

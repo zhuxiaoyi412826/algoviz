@@ -1,0 +1,130 @@
+# 商品管理 GraphQL Schema（后台商品管理专用；调试面板 /graphiql，不纳入 Knife4j）
+# 鉴权：/graphql 请求统一由 GraphqlSaAuthInterceptor 校验 Sa-Token（header: satoken）
+# 时间字段统一为字符串 "yyyy-MM-dd HH:mm:ss"，避免引入 DateTime 标量
+
+type Product {
+    id: ID!
+    productId: String!
+    productName: String!
+    description: String
+    # 价格（分）
+    price: Int!
+    category: String
+    icon: String
+    # 购买成功后的资料下载链接（仅后台/订单邮件可见，公开接口不下发）
+    materialUrl: String
+    createdAt: String
+    updatedAt: String
+}
+
+type ProductPage {
+    list: [Product!]!
+    total: Int!
+    page: Int!
+    size: Int!
+    totalPages: Int!
+}
+
+type ProductCategory {
+    id: ID!
+    name: String!
+    sort: Int!
+    # 1 启用 0 停用
+    status: Int!
+    createdAt: String
+    updatedAt: String
+}
+
+input ProductInput {
+    productId: String!
+    productName: String!
+    description: String
+    price: Int!
+    category: String
+    icon: String
+    # 购买成功后的资料下载链接（可选）
+    materialUrl: String
+}
+
+# 金币商品（coin_product 表，与钱商品区分「商品类型」）
+type CoinProduct {
+    id: ID!
+    productId: String!
+    productName: String!
+    description: String
+    # 硬币价格
+    coinPrice: Int!
+    category: String
+    icon: String
+    # ACTIVE 上架 / INACTIVE 下架
+    status: String!
+    createdAt: String
+    updatedAt: String
+}
+
+type CoinProductPage {
+    list: [CoinProduct!]!
+    total: Int!
+    page: Int!
+    size: Int!
+    totalPages: Int!
+}
+
+input CoinProductInput {
+    productId: String!
+    productName: String!
+    description: String
+    coinPrice: Int!
+    category: String
+    icon: String
+    status: String
+}
+
+type Query {
+    # 商品分页/多维度查询（名称模糊、分类精确、创建时间范围）
+    products(
+        keyword: String
+        category: String
+        startDate: String
+        endDate: String
+        orderBy: String
+        orderDir: String
+        page: Int! = 1
+        size: Int! = 20
+    ): ProductPage!
+
+    product(id: ID!): Product
+
+    # 金币商品分页/筛选（名称/分类/状态/时间）
+    coinProducts(
+        keyword: String
+        category: String
+        status: String
+        startDate: String
+        endDate: String
+        page: Int! = 1
+        size: Int! = 20
+    ): CoinProductPage!
+
+    coinProduct(productId: String!): CoinProduct
+
+    # 全部分类（含停用，供管理）
+    categories: [ProductCategory!]!
+
+    # 仅启用分类（供商品下拉）
+    categoriesEnabled: [ProductCategory!]!
+}
+
+type Mutation {
+    createProduct(input: ProductInput!): Product!
+    updateProduct(id: ID!, input: ProductInput!): Product!
+    deleteProduct(id: ID!): Boolean!
+
+    createCoinProduct(input: CoinProductInput!): CoinProduct!
+    updateCoinProduct(productId: String!, input: CoinProductInput!): CoinProduct!
+    deleteCoinProduct(productId: String!): Boolean!
+
+    createCategory(name: String!, sort: Int = 0, status: Int = 1): ProductCategory!
+    updateCategory(id: ID!, name: String, sort: Int, status: Int): ProductCategory!
+    deleteCategory(id: ID!): Boolean!
+}

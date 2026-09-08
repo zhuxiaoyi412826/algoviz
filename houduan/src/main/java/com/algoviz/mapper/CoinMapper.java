@@ -30,6 +30,30 @@ public interface CoinMapper {
     /** 删除商品 */
     int deleteProduct(@Param("productId") String productId);
 
+    /** 金币商品分页/筛选（GraphQL 管理页用）：名称模糊/分类/状态/创建时间 */
+    List<CoinProduct> searchCoinProducts(@Param("keyword") String keyword,
+                                         @Param("category") String category,
+                                         @Param("status") String status,
+                                         @Param("startDate") String startDate,
+                                         @Param("endDate") String endDate,
+                                         @Param("offset") int offset,
+                                         @Param("limit") int limit);
+
+    /** 金币商品筛选总数（GraphQL 管理页用） */
+    long countSearchCoinProducts(@Param("keyword") String keyword,
+                                 @Param("category") String category,
+                                 @Param("status") String status,
+                                 @Param("startDate") String startDate,
+                                 @Param("endDate") String endDate);
+
+    // ===== 删除引用保护 =====
+
+    /** 指定分类下金币商品数（删除分类前检查） */
+    long countCoinProductsByCategory(@Param("category") String category);
+
+    /** 指定金币商品的购买记录数（删除金币商品前检查） */
+    long countPurchasesByProductId(@Param("productId") String productId);
+
     // ===== 购买记录 =====
 
     /** 插入购买记录 */

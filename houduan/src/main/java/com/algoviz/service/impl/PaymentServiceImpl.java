@@ -5,13 +5,17 @@ import com.algoviz.dto.CreateOrderResponse;
 import com.algoviz.dto.QueryOrderResponse;
 import com.algoviz.entity.Order;
 import com.algoviz.entity.Product;
+import com.algoviz.entity.User;
 import com.algoviz.mapper.OrderMapper;
 import com.algoviz.mapper.ProductMapper;
+import com.algoviz.mapper.UserMapper;
+import com.algoviz.service.EmailService;
 import com.algoviz.service.PaymentService;
 import com.algoviz.common.util.WechatPayUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -37,6 +41,16 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Autowired
     private OrderMapper orderMapper;
+
+    @Autowired
+    private UserMapper userMapper;
+
+    @Autowired
+    private EmailService emailService;
+
+    /** 售后联系方式（application.yml: algoviz.shop.support-contact 配置，发给购买者的邮件尾部展示） */
+    @Value("${algoviz.shop.support-contact:}")
+    private String supportContact;
 
     private PrivateKey privateKey;
 
@@ -167,13 +181,20 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public List<Product> getProductList() {
         logger.info("获取商品列表");
-        return productMapper.getAllProducts();
+        List<Product> products = productMapper.getAllProducts();
+        // 资料下载链接仅随订单邮件发放，公开接口不下发
+        products.forEach(p -> p.setMaterialUrl(null));
+        return products;
     }
 
     @Override
     public Product getProduct(String productId) {
         logger.info("获取商品详情：{}", productId);
-        return productMapper.getProductById(productId);
+        Product product = productMapper.getProductById(productId);
+        if (product != null) {
+            product.setMaterialUrl(null);
+        }
+        return product;
     }
 
     @Override
@@ -301,8 +322,14 @@ public class PaymentServiceImpl implements PaymentService {
 
                 if ("SUCCESS".equals(tradeState)) {
                     // 更新订单状态
+                    Order exist = orderMapper.getOrderById(outTradeNo);
+                    boolean alreadySuccess = exist != null && "SUCCESS".equals(exist.getStatus());
                     orderMapper.updateOrderPaymentInfo(outTradeNo, transactionId, transactionId);
                     logger.info("订单支付成功：{}", outTradeNo);
+                    // 仅在首次从非成功变为成功时发资料邮件，避免微信回调重试导致重复发送
+                    if (!alreadySuccess) {
+                        notifyPaidUser(outTradeNo);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -331,5 +358,66 @@ public class PaymentServiceImpl implements PaymentService {
 
         orderMapper.updateOrderPaymentInfo(orderId, wechatTradeNo, wechatTransactionId);
         logger.info("订单支付成功：{}", orderId);
+        // 模拟支付成功同样走「资料发放邮件」链路
+        notifyPaidUser(orderId);
+    }
+
+    /**
+     * 钱商品（非金币商品）支付成功后：向购买用户邮箱发送资料发放邮件。
+     * 内容 = 商品介绍 + 资料下载链接（product.material_url，后台商品管理配置）+ 售后联系方式。
+     */
+    private void notifyPaidUser(String orderId) {
+        try {
+            Order order = orderMapper.getOrderById(orderId);
+            if (order == null) {
+                logger.warn("发送资料邮件失败：订单不存在 {}", orderId);
+                return;
+            }
+            if (!"SUCCESS".equals(order.getStatus())) {
+                logger.warn("订单未支付成功，不发送资料邮件：{}", orderId);
+                return;
+            }
+            if (order.getUserId() == null) {
+                logger.warn("订单无用户信息，跳过资料邮件：{}", orderId);
+                return;
+            }
+            User user = userMapper.findById(order.getUserId().intValue());
+            if (user == null || user.getEmail() == null || user.getEmail().isBlank()) {
+                logger.warn("购买用户无邮箱，跳过资料邮件：订单={}, userId={}", orderId, order.getUserId());
+                return;
+            }
+            Product product = productMapper.getProductById(order.getProductId());
+            if (product == null) {
+                logger.warn("商品已不存在，跳过资料邮件：订单={}", orderId);
+                return;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("您好！\n\n");
+            sb.append("您在 AlgoViz 已成功购买《").append(product.getProductName()).append("》，感谢支持！\n\n");
+            sb.append("【商品说明】\n")
+              .append(product.getDescription() == null || product.getDescription().isBlank()
+                      ? "（无附加说明）" : product.getDescription())
+              .append("\n\n");
+            sb.append("【资料下载】\n");
+            if (product.getMaterialUrl() != null && !product.getMaterialUrl().isBlank()) {
+                sb.append("点击以下链接即可下载相关资料：\n");
+                sb.append(product.getMaterialUrl());
+            } else {
+                sb.append("本商品的资料下载链接正在准备中，请联系售后获取资料。");
+            }
+            sb.append("\n\n");
+            sb.append("【售后支持】\n");
+            sb.append(supportContact == null || supportContact.isBlank()
+                    ? "如有任何问题，请直接回复本邮件，我们会尽快为您处理。" : supportContact);
+            sb.append("\n\n—— AlgoViz 团队");
+
+            boolean ok = emailService.sendNotificationEmail(user.getEmail(),
+                    "购买成功 ·《" + product.getProductName() + "》资料发放", sb.toString());
+            logger.info("购买资料邮件发送{}：order={}, to={}",
+                    ok ? "成功" : "失败(请检查邮件配置)", orderId, user.getEmail());
+        } catch (Exception e) {
+            logger.error("发送购买资料邮件异常，orderId={}", orderId, e);
+        }
     }
 }

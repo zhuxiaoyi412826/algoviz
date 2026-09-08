@@ -86,6 +86,14 @@ public interface UserMapper {
     @Update("UPDATE user SET coins = coins + #{delta}, updated_at = NOW() WHERE id = #{id} AND is_deleted = 0")
     int updateCoins(@Param("id") Integer id, @Param("delta") int delta);
 
+    /**
+     * 原子扣币：数据库层完成「余额判断 + 扣减」，并发购买不会丢失更新/扣成负数。
+     * 返回影响行数：1=扣减成功；0=余额不足或账户不存在/已删除（调用方应放弃本次交易）。
+     */
+    @Update("UPDATE user SET coins = coins - #{amount}, updated_at = NOW() " +
+            "WHERE id = #{id} AND is_deleted = 0 AND coins >= #{amount}")
+    int deductCoins(@Param("id") Integer id, @Param("amount") int amount);
+
     @Update("UPDATE user SET coins = #{coins}, updated_at = NOW() WHERE id = #{id} AND is_deleted = 0")
     int setCoins(@Param("id") Integer id, @Param("coins") int coins);
 
