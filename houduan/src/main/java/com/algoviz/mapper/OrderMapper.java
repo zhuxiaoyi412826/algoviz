@@ -8,7 +8,12 @@ import java.util.List;
 
 @Mapper
 public interface OrderMapper {
-    
+
+    /**
+     * 按 商品编号 / 商品ID 统计订单数（删除商品前的引用保护）
+     */
+    long countByProduct(@Param("productId") String productId, @Param("productRefId") Long productRefId);
+
     /**
      * 根据订单ID获取订单
      */

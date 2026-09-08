@@ -35,6 +35,7 @@ export type MenuGroup =
   | 'my-problems'   // 我的题目
   | 'audit-log'     // 审计日志
   | 'extension'     // 扩展功能（公告等）
+  | 'product'       // 商品管理（GraphQL）
 
 // ==================== 角色 → 菜单组权限映射 ====================
 // ✅ = 可见, ✏️ = 受限（部分子菜单）, ❌ = 不可见
@@ -59,7 +60,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermission> = {
     customer: 'full',
     'my-problems': 'none',
     'audit-log': 'full',
-    extension: 'full'
+    extension: 'full',
+    product: 'full'
   },
 
   // ---------- 一级管理员 ----------
@@ -396,7 +398,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermission> = {
     customer: 'none',
     'my-problems': 'none',
     'audit-log': 'none',
-    extension: 'none'
+    extension: 'none',
+    product: 'full'         // ✅ 商品管理（GraphQL）
   },
 
   // ---------- 金币管理员 ----------
@@ -412,7 +415,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermission> = {
     customer: 'none',
     'my-problems': 'none',
     'audit-log': 'none',
-    extension: 'none'
+    extension: 'none',
+    product: 'partial'      // ✏️ 金币商品（GraphQL 子页 /product/coin）
   },
 
   // ---------- 运营活动管理员 ----------
@@ -549,10 +553,12 @@ export const PARTIAL_MENUS: Record<string, string[]> = {
   'ORDER_ANALYST_SUB:statistics': ['/statistics/dashboard', '/statistics/oj-analysis'],
 
   // 订单财务 partial
-  'ORDER_ADMIN:order': ['/order/list', '/order/coin-dashboard', '/order/coin-products', '/order/coin-purchase'],
-  'PRODUCT_ADMIN:order': ['/order/coin-products'],
+  'ORDER_ADMIN:order': ['/order/list', '/order/coin-dashboard', '/order/coin-purchase'],
   'COIN_ADMIN:order': ['/order/coin-dashboard', '/order/coin-purchase'],
   'FINANCE_ADMIN:order': ['/order/list'],
+
+  // 金币商品已迁移到 商品管理 → 金币商品（GraphQL）；硬币管理员可看金币商品子页
+  'COIN_ADMIN:product': ['/product/coin'],
 
   // 一级管理员系统管理 partial → 不能看审计日志（但其他都可看）
   'LEVEL1_ADMIN:system': ['/system/admin', '/system/login-log', '/system/operation-log', '/system/system-config', '/system/security'],
@@ -644,6 +650,7 @@ function pathToGroup(path: string): string | null {
   }
   if (path.startsWith('/statistics')) return 'statistics'
   if (path.startsWith('/extension')) return 'extension'
+  if (path.startsWith('/product')) return 'product'
   if (path.startsWith('/dashboard') || path === '/') return 'dashboard'
   return null
 }

@@ -1,5 +1,8 @@
 package com.algoviz.common.exception;
 
+import cn.dev33.satoken.exception.NotLoginException;
+import cn.dev33.satoken.exception.NotPermissionException;
+import cn.dev33.satoken.exception.NotRoleException;
 import com.algoviz.common.enums.ErrorCode;
 import com.algoviz.dto.interview.InterviewResponse;
 import jakarta.validation.ConstraintViolation;
@@ -65,6 +68,40 @@ public class GlobalExceptionHandler {
     public InterviewResponse<Void> handleForbiddenException(ForbiddenException e) {
         log.warn("[ForbiddenException] code={}, message={}", e.getCode(), e.getMessage());
         return InterviewResponse.fail(e.getCode(), e.getMessage());
+    }
+
+    // ==================== Sa-Token 鉴权异常（@SaCheckLogin/@SaCheckRole/@SaCheckPermission） ====================
+
+    /**
+     * 未登录 / 登录已过期（@SaCheckLogin 拦截时抛出）
+     * 注意：此前未单独处理会落进兜底 Exception → HTTP 500，导致前端导入/导出等收到 500；
+     * 现规范为 401 + 友好文案。
+     */
+    @ExceptionHandler(NotLoginException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public InterviewResponse<Void> handleNotLoginException(NotLoginException e) {
+        log.warn("[NotLoginException] type={}, message={}", e.getType(), e.getMessage());
+        return InterviewResponse.fail(ErrorCode.UNAUTHORIZED.getCode(), "未登录或登录已过期，请重新登录");
+    }
+
+    /**
+     * 登录但角色不足（@SaCheckRole）
+     */
+    @ExceptionHandler(NotRoleException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public InterviewResponse<Void> handleNotRoleException(NotRoleException e) {
+        log.warn("[NotRoleException] 需要角色={}", e.getRole());
+        return InterviewResponse.fail(ErrorCode.FORBIDDEN.getCode(), "无权限访问：需要角色 " + e.getRole());
+    }
+
+    /**
+     * 登录但权限码不足（@SaCheckPermission）
+     */
+    @ExceptionHandler(NotPermissionException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public InterviewResponse<Void> handleNotPermissionException(NotPermissionException e) {
+        log.warn("[NotPermissionException] 需要权限={}", e.getPermission());
+        return InterviewResponse.fail(ErrorCode.FORBIDDEN.getCode(), "无权限访问：需要权限 " + e.getPermission());
     }
 
     // ==================== 参数校验异常 ====================

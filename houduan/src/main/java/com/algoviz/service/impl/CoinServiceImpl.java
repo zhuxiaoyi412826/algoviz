@@ -1,5 +1,6 @@
 package com.algoviz.service.impl;
 
+import com.algoviz.common.exception.BusinessException;
 import com.algoviz.entity.CoinProduct;
 import com.algoviz.entity.CoinPurchase;
 import com.algoviz.entity.User;
@@ -72,9 +73,17 @@ public class CoinServiceImpl implements CoinService {
             return result;
         }
 
-        // 4. 扣币
-        int coinAfter = currentCoins - price;
-        userMapper.setCoins(userId.intValue(), coinAfter);
+        // 4. 原子扣币：余额判断与扣减在同一条 SQL 内完成，并发购买不会丢失更新/扣成负数
+        int deducted = userMapper.deductCoins(userId.intValue(), price);
+        if (deducted == 0) {
+            result.put("success", false);
+            result.put("message", "硬币余额不足或账户状态异常，请刷新余额后重试");
+            result.put("currentCoins", currentCoins);
+            return result;
+        }
+        // 以数据库扣减后的权威余额为准（并发场景下先前读取的内存值可能已过期）
+        User latest = userMapper.findById(userId.intValue());
+        int coinAfter = (latest != null && latest.getCoins() != null) ? latest.getCoins() : currentCoins - price;
         logger.info("用户 {} 购买商品 {}，扣除 {} 硬币，余额 {} -> {}",
                 userId, productId, price, currentCoins, coinAfter);
 
@@ -151,6 +160,12 @@ public class CoinServiceImpl implements CoinService {
 
     @Override
     public boolean deleteProduct(String productId) {
+        // 删除保护：已有购买记录的商品不能物理删除（REST/Knife4j 与 GraphQL 同一口径），建议改为下架保留历史
+        long bought = coinMapper.countPurchasesByProductId(productId);
+        if (bought > 0) {
+            logger.warn("删除硬币商品被拒绝：{} 已有 {} 条购买记录，建议改为下架", productId, bought);
+            throw new BusinessException("该硬币商品已有 " + bought + " 条购买记录，不能删除（请改为下架处理）");
+        }
         return coinMapper.deleteProduct(productId) > 0;
     }
 

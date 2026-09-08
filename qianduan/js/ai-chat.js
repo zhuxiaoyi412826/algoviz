@@ -272,6 +272,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const loadingMsg = showLoading();
 
+        // 埋点：每次发起对话 +1（进入 AI 页已在页面加载时上报一次）
+        if (typeof window.__algovizReportVisit === 'function') {
+            try { window.__algovizReportVisit('ai'); } catch (e) {}
+        }
+
         try {
             // 改为调用后端API
             const API_URL = 'http://localhost:80/api/ai/chat';

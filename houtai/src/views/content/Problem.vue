@@ -372,8 +372,11 @@ const handleFileChange = async (uploadFile: any) => {
       md: '/api/problems/import-md',
       json: '/api/problems/import-json'
     }
+    const headers = { satoken: localStorage.getItem('token') || '' }
+    if (headers.satoken) headers.Authorization = 'Bearer ' + headers.satoken
     const res = await fetch(`http://localhost${epMap[format]}`, {
       method: 'POST',
+      headers,
       body: fd
     })
     const data = await res.json()
@@ -579,7 +582,10 @@ const handleExport = () => {
 const handleExportFormat = async (format: 'sql' | 'json') => {
   try {
     const url = `/api/problems/export/${format}`
-    const response = await fetch(url)
+    const headers: Record<string, string> = {}
+    const token = localStorage.getItem('token')
+    if (token) { headers.satoken = token; headers.Authorization = 'Bearer ' + token }
+    const response = await fetch(url, { headers })
     if (!response.ok) {
       throw new Error('导出失败')
     }

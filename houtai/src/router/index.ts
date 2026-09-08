@@ -279,12 +279,6 @@ const routes: RouteRecordRaw[] = [
             meta: { title: '硬币收入看板' }
           },
           {
-            path: 'coin-products',
-            name: 'CoinProductManage',
-            component: () => import('@/views/coin/CoinProductManage.vue'),
-            meta: { title: '硬币商品管理' }
-          },
-          {
             path: 'coin-purchase',
             name: 'CoinPurchase',
             component: () => import('@/views/coin/CoinPurchase.vue'),
@@ -394,6 +388,33 @@ const routes: RouteRecordRaw[] = [
             name: 'ThirdParty',
             component: () => import('@/views/extension/ThirdParty.vue'),
             meta: { title: '第三方集成', roles: ['super_admin'] }
+          }
+        ]
+      },
+      // 商品管理模块（GraphQL 驱动，自带 /graphiql 调试面板）
+      {
+        path: 'product',
+        name: 'Product',
+        redirect: '/product/list',
+        meta: { title: '商品管理', icon: 'Goods' },
+        children: [
+          {
+            path: 'list',
+            name: 'ProductManage',
+            component: () => import('@/views/product/ProductManage.vue'),
+            meta: { title: '商品列表' }
+          },
+          {
+            path: 'coin',
+            name: 'ProductCoinManage',
+            component: () => import('@/views/product/ProductCoinManage.vue'),
+            meta: { title: '金币商品' }
+          },
+          {
+            path: 'category',
+            name: 'ProductCategoryManage',
+            component: () => import('@/views/product/ProductCategoryManage.vue'),
+            meta: { title: '商品分类' }
           }
         ]
       }

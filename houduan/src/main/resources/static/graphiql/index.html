@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GraphiQL · 商品管理调试面板（中文）</title>
+    <!-- 本地自托管资源：不依赖 unpkg/任何外部 CDN（国内网络 CORS/404 会白屏） -->
+    <link rel="stylesheet" href="/graphiql/vendor/graphiql.min.css" />
+    <style>
+        html, body, #graphiql { height: 100%; margin: 0; width: 100%; overflow: hidden; }
+
+        /* ===== 右上角示例入口 ===== */
+        .gx-open {
+            position: fixed; top: 64px; right: 12px; z-index: 2000;
+            font: 13px/1 system-ui, "Microsoft YaHei", sans-serif;
+            background: #e535ab; color: #fff; border: none; cursor: pointer;
+            padding: 7px 14px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+        }
+        .gx-open:hover { background: #c12e94; }
+
+        /* ===== 示例抽屉 ===== */
+        .gx-drawer {
+            position: fixed; top: 116px; right: 12px; z-index: 2001; width: 400px;
+            max-height: calc(100% - 130px); display: none; flex-direction: column;
+            background: #fff; border: 1px solid #e0e0e0; border-radius: 10px;
+            box-shadow: 0 6px 24px rgba(0,0,0,.18); font: 13px/1.6 system-ui, "Microsoft YaHei", sans-serif;
+        }
+        .gx-drawer.gx-show { display: flex; }
+        .gx-drawer-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; border-bottom: 1px solid #eee;
+        }
+        .gx-drawer-head b { font-size: 14px; }
+        .gx-close { border: none; background: none; cursor: pointer; font-size: 16px; color: #888; }
+        .gx-close:hover { color: #333; }
+        .gx-list { overflow-y: auto; padding: 8px; }
+        .gx-item { border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+        .gx-item.gx-openb .gx-body { display: block; }
+        .gx-head {
+            display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer;
+            background: #fafafa; user-select: none;
+        }
+        .gx-head:hover { background: #f2f2f2; }
+        .gx-badge {
+            font-size: 11px; padding: 1px 7px; border-radius: 10px; color: #fff; flex: none;
+        }
+        .gx-badge.gx-q { background: #409eff; }
+        .gx-badge.gx-m { background: #f56c6c; }
+        .gx-title { flex: 1; }
+        .gx-body { display: none; padding: 8px 10px; border-top: 1px dashed #eee; }
+        .gx-body pre {
+            margin: 0 0 8px; padding: 8px; background: #282c34; color: #abb2bf;
+            border-radius: 6px; font: 12px/1.5 Consolas, Menlo, monospace;
+            max-height: 260px; overflow: auto; white-space: pre; word-break: break-all;
+        }
+        .gx-actions { display: flex; gap: 8px; }
+        .gx-actions button {
+            border: 1px solid #dcdfe6; background: #fff; border-radius: 6px; cursor: pointer;
+            padding: 4px 10px; font-size: 12px; color: #606266;
+        }
+        .gx-actions button.gx-run { background: #409eff; border-color: #409eff; color: #fff; }
+        .gx-actions button:hover { opacity: .85; }
+
+        /* ===== 轻提示 ===== */
+        .gx-toast {
+            position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 3000;
+            background: rgba(0,0,0,.75); color: #fff; padding: 8px 16px; border-radius: 8px;
+            font: 13px/1.5 system-ui, "Microsoft YaHei", sans-serif; pointer-events: none;
+            opacity: 0; transition: opacity .25s;
+        }
+        .gx-toast.gx-on { opacity: 1; }
+    </style>
+</head>
+<body>
+<div id="graphiql">加载中…</div>
+
+<button id="gxToggle" class="gx-open" type="button">🧪 测试示例</button>
+<div id="gxDrawer" class="gx-drawer">
+    <div class="gx-drawer-head">
+        <b>商品管理 · 测试示例</b>
+        <button id="gxClose" class="gx-close" type="button" title="关闭">✕</button>
+    </div>
+    <div id="gxList" class="gx-list"></div>
+</div>
+<div id="gxToast" class="gx-toast"></div>
+
+<script src="/graphiql/vendor/react.production.min.js"></script>
+<script src="/graphiql/vendor/react-dom.production.min.js"></script>
+<script src="/graphiql/vendor/graphiql.min.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    /* ==================== 1. 端点与 Token ==================== */
+    var params = new URLSearchParams(window.location.search);
+    var path = params.get('path') || '/graphql';
+    var url = location.origin + path;
+    var token = params.get('token') || '';
+    if (!token && window.localStorage) token = localStorage.getItem('token') || '';
+
+    /* ==================== 2. fetcher（自动带 satoken） ==================== */
+    function gqlFetcher(graphQLParams) {
+        var headers = { 'Content-Type': 'application/json' };
+        if (token) {
+            headers['satoken'] = token;
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+        return fetch(url, {
+            method: 'POST', headers: headers, credentials: 'include',
+            body: JSON.stringify(graphQLParams)
+        }).then(function (res) {
+            return res.json().catch(function () {
+                return { errors: [{ message: '请求失败，HTTP ' + res.status + '（token 可能缺失或已过期）' }] };
+            });
+        });
+    }
+
+    /* ==================== 3. 默认查询（中文注释示例） ==================== */
+    var DEFAULT_QUERY =
+        '# ================= 商品管理 GraphQL 调试 =================\n' +
+        '# ▶ 点击右上角「测试示例」可一键填入各种查询/变更\n' +
+        '# 说明：钱商品 -> product 表（price 单位:分）\n' +
+        '#      金币商品 -> coin_product 表（coinPrice 即前端硬币🪙）\n\n' +
+        'query ProductList {\n' +
+        '  # 钱商品分页列表\n' +
+        '  products(page: 1, size: 5) {\n' +
+        '    total\n' +
+        '    list {\n' +
+        '      id\n' +
+        '      productId\n' +
+        '      productName   # 商品名称\n' +
+        '      price         # 价格(分)\n' +
+        '      category\n' +
+        '      createdAt\n' +
+        '    }\n' +
+        '  }\n' +
+        '\n' +
+        '  # 金币商品列表(上架中)\n' +
+        '  coins: coinProducts(status: "ACTIVE", page: 1, size: 5) {\n' +
+        '    total\n' +
+        '    list {\n' +
+        '      productId\n' +
+        '      productName\n' +
+        '      coinPrice     # 前端硬币价格\n' +
+        '      status\n' +
+        '    }\n' +
+        '  }\n' +
+        '}';
+
+    /* ==================== 4. 中文化（工具按钮/提示） ==================== */
+    var TEXT_MAP = {
+        'Prettify': '格式化',
+        'History': '历史',
+        'Docs': '文档',
+        'Documentation Explorer': '文档浏览器',
+        'Query History': '查询历史',
+        'Variables': '变量',
+        'Headers': '请求头'
+    };
+    var TITLE_MAP = [
+        ['Run query', '执行查询'],
+        ['Prettify query', '格式化查询'],
+        ['Toggle history', '历史记录'],
+        ['Documentation Explorer', '文档浏览器'],
+        ['Copy to clipboard', '复制到剪贴板']
+    ];
+
+    function isSkipped(el) {
+        return el && (el.classList && (el.classList.contains('CodeMirror')
+            || el.classList.contains('result-window')
+            || el.classList.contains('gx-drawer')
+            || el.classList.contains('gx-open')));
+    }
+
+    function localize() {
+        // 1) title 提示部分替换
+        var els = document.querySelectorAll('[title]');
+        Array.prototype.forEach.call(els, function (el) {
+            if (isSkipped(el) || el.closest('.gx-drawer')) return;
+            var t = el.getAttribute('title') || '';
+            for (var i = 0; i < TITLE_MAP.length; i++) {
+                if (t.indexOf(TITLE_MAP[i][0]) >= 0 && t.indexOf(TITLE_MAP[i][1]) < 0) {
+                    t = t.replace(TITLE_MAP[i][0], TITLE_MAP[i][1]);
+                }
+            }
+            el.setAttribute('title', t);
+        });
+        // 2) 文本节点替换（避开 CodeMirror/结果区，避免破坏查询内容）
+        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+            acceptNode: function (node) {
+                var p = node.parentElement;
+                return (p && !isSkipped(p) && !p.closest('.CodeMirror')
+                        && !p.closest('.result-window')
+                        && !p.closest('.gx-drawer')) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+            }
+        });
+        var targets = [];
+        while (walker.nextNode()) targets.push(walker.currentNode);
+        targets.forEach(function (node) {
+            var text = node.nodeValue;
+            if (!text) return;
+            var key = text.trim();
+            if (Object.prototype.hasOwnProperty.call(TEXT_MAP, key)) {
+                node.nodeValue = text.replace(key, TEXT_MAP[key]);
+            }
+        });
+    }
+
+    /* ==================== 5. 测试示例库（中文） ==================== */
+    var EXAMPLES = [
+        { group: '钱商品（product / price 单位:分）', kind: 'q', title: '① 分页列表', query:
+            '# 钱商品：分页查询\nquery {\n  products(page: 1, size: 10) {\n    total\n    page\n    size\n    totalPages\n    list {\n      id\n      productId\n      productName\n      price\n      category\n      icon\n      createdAt\n      updatedAt\n    }\n  }\n}' },
+        { group: '钱商品（product / price 单位:分）', kind: 'q', title: '② 按名称/分类/时间筛选', query:
+            '# 钱商品：关键词 + 分类 + 创建时间范围 + 排序\nquery {\n  products(\n    keyword: "算法"\n    category: "笔记"\n    startDate: "2026-01-01"\n    endDate: "2026-12-31"\n    orderBy: "createdAt"\n    orderDir: "desc"\n    page: 1\n    size: 10\n  ) {\n    total\n    list {\n      id\n      productId\n      productName\n      price\n      category\n      createdAt\n    }\n  }\n}' },
+        { group: '钱商品（product / price 单位:分）', kind: 'q', title: '③ 按 ID 查详情', query:
+            '# 钱商品：详情（id 换成真实 id）\nquery {\n  product(id: "1") {\n    id\n    productId\n    productName\n    description\n    price\n    category\n    icon\n  }\n}' },
+        { group: '钱商品（product / price 单位:分）', kind: 'm', title: '④ 新增商品', query:
+            '# 钱商品：新增（price 单位为【分】，2990 = ¥29.90）\nmutation {\n  createProduct(input: {\n    productId: "note-dsa-handbook"\n    productName: "数据结构图解手册"\n    description: "示例：新建人民币商品"\n    price: 2990\n    category: "笔记"\n    icon: "📘"\n  }) {\n    id\n    productId\n    productName\n    price\n    category\n  }\n}' },
+        { group: '钱商品（product / price 单位:分）', kind: 'm', title: '⑤ 修改商品', query:
+            '# 钱商品：修改（id 换成真实 id，input 需带完整必填字段）\nmutation {\n  updateProduct(id: "1", input: {\n    productId: "note-dsa-handbook"\n    productName: "数据结构图解手册(2026新版)"\n    description: "示例：改名改价"\n    price: 3990\n    category: "笔记"\n    icon: "📘"\n  }) {\n    id\n    productName\n    price\n  }\n}' },
+        { group: '钱商品（product / price 单位:分）', kind: 'm', title: '⑥ 删除商品', query:
+            '# 钱商品：删除（返回 true；id 换成真实 id）\nmutation {\n  deleteProduct(id: "1")\n}' },
+
+        { group: '金币商品（coin_product / coinPrice = 前端硬币🪙）', kind: 'q', title: '⑦ 金币商品列表', query:
+            '# 金币商品：分页 + 状态/分类/时间筛选（status: ACTIVE上架 / INACTIVE下架）\nquery {\n  coinProducts(\n    keyword: ""\n    category: "coin"\n    status: "ACTIVE"\n    page: 1\n    size: 10\n  ) {\n    total\n    list {\n      id\n      productId\n      productName\n      coinPrice\n      category\n      icon\n      status\n      createdAt\n    }\n  }\n}' },
+        { group: '金币商品（coin_product / coinPrice = 前端硬币🪙）', kind: 'q', title: '⑧ 金币商品详情', query:
+            '# 金币商品：详情（productId 是字符串编号）\nquery {\n  coinProduct(productId: "coin-dp-master") {\n    productId\n    productName\n    description\n    coinPrice\n    category\n    icon\n    status\n  }\n}' },
+        { group: '金币商品（coin_product / coinPrice = 前端硬币🪙）', kind: 'm', title: '⑨ 新增金币商品', query:
+            '# 金币商品：新增（coinPrice = 前端购买时扣除的硬币数）\nmutation {\n  createCoinProduct(input: {\n    productId: "coin-test-001"\n    productName: "测试金币商品"\n    description: "示例：新建金币商品"\n    coinPrice: 50\n    category: "coin"\n    icon: "🪙"\n    status: "ACTIVE"\n  }) {\n    id\n    productId\n    productName\n    coinPrice\n    status\n  }\n}' },
+        { group: '金币商品（coin_product / coinPrice = 前端硬币🪙）', kind: 'm', title: '⑩ 上架/下架', query:
+            '# 金币商品：上架 ACTIVE / 下架 INACTIVE\nmutation {\n  updateCoinProduct(productId: "coin-test-001", input: {\n    productId: "coin-test-001"\n    productName: "测试金币商品"\n    description: "示例：改为下架"\n    coinPrice: 50\n    category: "coin"\n    icon: "🪙"\n    status: "INACTIVE"\n  }) {\n    id\n    productName\n    status\n  }\n}' },
+        { group: '金币商品（coin_product / coinPrice = 前端硬币🪙）', kind: 'm', title: '⑪ 删除金币商品', query:
+            '# 金币商品：删除\nmutation {\n  deleteCoinProduct(productId: "coin-test-001")\n}' },
+
+        { group: '商品分类（product_category 字典）', kind: 'q', title: '⑫ 分类列表', query:
+            '# 分类：全部（含停用） / 仅启用\nquery {\n  all: categories { id name sort status createdAt }\n  enabled: categoriesEnabled { id name sort }\n}' },
+        { group: '商品分类（product_category 字典）', kind: 'm', title: '⑬ 新增分类', query:
+            '# 分类：新增（name 需与商品填写的 category 一致，如 笔记/教程/项目）\nmutation {\n  createCategory(name: "笔记", sort: 1, status: 1) {\n    id\n    name\n    sort\n    status\n  }\n}' },
+        { group: '商品分类（product_category 字典）', kind: 'm', title: '⑭ 停用/启用分类', query:
+            '# 分类：status 1=启用 0=停用\nmutation {\n  updateCategory(id: "1", status: 0) {\n    id\n    name\n    status\n  }\n}' },
+        { group: '商品分类（product_category 字典）', kind: 'm', title: '⑮ 删除分类', query:
+            '# 分类：删除（⚠️ 仅当没有商品引用该分类时安全）\nmutation {\n  deleteCategory(id: "1")\n}' }
+    ];
+
+    /* ==================== 6. 示例抽屉交互 ==================== */
+    var drawer = document.getElementById('gxDrawer');
+    var listEl = document.getElementById('gxList');
+    var toastEl = document.getElementById('gxToast');
+    var toastTimer = null;
+
+    function toast(msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add('gx-on');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toastEl.classList.remove('gx-on'); }, 2200);
+    }
+
+    function qMirror() {
+        var el = document.querySelector('.query-editor .CodeMirror');
+        return el && el.CodeMirror ? el.CodeMirror : null;
+    }
+    function vMirror() {
+        var el = document.querySelector('.variable-editor .CodeMirror');
+        return el && el.CodeMirror ? el.CodeMirror : null;
+    }
+
+    function applyToEditors(query) {
+        var qm = qMirror();
+        if (!qm) { toast('编辑器尚未就绪，请稍后再试'); return false; }
+        qm.getDoc().setValue(query);
+        var vm = vMirror();
+        if (vm) vm.getDoc().setValue('');
+        return true;
+    }
+
+    function fillExample(query) {
+        if (applyToEditors(query)) toast('已填入编辑器，按 Ctrl+Enter 执行');
+    }
+
+    function runExample(query) {
+        if (!applyToEditors(query)) return;
+        setTimeout(function () {
+            var btn = document.querySelector('.execute-button');
+            if (btn) { btn.click(); }
+            else { toast('已填入，请按 Ctrl+Enter 执行'); }
+        }, 120);
+    }
+
+    function renderList() {
+        var html = '';
+        var lastGroup = '';
+        EXAMPLES.forEach(function (ex, i) {
+            if (ex.group !== lastGroup) {
+                html += '<div style="margin:6px 2px;color:#909399;font-size:12px;">' + ex.group + '</div>';
+                lastGroup = ex.group;
+            }
+            html += '<div class="gx-item" data-i="' + i + '">' +
+                '<div class="gx-head"><span class="gx-badge ' + (ex.kind === 'q' ? 'gx-q' : 'gx-m') + '">' +
+                (ex.kind === 'q' ? '查询' : '变更') + '</span>' +
+                '<span class="gx-title">' + ex.title + '</span></div>' +
+                '<div class="gx-body"><pre></pre>' +
+                '<div class="gx-actions">' +
+                '<button class="gx-run" type="button">▶ 填入并执行</button>' +
+                '<button type="button">仅填入</button>' +
+                '<button type="button">复制</button>' +
+                '</div></div></div>';
+        });
+        listEl.innerHTML = html;
+
+        // 绑定事件
+        listEl.querySelectorAll('.gx-item').forEach(function (item, i) {
+            var ex = EXAMPLES[i];
+            var pre = item.querySelector('pre');
+            pre.textContent = ex.query;
+
+            item.querySelector('.gx-head').addEventListener('click', function () {
+                var open = item.classList.toggle('gx-openb');
+                listEl.querySelectorAll('.gx-item.gx-openb').forEach(function (o) {
+                    if (o !== item) o.classList.remove('gx-openb');
+                });
+                void open;
+            });
+
+            var btns = item.querySelectorAll('.gx-actions button');
+            btns[0].addEventListener('click', function (e) { e.stopPropagation(); runExample(ex.query); });
+            btns[1].addEventListener('click', function (e) { e.stopPropagation(); fillExample(ex.query); });
+            btns[2].addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(ex.query).then(function () { toast('已复制到剪贴板'); });
+                } else {
+                    var ta = document.createElement('textarea');
+                    ta.value = ex.query; document.body.appendChild(ta); ta.select();
+                    document.execCommand('copy'); document.body.removeChild(ta); toast('已复制到剪贴板');
+                }
+            });
+        });
+    }
+
+    function openDrawer() { renderList(); drawer.classList.add('gx-show'); }
+    function closeDrawer() { drawer.classList.remove('gx-show'); }
+    document.getElementById('gxToggle').addEventListener('click', function () {
+        if (drawer.classList.contains('gx-show')) closeDrawer(); else openDrawer();
+    });
+    document.getElementById('gxClose').addEventListener('click', closeDrawer);
+
+    /* ==================== 7. 渲染 GraphiQL ==================== */
+    var initialHeaders = token ? JSON.stringify({ satoken: token }) : '';
+    ReactDOM.render(
+        React.createElement(GraphiQL, {
+            fetcher: gqlFetcher,
+            headers: initialHeaders,
+            headerEditorEnabled: true,
+            shouldPersistHeaders: true,
+            defaultVariableEditorOpen: true,
+            query: DEFAULT_QUERY
+        }),
+        document.getElementById('graphiql')
+    );
+
+    /* ==================== 8. 本地化触发（初始 + 动态） ==================== */
+    localize();
+    setTimeout(localize, 300);
+    setTimeout(localize, 1200);
+    if (window.MutationObserver) {
+        var mo = new MutationObserver(function () { localize(); });
+        mo.observe(document.body, { childList: true, subtree: true });
+    }
+    if (!token) toast('未检测到后台 token：可 URL 加 ?token=xxx，或直接用后台打开本页');
+})();
+</script>
+</body>
+</html>

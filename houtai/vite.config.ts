@@ -36,6 +36,16 @@ export default defineConfig({
         // 禁用 keepAlive 连接复用：空闲约 10 秒后代理池中的 socket 已被对端关闭，
         // 复用陈旧 socket 会导致空闲后的首个 /api 请求卡 2~4 秒（后端/SQL 实测仅 20ms，延迟全在代理层）
         agent: new http.Agent({ keepAlive: false })
+      },
+      // GraphQL 商品管理（Sa-Token 鉴权在请求头上，与 /api 同样转发后端 :80）
+      '/graphql': {
+        target: 'http://127.0.0.1:80',
+        changeOrigin: true
+      },
+      // GraphiQL 调试面板页面（开发环境直接反代到后端）
+      '/graphiql': {
+        target: 'http://127.0.0.1:80',
+        changeOrigin: true
       }
     }
   },
