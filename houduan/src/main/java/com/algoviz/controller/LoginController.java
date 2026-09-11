@@ -4,6 +4,7 @@ import com.algoviz.config.AuthInterceptor;
 import com.algoviz.dto.LoginRequest;
 import com.algoviz.dto.LoginResponse;
 import com.algoviz.entity.User;
+import com.algoviz.service.AccountStatusService;
 import com.algoviz.service.EmailService;
 import com.algoviz.service.LoginService;
 import com.algoviz.service.UserService;
@@ -47,6 +48,9 @@ public class LoginController {
 
     @Autowired
     private EmailService emailService;
+
+    @Autowired
+    private AccountStatusService accountStatusService;
 
     @PostMapping
     @Operation(summary = "登录", description = "通过验证码登录（兼容老版本接口）")
@@ -165,6 +169,8 @@ public class LoginController {
         LoginResponse loginResponse = new LoginResponse();
         String email = body.get("email");
         String code = body.get("code");
+        // 注销冷静期内本次登录是否自动撤销了注销（用于成功提示）
+        boolean cancellationRevoked = false;
 
         if (email == null || email.trim().isEmpty()) {
             loginResponse.setSuccess(false);
@@ -227,17 +233,14 @@ public class LoginController {
             System.out.println("╚══════════════════════════════════════════════════════════╝");
             System.out.println();
         } else {
-            // 状态校验：注销(-1) / 封禁(0) 禁止登录
-            if (user.getStatus() != null && user.getStatus() == -1) {
+            // 状态校验：封禁拒绝；注销冷静期内登录自动撤销注销并放行
+            AccountStatusService.LoginCheck chk = accountStatusService.checkForLogin(user);
+            if (!chk.isAllowed()) {
                 loginResponse.setSuccess(false);
-                loginResponse.setMessage("账号已注销");
+                loginResponse.setMessage(chk.getRejectReason());
                 return loginResponse;
             }
-            if (user.getStatus() != null && user.getStatus() == 0) {
-                loginResponse.setSuccess(false);
-                loginResponse.setMessage("账号已被禁用，请联系管理员");
-                return loginResponse;
-            }
+            cancellationRevoked = chk.isCancellationRevoked();
         }
 
         if (user.getLastLoginAt() == null) {
@@ -255,7 +258,8 @@ public class LoginController {
         userService.updateLoginStatus(user.getId(), 0);
 
         loginResponse.setSuccess(true);
-        loginResponse.setMessage("登录成功");
+        loginResponse.setMessage(cancellationRevoked
+                ? "登录成功，已为你取消账号注销申请" : "登录成功");
         loginResponse.setToken("email_code_token_" + System.currentTimeMillis());
 
         LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();
@@ -471,7 +475,7 @@ public class LoginController {
     }
 
     @PostMapping("/cancel-account")
-    @Operation(summary = "注销账号", description = "已登录用户申请注销：校验密码后置 status=-1（数据保留、后台可见），强制下线；用户名/邮箱永久不可再注册")
+    @Operation(summary = "注销账号", description = "已登录用户申请注销：校验密码后进入15天冷静期（status=-1、记录cancel_at、强制下线）；冷静期内登录自动撤销注销，逾期未登录正式注销；数据保留、后台可见，用户名/邮箱永久不可再注册")
     public Map<String, Object> cancelAccount(@RequestBody Map<String, String> body,
                                              HttpServletRequest request,
                                              HttpServletResponse response) {
@@ -508,9 +512,17 @@ public class LoginController {
             return result;
         }
         if (dbUser.getStatus() != null && dbUser.getStatus() == -1) {
-            result.put("success", false);
-            result.put("message", "账号已注销");
-            return result;
+            // 冷静期内可再次提交注销（重新计15天）；已超期/历史永久注销账号拒绝
+            LocalDateTime cancelAt = dbUser.getCancelAt();
+            boolean inCooling = cancelAt != null
+                    && LocalDateTime.now().isBefore(cancelAt.plusDays(AccountStatusService.CANCEL_COOLING_DAYS));
+            if (!inCooling) {
+                result.put("success", false);
+                result.put("message", "账号已注销");
+                return result;
+            }
+            logger.info("用户在注销冷静期内再次提交申请，冷静期重新计15天: userId={}, username={}",
+                    dbUser.getId(), dbUser.getUsername());
         }
         String password = body.get("password");
         if (dbUser.getPassword() != null && !dbUser.getPassword().isEmpty()) {
@@ -526,9 +538,9 @@ public class LoginController {
             }
         }
 
-        // 3. 执行注销：status=-1 且强制下线（数据保留，后台用户管理仍可见）
+        // 3. 提交注销申请：status=-1、cancel_at=NOW()（15天冷静期起点）、强制下线（数据保留，后台用户管理仍可见）
         userService.cancelAccount(user.getId());
-        logger.warn("用户注销账号: userId={}, username={}", user.getId(), user.getUsername());
+        logger.warn("用户提交注销申请（15天冷静期开始）: userId={}, username={}", user.getId(), user.getUsername());
 
         // 4. 销毁会话与 Cookie（与改密踢下线一致）
         if (session != null) {
@@ -537,7 +549,7 @@ public class LoginController {
         AuthInterceptor.removeCookie(response, AuthInterceptor.COOKIE_USER_ID);
 
         result.put("success", true);
-        result.put("message", "账号已注销");
+        result.put("message", "注销申请已提交，账号进入15天冷静期；期间登录将自动撤销注销，逾期未登录则正式注销");
         return result;
     }
 

@@ -31,7 +31,8 @@ CREATE TABLE `user` (
     `nickname`        VARCHAR(100) DEFAULT NULL,
     `avatar_url`      VARCHAR(500) DEFAULT NULL,
     `login_status`    VARCHAR(20)  DEFAULT 'offline',
-    `status`          TINYINT      DEFAULT 1 COMMENT '1:正常 0:封禁',
+    `status`          TINYINT      DEFAULT 1 COMMENT '1:正常 0:封禁 -1:注销',
+    `cancel_at`       DATETIME     DEFAULT NULL COMMENT '注销申请时间（15天冷静期起点；NULL=未申请/已撤销/历史永久注销）',
     `coins`           INT          NOT NULL DEFAULT 1000 COMMENT '硬币余额',
     `created_at`      DATETIME     DEFAULT CURRENT_TIMESTAMP,
     `updated_at`      DATETIME     DEFAULT CURRENT_TIMESTAMP,
@@ -1782,3 +1783,46 @@ INSERT INTO `product_category` (`name`, `sort`)
 SELECT DISTINCT TRIM(`category`), 0 FROM `product`
 WHERE `category` IS NOT NULL AND TRIM(`category`) <> ''
 ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+
+-- 23 ============================================================================
+-- 迁移说明：账号注销 15 天冷静期
+--
+-- 背景：
+--   原注销流程为「点击注销即永久注销」（status=-1 立即拒绝一切登录）。
+--   现改为冷静期机制：
+--     1. 点击注销后进入 15 天冷静期（status=-1 且 cancel_at 记录申请时间）；
+--     2. 冷静期内再次登录（任意登录入口）→ 自动撤销注销，恢复 status=1；
+--     3. 撤销后若再次主动点击注销 → cancel_at 刷新为当前时间，重新计 15 天；
+--     4. 超过 15 天未登录 → 注销永久生效（拒绝登录，数据保留、后台可见，口径同现状）。
+--
+-- 历史数据：
+--   已有的 status=-1 注销账号 cancel_at 为 NULL，按「永久注销」处理，不会复活。
+--
+-- 执行方式：手动执行（本文件不接入 DatabaseInitializer 自动迁移）
+-- 幂等：列已存在时仅执行 SELECT 1，不报错、不破坏数据。
+-- ============================================================================
+
+-- USE algoviz;  -- 按实际库名修改，或命令行 -D 指定
+
+SET @algoviz_col = IF(EXISTS(SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'cancel_at'),
+    'SELECT 1',
+    'ALTER TABLE `user` ADD COLUMN `cancel_at` DATETIME NULL DEFAULT NULL COMMENT ''注销申请时间（15天冷静期起点；NULL=未申请/已撤销/历史永久注销）''');
+PREPARE algoviz_cancel_stmt FROM @algoviz_col;
+EXECUTE algoviz_cancel_stmt;
+DEALLOCATE PREPARE algoviz_cancel_stmt;
+
+-- 校验：确认列已存在（预期返回一行 cancel_at / datetime / YES）
+SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_COMMENT
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'cancel_at';
+
+--24 商品表 product.material_url（资料下载链接）字段补列脚本
+-- 幂等：列已存在时仅执行 SELECT 1，不会重复建列/破坏数据；每次启动由 DatabaseInitializer 执行
+SET @algoviz_col = IF(EXISTS(SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'product' AND COLUMN_NAME = 'material_url'),
+    'SELECT 1',
+    'ALTER TABLE `product` ADD COLUMN `material_url` VARCHAR(500) NULL DEFAULT NULL COMMENT ''购买后资料下载链接（随订单邮件发放）''');
+PREPARE algoviz_material_stmt FROM @algoviz_col;
+EXECUTE algoviz_material_stmt;
+DEALLOCATE PREPARE algoviz_material_stmt;

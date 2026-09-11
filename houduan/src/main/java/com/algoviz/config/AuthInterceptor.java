@@ -1,6 +1,7 @@
 package com.algoviz.config;
 
 import com.algoviz.entity.User;
+import com.algoviz.service.AccountStatusService;
 import com.algoviz.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -35,6 +36,9 @@ public class AuthInterceptor implements HandlerInterceptor {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private AccountStatusService accountStatusService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -46,10 +50,10 @@ public class AuthInterceptor implements HandlerInterceptor {
                 Integer userId = Integer.parseInt(headerUid);
                 User user = userService.findById(userId);
                 if (user != null) {
-                    // 封禁(0)/注销(-1)/已删除(findById 已过滤) 一律拒绝
-                    String accountError = checkAccountActive(user);
-                    if (accountError != null) {
-                        writeUnauthorized(response, accountError, 40106);
+                    // 封禁/永久注销拒绝；注销冷静期内本次访问自动撤销注销并放行
+                    AccountStatusService.LoginCheck chk = accountStatusService.checkForLogin(user);
+                    if (!chk.isAllowed()) {
+                        writeUnauthorized(response, chk.getRejectReason(), 40106);
                         return false;
                     }
                     HttpSession session = request.getSession(true);
@@ -70,13 +74,17 @@ public class AuthInterceptor implements HandlerInterceptor {
             User sessionUser = (User) session.getAttribute(SESSION_USER);
             // 实时校验账号状态：登录后被封禁/注销/删除，立即失效（主键点查，开销可忽略）
             User fresh = userService.findById(sessionUser.getId());
-            String accountError = checkAccountActive(fresh);
-            if (accountError != null) {
-                logger.info("账号状态异常，强制下线: userId={}, reason={}", sessionUser.getId(), accountError);
+            AccountStatusService.LoginCheck chk = accountStatusService.checkForLogin(fresh);
+            if (!chk.isAllowed()) {
+                logger.info("账号状态异常，强制下线: userId={}, reason={}", sessionUser.getId(), chk.getRejectReason());
                 session.invalidate();
                 removeCookie(response, COOKIE_USER_ID);
-                writeUnauthorized(response, accountError, 40106);
+                writeUnauthorized(response, chk.getRejectReason(), 40106);
                 return false;
+            }
+            // 冷静期内登录已自动撤销注销：用最新对象刷新 Session，避免后续请求读到过期 status
+            if (chk.isCancellationRevoked()) {
+                session.setAttribute(SESSION_USER, fresh);
             }
             logger.debug("Session校验通过，用户: {}", sessionUser.getUsername());
             return true;
@@ -109,15 +117,15 @@ public class AuthInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        // 4. 账号状态校验：封禁(0)/注销(-1) 拒绝自动登录并清除凭证
-        String accountError = checkAccountActive(user);
-        if (accountError != null) {
-            logger.info("Cookie自动登录被拒，账号状态异常: userId={}, reason={}", userId, accountError);
+        // 4. 账号状态校验：封禁/永久注销拒绝自动登录并清除凭证；注销冷静期内自动撤销并放行
+        AccountStatusService.LoginCheck chk = accountStatusService.checkForLogin(user);
+        if (!chk.isAllowed()) {
+            logger.info("Cookie自动登录被拒，账号状态异常: userId={}, reason={}", userId, chk.getRejectReason());
             removeCookie(response, COOKIE_USER_ID);
             if (session != null) {
                 session.invalidate();
             }
-            writeUnauthorized(response, accountError, 40106);
+            writeUnauthorized(response, chk.getRejectReason(), 40106);
             return false;
         }
 
@@ -165,24 +173,6 @@ public class AuthInterceptor implements HandlerInterceptor {
         System.out.println();
 
         return true;
-    }
-
-    /**
-     * 账号可用性校验：null 表示可用；否则返回拒绝原因
-     * is_deleted=1 在 findById 查询层已过滤（返回 null），这里只需判 status
-     */
-    private String checkAccountActive(User user) {
-        if (user == null) {
-            return "账号不存在，请重新登录";
-        }
-        Integer st = user.getStatus();
-        if (st != null && st == -1) {
-            return "账号已注销";
-        }
-        if (st != null && st == 0) {
-            return "账号已被禁用，请联系管理员";
-        }
-        return null;
     }
 
     /**
