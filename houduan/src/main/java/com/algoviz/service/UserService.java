@@ -29,6 +29,6 @@ public interface UserService {
     void updateStatus(Integer id, Integer status);
     int updatePassword(Integer id, String password);
     void updateLoginStatus(Integer id, Integer loginStatus);
-    /** 注销账号：status=-1 并强制下线（数据保留，后台仍可见） */
+    /** 提交注销申请：status=-1、记录 cancel_at（15天冷静期起点）并强制下线（数据保留，后台仍可见） */
     int cancelAccount(Integer id);
 }

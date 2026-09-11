@@ -4,6 +4,7 @@ import com.algoviz.common.exception.BusinessException;
 import com.algoviz.entity.User;
 import com.algoviz.entity.UserOauth;
 import com.algoviz.mapper.UserOauthMapper;
+import com.algoviz.service.AccountStatusService;
 import com.algoviz.service.OauthLoginService;
 import com.algoviz.service.UserService;
 import org.slf4j.Logger;
@@ -46,6 +47,9 @@ public class OauthLoginServiceImpl implements OauthLoginService {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private AccountStatusService accountStatusService;
 
     @Override
     @Transactional
@@ -131,14 +135,15 @@ public class OauthLoginServiceImpl implements OauthLoginService {
         return created;
     }
 
-    /** 账号可用性校验：1=正常可用；0=封禁；-1=注销（null 视为正常） */
+    /**
+     * 账号可用性校验：封禁/永久注销抛业务异常；注销 15 天冷静期内本次第三方登录自动撤销注销并放行。
+     */
     private void assertActive(User user) {
-        Integer st = user.getStatus();
-        if (st != null && st == -1) {
-            throw new BusinessException("该账号已注销，无法使用第三方登录");
-        }
-        if (st != null && st == 0) {
-            throw new BusinessException("该账号已被禁用，请联系管理员");
+        AccountStatusService.LoginCheck chk = accountStatusService.checkForLogin(user);
+        if (!chk.isAllowed()) {
+            throw new BusinessException(chk.getRejectReason().contains("注销")
+                    ? "该账号已注销，无法使用第三方登录"
+                    : chk.getRejectReason());
         }
     }
 

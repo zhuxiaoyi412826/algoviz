@@ -3,6 +3,7 @@ package com.algoviz.service.impl;
 import com.algoviz.dto.LoginRequest;
 import com.algoviz.dto.LoginResponse;
 import com.algoviz.entity.User;
+import com.algoviz.service.AccountStatusService;
 import com.algoviz.service.LoginLockService;
 import com.algoviz.service.LoginService;
 import com.algoviz.service.UserService;
@@ -26,6 +27,9 @@ public class LoginServiceImpl implements LoginService {
 
     @Autowired
     private LoginLockService loginLockService;
+
+    @Autowired
+    private AccountStatusService accountStatusService;
 
     // 存储验证码，Key: 验证码, Value: openId（为空说明还未扫码）
     private Map<String, String> verificationCodes = new ConcurrentHashMap<>();
@@ -77,6 +81,7 @@ public class LoginServiceImpl implements LoginService {
 
         // 已经扫码成功，进行登录或注册
         User user = userService.findByUsername(openId);
+        boolean cancellationRevoked = false;
 
         if (user == null) {
             // 含已逻辑删除/注销账号也要拦截：防止唯一索引冲突，且墓碑账号不可恢复登录
@@ -108,14 +113,15 @@ public class LoginServiceImpl implements LoginService {
             user.setNickname("微信用户" + new Random().nextInt(10000));
             user = userService.createUser(user);
         } else {
-            // 状态校验：注销/封禁禁止登录
-            String statusError = checkAccountStatus(user);
-            if (statusError != null) {
+            // 状态校验：封禁拒绝；注销冷静期内登录自动撤销注销并放行
+            AccountStatusService.LoginCheck chk = accountStatusService.checkForLogin(user);
+            if (!chk.isAllowed()) {
                 response.setSuccess(false);
-                response.setMessage(statusError);
+                response.setMessage(chk.getRejectReason());
                 verificationCodes.remove(code);
                 return response;
             }
+            cancellationRevoked = chk.isCancellationRevoked();
             // 更新最后登录时间
             userService.updateLastLogin(user.getId());
         }
@@ -128,7 +134,8 @@ public class LoginServiceImpl implements LoginService {
 
         // 构建响应
         response.setSuccess(true);
-        response.setMessage("登录成功");
+        response.setMessage(cancellationRevoked
+                ? "登录成功，已为你取消账号注销申请" : "登录成功");
         response.setToken(token);
 
         LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();
@@ -140,22 +147,6 @@ public class LoginServiceImpl implements LoginService {
         response.setUserInfo(userInfo);
 
         return response;
-    }
-
-    /**
-     * 账号状态校验：返回 null 表示可登录，否则返回拒绝原因
-     * status: 1=正常 0=封禁 -1=注销（is_deleted=1 的账号在查询层已被过滤）
-     */
-    private String checkAccountStatus(User user) {
-        if (user == null) return null;
-        Integer st = user.getStatus();
-        if (st != null && st == -1) {
-            return "账号已注销";
-        }
-        if (st != null && st == 0) {
-            return "账号已被禁用，请联系管理员";
-        }
-        return null;
     }
 
     /**
@@ -237,11 +228,11 @@ public class LoginServiceImpl implements LoginService {
             return response;
         }
 
-        // 4) 检查用户状态：注销(-1) / 封禁(0)
-        String statusError = checkAccountStatus(user);
-        if (statusError != null) {
+        // 4) 检查用户状态：封禁拒绝；注销冷静期内登录自动撤销注销并放行
+        AccountStatusService.LoginCheck chk = accountStatusService.checkForLogin(user);
+        if (!chk.isAllowed()) {
             response.setSuccess(false);
-            response.setMessage(statusError);
+            response.setMessage(chk.getRejectReason());
             return response;
         }
 
@@ -255,7 +246,8 @@ public class LoginServiceImpl implements LoginService {
         String token = "account_token_" + System.currentTimeMillis();
 
         response.setSuccess(true);
-        response.setMessage("登录成功");
+        response.setMessage(chk.isCancellationRevoked()
+                ? "登录成功，已为你取消账号注销申请" : "登录成功");
         response.setToken(token);
 
         LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();
@@ -318,11 +310,11 @@ public class LoginServiceImpl implements LoginService {
             return response;
         }
 
-        // 4) 账号状态校验：注销(-1) / 封禁(0)
-        String statusError = checkAccountStatus(user);
-        if (statusError != null) {
+        // 4) 账号状态校验：封禁拒绝；注销冷静期内登录自动撤销注销并放行
+        AccountStatusService.LoginCheck chk = accountStatusService.checkForLogin(user);
+        if (!chk.isAllowed()) {
             response.setSuccess(false);
-            response.setMessage(statusError);
+            response.setMessage(chk.getRejectReason());
             return response;
         }
 
@@ -334,7 +326,8 @@ public class LoginServiceImpl implements LoginService {
         String token = "email_token_" + System.currentTimeMillis();
 
         response.setSuccess(true);
-        response.setMessage("登录成功");
+        response.setMessage(chk.isCancellationRevoked()
+                ? "登录成功，已为你取消账号注销申请" : "登录成功");
         response.setToken(token);
 
         LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();

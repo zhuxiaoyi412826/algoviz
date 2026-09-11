@@ -818,7 +818,7 @@
             var password = document.getElementById('cancelPassword').value;
 
             // 二次确认（弹窗内确认 + 原生 confirm 双保险）
-            if (!window.confirm('最后确认：注销后账号将永久无法登录，用户名/邮箱不可再注册，此操作不可恢复。确定继续吗？')) {
+            if (!window.confirm('最后确认：提交后账号进入 15 天注销冷静期，期间登录可自动撤销，逾期未登录将正式注销且不可恢复。确定继续吗？')) {
                 return;
             }
 
@@ -837,7 +837,7 @@
                 if (result.success) {
                     localStorage.removeItem('isLoggedIn');
                     localStorage.removeItem('userAvatar');
-                    window.alert('账号已注销，即将返回首页');
+                    window.alert('注销申请已提交：账号进入 15 天冷静期，期间登录将自动撤销注销，逾期未登录则正式注销。即将返回首页');
                     window.location.href = '../index.html';
                 } else {
                     errEl.textContent = result.message || '注销失败';
@@ -1417,10 +1417,11 @@
             </div>
             <div class="cancel-modal-body">
                 <div class="cancel-warning-box">
-                    <strong>注销后将产生以下后果，且不可恢复：</strong>
-                    1. 账号将无法登录（含用户名、邮箱、微信扫码）；<br>
-                    2. 用户名和邮箱将被永久占用，无法重新注册；<br>
-                    3. 账号数据将保留用于审计，但在前台不再可见。
+                    <strong>注销流程（15 天冷静期）：</strong>
+                    1. 提交注销后账号进入 <b>15 天冷静期</b>，并立即强制下线；<br>
+                    2. <b style="color:#16a34a;">冷静期内重新登录，注销将自动撤销</b>，账号恢复正常；若再次申请注销则重新计算 15 天；<br>
+                    3. 15 天内未登录，账号将正式注销，届时无法登录（用户名、邮箱、微信扫码均不可用）；<br>
+                    4. 正式注销后用户名/邮箱永久占用、无法重新注册，数据保留用于审计。
                 </div>
                 <div class="form-group">
                     <label for="cancelPassword">请输入登录密码以确认注销</label>

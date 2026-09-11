@@ -30,6 +30,8 @@ public class User {
     private Integer loginStatus;
     @Schema(description = "状态: 1=正常 0=封禁 -1=注销")
     private Integer status;
+    @Schema(description = "注销申请时间（15天冷静期起点；null=未申请/已撤销/历史永久注销）")
+    private LocalDateTime cancelAt;
     @Schema(description = "逻辑删除: 0=正常 1=已删除")
     private Integer isDeleted;
     @Schema(description = "硬币余额")

@@ -107,10 +107,18 @@ public interface UserMapper {
     int updateLoginStatus(@Param("id") Integer id, @Param("loginStatus") Integer loginStatus);
 
     /**
-     * 注销账号：status=-1 并强制下线（数据保留，后台仍可见）
+     * 提交注销申请：status=-1、强制下线并记录注销申请时间（15天冷静期起点；数据保留，后台仍可见）
      */
-    @Update("UPDATE user SET status = -1, login_status = 1, updated_at = NOW() WHERE id = #{id} AND is_deleted = 0")
+    @Update("UPDATE user SET status = -1, login_status = 1, cancel_at = NOW(), updated_at = NOW() " +
+            "WHERE id = #{id} AND is_deleted = 0")
     int cancelAccount(@Param("id") Integer id);
+
+    /**
+     * 撤销注销（冷静期内登录自动调用）：恢复正常状态并清空注销申请时间
+     */
+    @Update("UPDATE user SET status = 1, cancel_at = NULL, updated_at = NOW() " +
+            "WHERE id = #{id} AND is_deleted = 0 AND status = -1")
+    int revokeCancellation(@Param("id") Integer id);
 
     @Select("SELECT COUNT(*) FROM user WHERE is_deleted = 0")
     int countUsers();
