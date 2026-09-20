@@ -60,7 +60,9 @@ public class UserServiceImpl implements UserService {
         }
         user.setIsDeleted(0);   // 新用户正常，逻辑删除标记固定为 0
         if (user.getAvatarUrl() == null || user.getAvatarUrl().isEmpty()) {
-            user.setAvatarUrl("https://i.pravatar.cc/150?u=" + System.currentTimeMillis());
+            // 用用户名生成稳定且唯一的 SVG 头像（DiceBear，支持跨域； pravatar.cc 已禁止跨域会 403）
+            String seed = user.getUsername() != null ? user.getUsername() : String.valueOf(System.currentTimeMillis());
+            user.setAvatarUrl("https://api.dicebear.com/7.x/identicon/svg?seed=" + java.net.URLEncoder.encode(seed, java.nio.charset.StandardCharsets.UTF_8));
         }
         userMapper.insert(user);
         // 访问统计拆表：注册时初始化 user_visit_stat 行（幂等兜底，正常由 upsert 自动建行）

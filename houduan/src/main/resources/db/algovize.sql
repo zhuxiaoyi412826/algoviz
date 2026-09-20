@@ -403,7 +403,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- 用户测试数据
 INSERT INTO `user` (`username`, `email`, `password`, `age`, `gender`, `nickname`, `avatar_url`, `login_status`, `status`) VALUES
-('user1',  'user1@example.com',  'user123',  NULL, '未知', '用户1', 'https://i.pravatar.cc/150?u=2', 'offline', 1);
+('user1',  'user1@example.com',  'user123',  NULL, '未知', '用户1', 'https://api.dicebear.com/7.x/identicon/svg?seed=user1', 'offline', 1);
 
 -- 注：旧 admin 表已弃用，管理员统一使用 sys_user (RBAC) 体系
 -- 超级管理员账号：algovize / algovize123（Argon2id 加密，见 sys_user 种子数据）
@@ -491,8 +491,8 @@ ALTER TABLE `user` ADD COLUMN `login_status` VARCHAR(20) DEFAULT 'offline' COMME
 -- 6.4 新增 status（账号状态：1正常 0封禁）
 ALTER TABLE `user` ADD COLUMN `status` TINYINT DEFAULT 1 COMMENT '1:正常 0:封禁' AFTER `login_status`;
 
--- 6.5 批量更新所有用户的头像URL（格式：https://i.pravatar.cc/150?u={id}）
-UPDATE `user` SET `avatar_url` = CONCAT('https://i.pravatar.cc/150?u=', `id`), `updated_at` = NOW() WHERE `avatar_url` IS NULL OR `avatar_url` = '';
+-- 6.5 批量更新所有用户的头像URL（DiceBear identicon，seed=用户名，支持跨域）
+UPDATE `user` SET `avatar_url` = CONCAT('https://api.dicebear.com/7.x/identicon/svg?seed=', `username`), `updated_at` = NOW() WHERE `avatar_url` IS NULL OR `avatar_url` = '' OR `avatar_url` LIKE '%pravatar.cc%';
 
 SELECT 'user 表字段变更完成' AS message;
 

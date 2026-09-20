@@ -2,6 +2,8 @@ package com.algoviz.controller;
 
 import com.algoviz.annotation.ResponseWatermark;
 import com.algoviz.entity.User;
+import com.algoviz.entity.UserOauth;
+import com.algoviz.service.OauthLoginService;
 import com.algoviz.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,6 +32,9 @@ public class UserManagementController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private OauthLoginService oauthLoginService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -82,6 +87,30 @@ public class UserManagementController {
             result.put("message", "用户不存在");
         }
         
+        return result;
+    }
+
+    @GetMapping("/{id}/oauth-bindings")
+    @Operation(summary = "查询用户的第三方账号绑定", description = "后台管理员查看指定用户绑定的 GitHub/Gitee 账号列表")
+    public Map<String, Object> getUserOauthBindings(@PathVariable Integer id) {
+        logger.info("查询用户第三方绑定：userId={}", id);
+        Map<String, Object> result = new HashMap<>();
+        List<UserOauth> bindings = oauthLoginService.listBindings(id);
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (UserOauth b : bindings) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", b.getId());
+            item.put("provider", b.getProvider());
+            item.put("openId", b.getOpenId());
+            item.put("nickname", b.getNickname());
+            item.put("avatarUrl", b.getAvatarUrl());
+            item.put("loginCount", b.getLoginCount() != null ? b.getLoginCount() : 0);
+            item.put("bindScene", b.getBindScene());   // 1 注册自动绑定  2 手动绑定
+            item.put("createdAt", b.getCreatedAt());
+            list.add(item);
+        }
+        result.put("success", true);
+        result.put("bindings", list);
         return result;
     }
 
