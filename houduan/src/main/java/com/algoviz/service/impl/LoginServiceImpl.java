@@ -109,7 +109,7 @@ public class LoginServiceImpl implements LoginService {
             user.setGender(null);   // 性别未知（1=男 0=女）
             user.setLoginStatus(1);   // 新用户默认离线（扫码登录成功即置0在线）
             user.setStatus(1);
-            user.setAvatarUrl("https://i.pravatar.cc/150?u=" + System.currentTimeMillis());
+            user.setAvatarUrl("https://api.dicebear.com/7.x/identicon/svg?seed=" + java.net.URLEncoder.encode(openId, java.nio.charset.StandardCharsets.UTF_8));
             user.setNickname("微信用户" + new Random().nextInt(10000));
             user = userService.createUser(user);
         } else {

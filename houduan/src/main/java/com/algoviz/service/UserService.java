@@ -14,6 +14,8 @@ public interface UserService {
     User updateUser(User user);
     /** 个人中心：修改昵称/邮箱/性别/头像（校验在 Controller 层完成） */
     void updateProfile(Integer id, String nickname, String email, Integer gender, String avatarUrl);
+    /** 个人中心：修改用户名（资格判定与唯一性校验在 Controller 层完成） */
+    int updateUsername(Integer id, String username);
     void updateLastLogin(Integer userId);
 
     List<User> getAllUsers();

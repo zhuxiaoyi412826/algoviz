@@ -23,6 +23,7 @@ const tableData = ref<User[]>([])
 const loading = ref(false)
 const detailVisible = ref(false)
 const currentUser = ref<User | null>(null)
+const userOauthBindings = ref<any[]>([])
 const editVisible = ref(false)
 const editUser = ref<User | null>(null)
 const editStatus = ref<number>(1)
@@ -115,10 +116,23 @@ const handleReset = () => {
   loadData()
 }
 
-const handleView = (row: User) => { 
+const handleView = async (row: User) => { 
   currentUser.value = row
-  detailVisible.value = true 
+  userOauthBindings.value = []
+  detailVisible.value = true
+  try {
+    const data: any = await request.get(`/users/${row.id}/oauth-bindings`)
+    if (data.success) {
+      userOauthBindings.value = data.bindings || []
+    }
+  } catch (e) {
+    console.error('加载用户第三方绑定失败', e)
+  }
 }
+
+// 第三方平台展示名
+const providerLabel = (p: string) => (p === 'github' ? 'GitHub' : p === 'gitee' ? 'Gitee' : p)
+const bindSceneText = (s: number) => (s === 2 ? '手动绑定' : '登录自动绑定')
 
 // 性别：1=男 0=女 null=未知
 const genderText = (g: number | null | undefined) => (g === 1 ? '男' : g === 0 ? '女' : '未知')
@@ -302,6 +316,25 @@ const handleExport = async () => {
         <el-descriptions-item label="更新时间">{{ currentUser.updatedAt }}</el-descriptions-item>
         <el-descriptions-item label="最后登录" :span="2">{{ currentUser.lastLoginAt || '-' }}</el-descriptions-item>
       </el-descriptions>
+
+      <!-- 第三方账号绑定 -->
+      <div style="margin-top:16px;">
+        <div style="font-weight:600; margin-bottom:8px;">第三方账号绑定</div>
+        <div v-if="userOauthBindings.length === 0" style="color:#909399; font-size:13px;">未绑定任何第三方账号</div>
+        <div v-else style="display:flex; flex-direction:column; gap:8px;">
+          <div v-for="b in userOauthBindings" :key="b.id"
+               style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:#f5f7fa; border-radius:8px;">
+            <el-avatar :size="32" :src="b.avatarUrl" icon="User" />
+            <div style="flex:1;">
+              <div style="font-weight:500;">{{ providerLabel(b.provider) }} <span style="color:#909399; font-weight:400; font-size:12px;">{{ b.nickname || '' }}</span></div>
+              <div style="color:#909399; font-size:12px;">
+                OpenID: {{ b.openId }} · {{ bindSceneText(b.bindScene) }} · 累计登录 {{ b.loginCount }} 次
+                <span v-if="b.createdAt"> · {{ b.createdAt }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </el-dialog>
     <el-dialog v-model="editVisible" title="编辑用户" width="450px" :close-on-click-modal="false">
       <div v-if="editUser" style="padding:10px 0">

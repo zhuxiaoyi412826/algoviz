@@ -111,6 +111,10 @@ public class WebConfig implements WebMvcConfigurer {
                         // 反馈管理（后台接口）
                         "/api/feedback",
                         "/api/feedback/**",
+                        // 封禁申诉（公开：被封禁用户无法登录，只能在未登录状态提交；
+                        // 管理端查看/处理走 /api/admin/ban-appeals，由 Sa-Token 鉴权）
+                        "/api/ban-appeal",
+                        "/api/ban-appeal/**",
                         // 公告管理（后台接口）
                         "/api/announcements",
                         "/api/announcements/**",

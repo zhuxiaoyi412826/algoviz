@@ -384,6 +384,21 @@
         body.lamp-off .form-footer .link-btn { color: rgba(255,255,255,0.55); }
         body.lamp-on .form-footer .link-btn { color: #667eea; }
 
+        /* 封禁申诉入口：被封禁用户登录必然失败，需在未登录状态提供申诉通道，
+           视觉上弱化一档，避免抢走主操作（登录）的注意力 */
+        .ban-appeal-entry { margin-top: 12px; text-align: center; }
+        .ban-appeal-entry .link-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+            padding: 0;
+        }
+        .ban-appeal-entry .link-btn:hover { text-decoration: underline; }
+        body.lamp-off .ban-appeal-entry .link-btn { color: rgba(255,255,255,0.45); }
+        body.lamp-on .ban-appeal-entry .link-btn { color: #8899aa; }
+
         /* 微信扫码 */
         .qrcode-section { margin-bottom: 16px; text-align: center; }
         .qrcode {
@@ -555,6 +570,11 @@
             <button class="link-btn" onclick="goRegister()">立即注册 →</button>
         </div>
 
+        <!-- 封禁申诉入口：被封禁账号无法登录，这里提供未登录可达的申诉通道 -->
+        <div class="ban-appeal-entry">
+            <button class="link-btn" onclick="goBanAppeal()" title="账号被封禁的用户可在此提交申诉">账号被封禁？提交申诉</button>
+        </div>
+
         <!-- 第三方授权登录（Spring Security OAuth2 Client：GitHub / Gitee） -->
         <div style="margin-top:18px;">
             <div style="display:flex;align-items:center;gap:8px;color:#8a8f98;font-size:12px;line-height:1;">
@@ -573,11 +593,16 @@
 
     <script>
     /* ==================== 第三方授权登录（GitHub / Gitee） ==================== */
+    // 授权入口基地址：由 /api/oauth/providers 下发（后端 app.oauth-redirect-base）。
+    // 必须与平台登记的回调地址同源 —— 授权请求的 Session 和回调必须落在同一个 host，
+    // 否则从 127.0.0.1:5500 进来会拿到 127.0.0.1:80 的授权入口，回调却回到 localhost:80，
+    // Session 对不上 → 第一次授权必然失败（被打回登录页），第二次才成功。
+    var oauthAuthorizeBaseUrl = '';
     function oauthLogin(provider) {
         var protocol = window.location.protocol;
         var host = window.location.hostname || 'dsaol.asia';
-        var base = (protocol === 'https:') ? ('https://' + host + ':3000') : ('http://' + host + ':80');
-        window.location.href = base + '/oauth2/authorization/' + provider;
+        var fallback = (protocol === 'https:') ? ('https://' + host + ':3000') : ('http://' + host + ':80');
+        window.location.href = (oauthAuthorizeBaseUrl || fallback) + '/oauth2/authorization/' + provider;
     }
     (function () {
         function getApiBaseUrl() {
@@ -600,11 +625,27 @@
             if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
         })();
 
+        // 1.5) 登录态失效回跳提示：个人中心等页面拿到 401 后带 msg 跳回本页
+        (function () {
+            var m = /[?&]msg=([^&]+)/.exec(window.location.search);
+            if (!m || !errEl) return;
+            try {
+                errEl.textContent = decodeURIComponent(m[1]) || '登录已失效，请重新登录';
+            } catch (e) {
+                errEl.textContent = '登录已失效，请重新登录';
+            }
+            errEl.style.display = 'block';
+        })();
+
         // 2) 探测后端已配置的平台：未配置的按钮置灰禁用，避免点了报错；全未配置时提示不可用
         fetch(API + '/api/oauth/providers', { credentials: 'include' })
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 var list = (d && d.providers) || [];
+                // 授权入口基地址以后端下发为准（与回调地址同源），避免 host 混用导致首次授权失败
+                if (d && d.authorizeBaseUrl) {
+                    oauthAuthorizeBaseUrl = d.authorizeBaseUrl;
+                }
                 ['github', 'gitee'].forEach(function (p) {
                     var id = 'oauth' + p.charAt(0).toUpperCase() + p.slice(1) + 'Btn';
                     var btn = document.getElementById(id);
@@ -653,10 +694,9 @@
                 setTimeout(function() {
                     refreshCaptcha('account');
                     refreshCaptcha('email');
-                    if (!wechatInitialized) {
-                        wechatInitialized = true;
-                        fetchVerificationCode();
-                    }
+                    // 微信验证码只在用户真正切到「微信」Tab 时才获取（switchTab 内触发）：
+                    // 否则打开台灯就会启动每 2 秒一次的 check-status 轮询，
+                    // 即使用户在账号/邮箱 Tab 也会一直在后台刷请求
                 }, 600);
             } else {
                 body.classList.remove('lamp-on');
@@ -673,7 +713,7 @@
 
         // ============ 验证码 ============
         function refreshCaptcha(type) {
-            fetch(API_BASE_URL + '/api/captcha/generate', {
+            fetch(API_BASE_URL + '/api/captcha/generate?type=' + encodeURIComponent(type), {
                 method: 'GET', credentials: 'include'
             })
             .then(function(res) { return res.json(); })
@@ -959,6 +999,11 @@
             window.location.href = 'forgot-password.html';
         }
 
+        // ============ 跳转封禁申诉 ============
+        function goBanAppeal() {
+            window.location.href = 'ban-appeal.html';
+        }
+
         // ============ 回车登录 ============
         document.getElementById('loginPassword').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') doAccountLogin();
@@ -988,8 +1033,11 @@
         window.doLogin = doLogin;
         window.goRegister = goRegister;
         window.goForgotPassword = goForgotPassword;
+        window.goBanAppeal = goBanAppeal;
 
     })();
     </script>
+    <!-- 密码框「查看密码」开关（自动作用于本页所有 input[type=password]） -->
+    <script src="../js/password-toggle.js" defer></script>
 </body>
 </html>

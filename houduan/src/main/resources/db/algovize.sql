@@ -403,7 +403,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- 用户测试数据
 INSERT INTO `user` (`username`, `email`, `password`, `age`, `gender`, `nickname`, `avatar_url`, `login_status`, `status`) VALUES
-('user1',  'user1@example.com',  'user123',  NULL, '未知', '用户1', 'https://i.pravatar.cc/150?u=2', 'offline', 1);
+('user1',  'user1@example.com',  'user123',  NULL, '未知', '用户1', 'https://api.dicebear.com/7.x/identicon/svg?seed=user1', 'offline', 1);
 
 -- 注：旧 admin 表已弃用，管理员统一使用 sys_user (RBAC) 体系
 -- 超级管理员账号：algovize / algovize123（Argon2id 加密，见 sys_user 种子数据）
@@ -491,8 +491,8 @@ ALTER TABLE `user` ADD COLUMN `login_status` VARCHAR(20) DEFAULT 'offline' COMME
 -- 6.4 新增 status（账号状态：1正常 0封禁）
 ALTER TABLE `user` ADD COLUMN `status` TINYINT DEFAULT 1 COMMENT '1:正常 0:封禁' AFTER `login_status`;
 
--- 6.5 批量更新所有用户的头像URL（格式：https://i.pravatar.cc/150?u={id}）
-UPDATE `user` SET `avatar_url` = CONCAT('https://i.pravatar.cc/150?u=', `id`), `updated_at` = NOW() WHERE `avatar_url` IS NULL OR `avatar_url` = '';
+-- 6.5 批量更新所有用户的头像URL（DiceBear identicon，seed=用户名，支持跨域）
+UPDATE `user` SET `avatar_url` = CONCAT('https://api.dicebear.com/7.x/identicon/svg?seed=', `username`), `updated_at` = NOW() WHERE `avatar_url` IS NULL OR `avatar_url` = '' OR `avatar_url` LIKE '%pravatar.cc%';
 
 SELECT 'user 表字段变更完成' AS message;
 
@@ -1826,3 +1826,27 @@ SET @algoviz_col = IF(EXISTS(SELECT 1 FROM information_schema.COLUMNS
 PREPARE algoviz_material_stmt FROM @algoviz_col;
 EXECUTE algoviz_material_stmt;
 DEALLOCATE PREPARE algoviz_material_stmt;
+
+-- ============================================================================
+-- 25 封禁申诉表 ban_appeal（被封禁用户在登录页提交申诉，后台管理员查看/处理）
+-- 幂等：CREATE TABLE IF NOT EXISTS，可重复执行；已存在则跳过，不影响数据
+-- 状态机：pending(待处理) -> approved(已通过，自动解封) / rejected(已驳回)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `ban_appeal` (
+    `id`           BIGINT       NOT NULL AUTO_INCREMENT,
+    `user_id`      BIGINT       DEFAULT NULL COMMENT '被申诉用户ID（提交时按用户名查到并落库）',
+    `username`     VARCHAR(50)  NOT NULL COMMENT '被封禁账号（用户名）',
+    `email`        VARCHAR(100) DEFAULT NULL COMMENT '申诉邮箱（必须与账号注册邮箱一致）',
+    `reason`       TEXT         NOT NULL COMMENT '申诉理由（后台管理员查看此字段）',
+    `status`       VARCHAR(20)  NOT NULL DEFAULT 'pending' COMMENT 'pending:待处理 approved:已通过 rejected:已驳回',
+    `reply`        TEXT         DEFAULT NULL COMMENT '管理员处理回复（通过/驳回均会邮件通知用户）',
+    `handler_id`   BIGINT       DEFAULT NULL COMMENT '处理人后台账号ID（sys_user.id）',
+    `handler_name` VARCHAR(64)  DEFAULT NULL COMMENT '处理人后台账号名',
+    `handle_time`  DATETIME     DEFAULT NULL COMMENT '处理时间',
+    `create_time`  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '提交时间',
+    `update_time`  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_ban_appeal_status` (`status`),
+    KEY `idx_ban_appeal_user_id` (`user_id`),
+    KEY `idx_ban_appeal_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='封禁申诉表';

@@ -617,35 +617,177 @@
                     credentials: 'include'
                 });
                 var result = await res.json();
-                if (result.success && result.data) {
-                    var user = result.data;
-                    document.getElementById('profileUsername').textContent = user.username || '-';
-                    var emailInput = document.getElementById('profileEmailInput');
-                    if (emailInput) emailInput.value = user.email || '';
-                    var nickInput = document.getElementById('profileNicknameInput');
-                    if (nickInput) nickInput.value = user.nickname || '';
-                    var genderSel = document.getElementById('profileGenderInput');
-                    if (genderSel) genderSel.value = (user.gender === 1 || user.gender === 0) ? String(user.gender) : '';
-                    var avatarInput = document.getElementById('profileAvatarInput');
-                    if (avatarInput) avatarInput.value = user.avatarUrl || '';
-                    renderAvatar(user.avatarUrl);
-                    document.getElementById('profileCoins').textContent = user.coins || 0;
-                    document.getElementById('profileCreatedAt').textContent = user.createdAt || '-';
-                    document.getElementById('profileLastLoginAt').textContent = user.lastLoginAt || '-';
-
-                    // 密码区：无密码 -> 显示“设置密码”；有密码 -> 显示“修改密码”
-                    var hasPwd = !!user.hasPassword;
-                    var setArea = document.getElementById('pwdSetArea');
-                    var chgArea = document.getElementById('pwdChangeArea');
-                    var tip = document.getElementById('pwdStatusTip');
-                    if (setArea) setArea.style.display = hasPwd ? 'none' : 'block';
-                    if (chgArea) chgArea.style.display = hasPwd ? 'block' : 'none';
-                    if (tip) tip.textContent = hasPwd
-                        ? '当前账号已设置登录密码，可修改密码；忘记密码请点击右上角「忘记密码？」按邮箱找回。'
-                        : '当前账号尚未设置登录密码（第三方/扫码注册），建议立即设置，之后即可用“用户名+密码”登录。';
+                // 401：凭证过期 / 账号已注销 / 账号被封禁 —— 清掉本地登录标记并带原因回登录页，
+                // 否则页面会停在「加载中...」且各项显示为空，用户以为"数据没了"
+                if (res.status === 401 || !result.success || !result.data) {
+                    localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('userInfo');
+                    window.location.href = 'login.html?msg=' +
+                        encodeURIComponent(result.message || '登录已失效，请重新登录');
+                    return;
                 }
+                var user = result.data;
+                document.getElementById('profileUsername').textContent = user.username || '-';
+                // 第三方授权自动注册的账号：用户名仍是系统生成态 → 显示自定义入口（仅可改一次）
+                var usernameEditRow = document.getElementById('profileUsernameEditRow');
+                var usernameLockedHint = document.getElementById('profileUsernameLockedHint');
+                if (user.canChangeUsername) {
+                    if (usernameEditRow) {
+                        usernameEditRow.style.display = 'flex';
+                        var usernameInput = document.getElementById('profileUsernameInput');
+                        if (usernameInput && !usernameInput.value) usernameInput.value = user.username || '';
+                    }
+                    if (usernameLockedHint) usernameLockedHint.style.display = 'none';
+                } else {
+                    if (usernameEditRow) usernameEditRow.style.display = 'none';
+                    if (usernameLockedHint) usernameLockedHint.style.display = '';
+                }
+                var emailInput = document.getElementById('profileEmailInput');
+                if (emailInput) emailInput.value = user.email || '';
+                var nickInput = document.getElementById('profileNicknameInput');
+                if (nickInput) nickInput.value = user.nickname || '';
+                var genderSel = document.getElementById('profileGenderInput');
+                if (genderSel) genderSel.value = (user.gender === 1 || user.gender === 0) ? String(user.gender) : '';
+                var avatarInput = document.getElementById('profileAvatarInput');
+                if (avatarInput) avatarInput.value = user.avatarUrl || '';
+                renderAvatar(user.avatarUrl);
+                document.getElementById('profileCoins').textContent = user.coins || 0;
+                document.getElementById('profileCreatedAt').textContent = user.createdAt || '-';
+                document.getElementById('profileLastLoginAt').textContent = user.lastLoginAt || '-';
+
+                // 密码区：无密码 -> 显示“设置密码”；有密码 -> 显示“修改密码”
+                var hasPwd = !!user.hasPassword;
+                var setArea = document.getElementById('pwdSetArea');
+                var chgArea = document.getElementById('pwdChangeArea');
+                var tip = document.getElementById('pwdStatusTip');
+                if (setArea) setArea.style.display = hasPwd ? 'none' : 'block';
+                if (chgArea) chgArea.style.display = hasPwd ? 'block' : 'none';
+                if (tip) tip.textContent = hasPwd
+                    ? '当前账号已设置登录密码，可修改密码；忘记密码请点击右上角「忘记密码？」按邮箱找回。'
+                    : '当前账号尚未设置登录密码（第三方/扫码注册），建议立即设置，之后即可用“用户名+密码”登录。';
             } catch (e) {
                 console.error('加载用户信息失败:', e);
+            }
+        }
+
+        // ===================== 第三方账号绑定 =====================
+
+        // 平台展示名映射
+        var PROVIDER_LABEL = { github: 'GitHub', gitee: 'Gitee' };
+
+        // 加载当前用户的第三方绑定列表
+        async function loadOauthBindings() {
+            var listEl = document.getElementById('oauthBindingsList');
+            if (!listEl) return;
+            try {
+                var API_BASE_URL = window.getApiBaseUrl();
+                var res = await fetch(API_BASE_URL + '/api/account/oauth/bindings', {
+                    method: 'GET', credentials: 'include'
+                });
+                var result = await res.json();
+                if (result.success && Array.isArray(result.bindings)) {
+                    renderOauthBindings(result.bindings);
+                } else {
+                    listEl.innerHTML = '<div style="color:#999; font-size:0.88rem;">暂无绑定</div>';
+                }
+            } catch (e) {
+                console.error('加载第三方绑定失败:', e);
+                listEl.innerHTML = '<div style="color:#e74c3c; font-size:0.88rem;">加载失败，请刷新重试</div>';
+            }
+        }
+
+        // 渲染绑定列表
+        function renderOauthBindings(bindings) {
+            var listEl = document.getElementById('oauthBindingsList');
+            if (!bindings || bindings.length === 0) {
+                listEl.innerHTML = '<div style="color:#999; font-size:0.88rem;">暂未绑定任何第三方账号</div>';
+                return;
+            }
+            var html = '';
+            bindings.forEach(function (b) {
+                var label = PROVIDER_LABEL[b.provider] || b.provider;
+                var sceneText = (b.bindScene === 2) ? '手动绑定' : '登录自动绑定';
+                html += '<div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8f9fa; border-radius:10px;">' +
+                    '<div style="display:flex; align-items:center; gap:10px;">' +
+                    (b.avatarUrl ? '<img src="' + b.avatarUrl + '" style="width:32px;height:32px;border-radius:50%;" onerror="this.style.display=\'none\'">' : '') +
+                    '<div>' +
+                    '<div style="font-weight:600;">' + label + (b.nickname ? ' · ' + b.nickname : '') + '</div>' +
+                    '<div style="color:#999; font-size:0.78rem;">' + sceneText + ' · 累计登录 ' + (b.loginCount || 0) + ' 次' +
+                    (b.createdAt ? ' · ' + b.createdAt : '') + '</div>' +
+                    '</div></div>' +
+                    '<button onclick="unbindOauth(\'' + b.provider + '\')" style="padding:5px 14px; background:#fff; color:#e74c3c; border:1px solid #e74c3c; border-radius:6px; cursor:pointer; font-size:0.85rem;">解绑</button>' +
+                    '</div>';
+            });
+            listEl.innerHTML = html;
+        }
+
+        // 打开绑定选择弹窗
+        function openBindModal() {
+            var tip = document.getElementById('bindModalTip');
+            if (tip) { tip.style.display = 'none'; tip.textContent = ''; }
+            var m = document.getElementById('oauthBindModal');
+            if (m) m.style.display = 'flex';
+        }
+        function closeBindModal() {
+            var m = document.getElementById('oauthBindModal');
+            if (m) m.style.display = 'none';
+        }
+
+        // 发起绑定：先调后端写入 Session 绑定意图，再跳转到 OAuth 授权页
+        async function startBind(provider) {
+            var tip = document.getElementById('bindModalTip');
+            try {
+                var API_BASE_URL = window.getApiBaseUrl();
+                var res = await fetch(API_BASE_URL + '/api/account/oauth/bind/' + provider, {
+                    method: 'POST', credentials: 'include'
+                });
+                var result = await res.json();
+                if (result.success && result.authUrl) {
+                    window.location.href = result.authUrl;
+                } else {
+                    if (tip) { tip.textContent = result.message || '发起绑定失败'; tip.style.display = 'block'; }
+                }
+            } catch (e) {
+                if (tip) { tip.textContent = '网络异常，请稍后重试'; tip.style.display = 'block'; }
+            }
+        }
+
+        // 解绑
+        async function unbindOauth(provider) {
+            if (!window.confirm('确定要解绑 ' + (PROVIDER_LABEL[provider] || provider) + ' 账号吗？解绑后将无法使用该平台一键登录。')) {
+                return;
+            }
+            try {
+                var API_BASE_URL = window.getApiBaseUrl();
+                var res = await fetch(API_BASE_URL + '/api/account/oauth/bind/' + provider, {
+                    method: 'DELETE', credentials: 'include'
+                });
+                var result = await res.json();
+                if (result.success) {
+                    window.alert('已解绑');
+                    loadOauthBindings();
+                } else {
+                    window.alert(result.message || '解绑失败');
+                }
+            } catch (e) {
+                window.alert('网络异常，请稍后重试');
+            }
+        }
+
+        // 处理 OAuth 回调回跳后的结果参数
+        function handleBindCallback() {
+            var params = new URLSearchParams(window.location.search);
+            var bindOk = params.get('oauth_bind');
+            var bindErr = params.get('oauth_bind_error');
+            if (bindOk === 'success') {
+                var p = params.get('provider') || '';
+                window.alert('已成功绑定 ' + (PROVIDER_LABEL[p] || p) + ' 账号');
+                // 清除 URL 参数，避免刷新重复提示
+                window.history.replaceState({}, document.title, window.location.pathname);
+                loadOauthBindings();
+            } else if (bindErr) {
+                window.alert('绑定失败：' + decodeURIComponent(bindErr));
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
         }
         
@@ -697,6 +839,54 @@
                 showMsg('网络异常，保存失败，请稍后重试', true);
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = '保存资料'; }
+            }
+        }
+
+        // 第三方自动注册账号：自定义一次登录用户名（替换系统生成的账号名）
+        async function saveUsername() {
+            var input = document.getElementById('profileUsernameInput');
+            var msg = document.getElementById('profileUsernameMsg');
+            var btn = document.getElementById('profileUsernameSaveBtn');
+            var username = (input.value || '').trim();
+
+            function showMsg(text, isError) {
+                msg.textContent = text;
+                msg.style.color = isError ? '#e74c3c' : '#27ae60';
+                msg.style.display = 'inline-block';
+            }
+
+            if (!username) { showMsg('请输入用户名', true); return; }
+            if (username.length > 50) { showMsg('用户名长度不能超过50个字符', true); return; }
+
+            if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+            try {
+                var API_BASE_URL = window.getApiBaseUrl();
+                var res = await fetch(API_BASE_URL + '/api/login/update-username', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username })
+                });
+                var result = await res.json();
+                if (result.success) {
+                    var newName = result.username || username;
+                    document.getElementById('profileUsername').textContent = newName;
+                    document.getElementById('profileUsernameEditRow').style.display = 'none';
+                    var hint = document.getElementById('profileUsernameLockedHint');
+                    if (hint) hint.style.display = '';
+                    try {
+                        var info = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                        info.username = newName;
+                        localStorage.setItem('userInfo', JSON.stringify(info));
+                    } catch (e) {}
+                    showMsg('修改成功，下次登录请使用新用户名', false);
+                } else {
+                    showMsg(result.message || '修改失败', true);
+                }
+            } catch (e) {
+                showMsg('网络异常，修改失败，请稍后重试', true);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '保存用户名'; }
             }
         }
 
@@ -875,6 +1065,10 @@
         // 加载用户信息
         loadUserInfo();
         
+        // 加载第三方绑定列表 + 处理绑定回调结果
+        loadOauthBindings();
+        handleBindCallback();
+        
         // 修改密码
         function changePassword() {
             var oldPassword = document.getElementById('oldPassword').value;
@@ -948,6 +1142,12 @@
         }
         
         window.changePassword = changePassword;
+
+        // 第三方账号绑定相关函数暴露到全局（IIFE 内定义的函数需显式挂 window 才能被 onclick 调用）
+        window.openBindModal = openBindModal;
+        window.closeBindModal = closeBindModal;
+        window.startBind = startBind;
+        window.unbindOauth = unbindOauth;
         
         // 更新访问量显示
         updateVisitCount();
@@ -1034,7 +1234,14 @@
                                     <div class="profile-info-item">
                                         <span class="profile-info-label">用户名：</span>
                                         <span class="profile-info-value" id="profileUsername">加载中...</span>
-                                        <span class="profile-info-value" style="color:#999; font-size:0.8rem;">（不可修改）</span>
+                                        <span class="profile-info-value" id="profileUsernameLockedHint" style="color:#999; font-size:0.8rem;">（不可修改）</span>
+                                        <span id="profileUsernameMsg" style="font-size:0.9rem; display:none;"></span>
+                                    </div>
+                                    <!-- 第三方授权自动注册的账号：可自定义一次登录用户名（改后永久生效，不可再改） -->
+                                    <div class="profile-info-item" id="profileUsernameEditRow" style="display:none; flex-wrap:wrap; gap:8px;">
+                                        <span class="profile-info-label">自定义账号：</span>
+                                        <input type="text" id="profileUsernameInput" class="form-input" maxlength="50" placeholder="设置新的登录用户名（仅可修改一次）" style="flex:1; min-width:200px; padding:8px 12px;">
+                                        <button class="save-btn" id="profileUsernameSaveBtn" onclick="saveUsername()" style="padding:8px 22px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 500;">保存用户名</button>
                                     </div>
                                     <div class="profile-info-item" style="flex-wrap:wrap; gap:8px;">
                                         <span class="profile-info-label">昵称：</span>
@@ -1112,6 +1319,18 @@
                                     <button class="save-btn" onclick="changePasswordNew()" style="padding:8px 22px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; border:none; border-radius:8px; cursor:pointer;">修改密码</button>
                                 </div>
                                 <div id="pwdMsg" style="font-size:0.9rem; margin-top:0.8rem; display:none;"></div>
+                            </div>
+
+                            <!-- 第三方账号绑定 -->
+                            <div class="profile-card" style="margin-top:1rem;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
+                                    <h3 style="margin:0;">第三方账号绑定</h3>
+                                    <button onclick="openBindModal()" style="padding:6px 16px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:0.88rem;">绑定第三方账号</button>
+                                </div>
+                                <p style="color:#666; font-size:0.85rem; margin:0 0 0.8rem;">绑定后可使用 GitHub / Gitee 一键登录本站，无需记忆密码。</p>
+                                <div id="oauthBindingsList" style="display:flex; flex-direction:column; gap:0.6rem;">
+                                    <div style="color:#999; font-size:0.88rem;">加载中...</div>
+                                </div>
                             </div>
 
                             <!-- ③ 退出登录 / 注销账号 -->
@@ -1436,6 +1655,30 @@
             </div>
         </div>
     </div>
+
+    <!-- 第三方账号绑定选择弹窗 -->
+    <div class="modal" id="oauthBindModal">
+        <div class="modal-content" style="max-width: 420px;">
+            <div class="modal-header">
+                <h3 class="modal-title">绑定第三方账号</h3>
+                <button class="modal-close" onclick="closeBindModal()">&times;</button>
+            </div>
+            <div style="padding:1.2rem;">
+                <p style="color:#666; font-size:0.9rem; margin:0 0 1rem;">选择要绑定的平台，点击后将跳转到对应平台完成授权：</p>
+                <div style="display:flex; flex-direction:column; gap:0.8rem;">
+                    <button onclick="startBind('github')" style="display:flex; align-items:center; gap:0.8rem; padding:12px 16px; background:#24292e; color:#fff; border:none; border-radius:10px; cursor:pointer; font-size:1rem;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+                        <span>绑定 GitHub 账号</span>
+                    </button>
+                    <button onclick="startBind('gitee')" style="display:flex; align-items:center; gap:0.8rem; padding:12px 16px; background:#c71d23; color:#fff; border:none; border-radius:10px; cursor:pointer; font-size:1rem;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+                        <span>绑定 Gitee 账号</span>
+                    </button>
+                </div>
+                <p id="bindModalTip" style="color:#e74c3c; font-size:0.85rem; margin:0.8rem 0 0; display:none;"></p>
+            </div>
+        </div>
+    </div>
     
     <script>
         // 获取API基础URL
@@ -1595,5 +1838,7 @@
             }
         }
     </script>
+    <!-- 密码框「查看密码」开关（自动作用于本页所有 input[type=password]） -->
+    <script src="../js/password-toggle.js" defer></script>
 </body>
 </html>

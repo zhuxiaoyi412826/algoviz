@@ -86,6 +86,7 @@ const fullMenuList: MenuItem[] = [
     menuGroup: 'user',
     children: [
       { path: '/user/list', name: 'UserList', meta: { title: '用户列表' }, menuGroup: 'user' },
+      { path: '/user/ban-appeal', name: 'BanAppeal', meta: { title: '封禁申诉' }, menuGroup: 'user' },
       { path: '/user/login-record', name: 'UserLoginRecord', meta: { title: '登录记录' }, menuGroup: 'user' },
       { path: '/user/behavior', name: 'UserBehavior', meta: { title: '行为数据' }, menuGroup: 'user' }
     ]

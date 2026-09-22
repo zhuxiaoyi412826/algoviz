@@ -14,6 +14,8 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /**
  * 第三方授权登录核心实现
  *
@@ -39,8 +41,9 @@ public class OauthLoginServiceImpl implements OauthLoginService {
     /** raw_profile 快照上限（TEXT 单值建议上限），超出截断只保留头部 */
     private static final int MAX_RAW_PROFILE = 60000;
 
-    /** bind_scene：1 注册自动绑定；2 用户手动账号绑定（后续迭代） */
+    /** bind_scene：1 注册自动绑定；2 用户手动账号绑定 */
     private static final int BIND_SCENE_AUTO_REGISTER = 1;
+    private static final int BIND_SCENE_MANUAL = 2;
 
     @Autowired
     private UserOauthMapper userOauthMapper;
@@ -158,5 +161,80 @@ public class OauthLoginServiceImpl implements OauthLoginService {
         }
         s = s.replaceAll("[\\r\\n\\t\\u0000-\\u001F]", " ").trim();
         return s.length() > maxLen ? s.substring(0, maxLen) : s;
+    }
+
+    // ===================== 手动绑定 / 解绑 =====================
+
+    @Override
+    @Transactional
+    public UserOauth bindToExistingAccount(Integer userId, String provider, String openId,
+                                            String nickname, String avatarUrl, String rawProfile) {
+        if (userId == null) {
+            throw new BusinessException("未登录，无法绑定第三方账号");
+        }
+        // 本地账号必须存在且正常
+        User user = userService.findById(userId);
+        if (user == null) {
+            throw new BusinessException("本地账号不存在或已删除");
+        }
+        if (user.getStatus() == null || user.getStatus() != 1) {
+            throw new BusinessException("账号状态异常，无法绑定第三方账号");
+        }
+
+        // 该 (provider, openId) 不能已绑定到其他账号（防止 A 用户绑定的第三方被 B 抢走登录）
+        UserOauth existingByOpenId = userOauthMapper.findByProviderAndOpenId(provider, openId);
+        if (existingByOpenId != null) {
+            if (existingByOpenId.getUserId() != null && existingByOpenId.getUserId().equals(userId)) {
+                throw new BusinessException("该第三方账号已绑定到当前账号，请勿重复绑定");
+            }
+            throw new BusinessException("该第三方账号已绑定到其他账号，无法重复绑定");
+        }
+
+        // 同一用户同一平台不可重复绑定
+        UserOauth existingByUser = userOauthMapper.findByUserIdAndProvider(userId, provider);
+        if (existingByUser != null) {
+            throw new BusinessException("当前账号已绑定该平台，请先解绑再重新绑定");
+        }
+
+        String nicknameCleaned = sanitizeText(nickname, null, openId, MAX_NICKNAME);
+        String avatarCleaned = sanitizeText(avatarUrl, null, null, MAX_AVATAR);
+        String rawCleaned = sanitizeText(rawProfile, null, null, MAX_RAW_PROFILE);
+
+        UserOauth oauth = new UserOauth();
+        oauth.setUserId(userId);
+        oauth.setProvider(provider);
+        oauth.setOpenId(openId);
+        oauth.setBindScene(BIND_SCENE_MANUAL);   // 手动绑定
+        oauth.setNickname(nicknameCleaned);
+        oauth.setAvatarUrl(avatarCleaned);
+        oauth.setRawProfile(rawCleaned);
+        try {
+            userOauthMapper.insert(oauth);
+        } catch (DuplicateKeyException e) {
+            // 极端并发：UNIQUE(provider, open_id) 冲突
+            throw new BusinessException("该第三方账号已被绑定，请稍后重试");
+        }
+        log.info("用户手动绑定第三方账号成功: userId={}, provider={}, openId={}", userId, provider, openId);
+        return oauth;
+    }
+
+    @Override
+    public List<UserOauth> listBindings(Integer userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        return userOauthMapper.findByUserId(userId);
+    }
+
+    @Override
+    public boolean unbind(Integer userId, String provider) {
+        if (userId == null) {
+            return false;
+        }
+        int rows = userOauthMapper.unbind(userId, provider);
+        if (rows > 0) {
+            log.info("用户解绑第三方账号: userId={}, provider={}", userId, provider);
+        }
+        return rows > 0;
     }
 }

@@ -2,7 +2,10 @@ package com.algoviz.config.security;
 
 import com.algoviz.config.AuthInterceptor;
 import com.algoviz.common.exception.BusinessException;
+import com.algoviz.controller.UserOauthBindingController;
 import com.algoviz.entity.User;
+import com.algoviz.service.LoginLockService;
+import com.algoviz.service.LoginRiskService;
 import com.algoviz.service.OauthLoginService;
 import com.algoviz.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,6 +23,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
@@ -29,8 +33,12 @@ import java.util.Map;
  * <p>职责：OAuth 回调换取到第三方用户信息后——</p>
  * <ol>
  *   <li>解析平台(provider)、第三方 openId 及资料（昵称/头像）；</li>
- *   <li>调 {@link OauthLoginService}：命中 user_oauth 绑定直接登录，未命中自动注册并绑定；</li>
- *   <li>建立与「账号密码登录」完全一致的登录态：写 Session(LOGIN_USER)、写 Cookie(ALGOVIZ_UID)、置在线、刷最后登录时间；</li>
+ *   <li>判断 Session 是否存在「绑定意图」：
+ *       <ul>
+ *         <li>是 → 将第三方账号绑定到当前登录用户（bind_scene=2），回跳个人中心带绑定结果；</li>
+ *         <li>否 → 走原登录流程：命中 user_oauth 绑定直接登录，未命中自动注册并绑定。</li>
+ *       </ul></li>
+ *   <li>登录场景下建立与「账号密码登录」完全一致的登录态；</li>
  *   <li>302 回跳前台个人中心（成功）/ 登录页（失败，带 oauth_error）。</li>
  * </ol>
  */
@@ -44,6 +52,14 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     @Autowired
     private UserService userService;
+
+    /** 账号维度失败锁定（与密码登录共用阈值与键） */
+    @Autowired
+    private LoginLockService loginLockService;
+
+    /** 登录风控：IP 维度计数、登录日志、新设备提醒 */
+    @Autowired
+    private LoginRiskService loginRiskService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -60,11 +76,16 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     @Value("${app.frontend-callback-path:/oauth-callback.html}")
     private String frontendCallbackPath;
 
+    /** 前台个人中心相对路径（绑定成功后回跳） */
+    @Value("${app.frontend-profile-path:/pages/profile.html}")
+    private String frontendProfilePath;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException {
         String provider = null;
+        HttpSession session = request.getSession(false);
         try {
             OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) authentication;
             provider = token.getAuthorizedClientRegistrationId();
@@ -83,30 +104,109 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             } catch (Exception ignored) {
             }
 
+            // ---- 绑定模式：Session 中存在绑定意图 → 绑定到当前登录用户 ----
+            Object bindIntent = session != null ? session.getAttribute(UserOauthBindingController.SESSION_BIND_INTENT) : null;
+            if (bindIntent instanceof String intentProvider && intentProvider.equalsIgnoreCase(provider)) {
+                handleBind(request, response, session, provider, openId, nickname, avatar, rawProfile);
+                return;
+            }
+
+            // ---- 登录模式：命中绑定直接登录，未命中自动注册 ----
             User user = oauthLoginService.loginOrRegister(provider, openId, login, nickname, avatar, rawProfile);
 
+            // 账号维度风控：密码登录锁定的账号，不允许用第三方授权绕过（阈值复用 LoginLockService）
+            LoginLockService.LockStatus lockStatus =
+                    loginLockService.checkLock(LoginLockService.LoginLockType.USER, user.getUsername());
+            if (lockStatus.locked) {
+                loginRiskService.onLoginFailure(user.getId(), user.getUsername(),
+                        "账号已锁定（第三方登录）", request);
+                response.sendRedirect(frontendBaseUrl + frontendLoginPath + "?oauth_error=" + urlEncode(
+                        "登录失败次数过多，账号已锁定，剩余 " + loginLockService.formatRemaining(lockStatus.expireAtMs)));
+                return;
+            }
+
             // 与 LoginController 账号密码登录完全一致的登录态建立
-            HttpSession session = request.getSession(true);
-            session.setAttribute(AuthInterceptor.SESSION_USER, user);
-            AuthInterceptor.setCookie(response, AuthInterceptor.COOKIE_USER_ID,
+            HttpSession loginSession = request.getSession(true);
+            loginSession.setAttribute(AuthInterceptor.SESSION_USER, user);
+            AuthInterceptor.setCookie(request, response, AuthInterceptor.COOKIE_USER_ID,
                     String.valueOf(user.getId()), AuthInterceptor.COOKIE_MAX_AGE_DAYS_4);
             userService.updateLoginStatus(user.getId(), 0);   // 置在线
             userService.updateLastLogin(user.getId());        // 写 user_visit_stat.last_login_at（复用既有口径）
 
+            // 登录成功：清账号失败计数 + 清 IP 失败计数 + 写 login_log + 新设备/新网络提醒
+            loginLockService.reset(LoginLockService.LoginLockType.USER, user.getUsername());
+            loginRiskService.onLoginSuccess(user, request);
+
             log.info("OAuth2 登录成功: provider={}, openId={}, username={}, userId={}",
                     provider, openId, user.getUsername(), user.getId());
 
-            // 回跳前端中转页：先写 localStorage 登录态，再落到站点首页 index.html（避免直跳 profile 因
-            // 前端登录态缺失被弹回 login.html；Cookie Secure 在纯 HTTP 本地可能不被浏览器存储，Session 兜底）
+            // 回跳前端中转页：先写 localStorage 登录态，再落到站点首页 index.html
             response.sendRedirect(frontendBaseUrl + frontendCallbackPath + "?id=" + user.getId());
         } catch (Exception e) {
             // 账号注销/封禁、绑定异常、注册失败等 → 回到登录页提示，不让错误页裸奔。
-            // 只向前端暴露友好原因，不把原始 SQL/堆栈细节带进 URL 与页面（防信息泄露）
-            log.warn("OAuth2 登录处理失败: provider={}, error={}", provider, e.toString());
+            log.warn("OAuth2 处理失败: provider={}, mode={}, error={}", provider,
+                    bindIntentOf(session), e.toString());
             String friendly = (e instanceof BusinessException) ? e.getMessage() : "服务异常，请稍后重试或使用其他方式登录";
-            response.sendRedirect(frontendBaseUrl + frontendLoginPath
-                    + "?oauth_error=" + urlEncode(friendly));
+            // 绑定失败回个人中心；登录失败回登录页
+            boolean bindMode = session != null && session.getAttribute(UserOauthBindingController.SESSION_BIND_INTENT) != null;
+            if (!bindMode) {
+                // 登录模式下的异常同样计入 IP 风控（绑定失败与登录失败无关，不计入）
+                loginRiskService.onLoginFailure(null, provider, friendly, request);
+            }
+            String backTo = bindMode
+                    ? frontendBaseUrl + frontendProfilePath + "?oauth_bind_error=" + urlEncode(friendly)
+                    : frontendBaseUrl + frontendLoginPath + "?oauth_error=" + urlEncode(friendly);
+            clearBindIntent(session);
+            response.sendRedirect(backTo);
         }
+    }
+
+    /** 绑定模式：把第三方账号绑定到当前登录用户，然后回跳个人中心 */
+    private void handleBind(HttpServletRequest request, HttpServletResponse response, HttpSession session,
+                            String provider, String openId, String nickname, String avatar, String rawProfile) throws IOException {
+        User current = currentLoginUser(session, request);
+        if (current == null || current.getId() == null) {
+            clearBindIntent(session);
+            response.sendRedirect(frontendBaseUrl + frontendProfilePath
+                    + "?oauth_bind_error=" + urlEncode("登录态已失效，请重新登录后再绑定"));
+            return;
+        }
+        oauthLoginService.bindToExistingAccount(current.getId(), provider, openId, nickname, avatar, rawProfile);
+        clearBindIntent(session);
+        log.info("OAuth2 手动绑定成功: userId={}, provider={}, openId={}", current.getId(), provider, openId);
+        response.sendRedirect(frontendBaseUrl + frontendProfilePath + "?oauth_bind=success&provider=" + provider);
+    }
+
+    /** 取当前登录用户（Session 优先） */
+    private User currentLoginUser(HttpSession session, HttpServletRequest request) {
+        if (session != null) {
+            Object attr = session.getAttribute(AuthInterceptor.SESSION_USER);
+            if (attr instanceof User u) {
+                return u;
+            }
+        }
+        String uid = AuthInterceptor.getCookieValue(request, AuthInterceptor.COOKIE_USER_ID);
+        if (uid != null) {
+            try {
+                return userService.findById(Integer.parseInt(uid));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return null;
+    }
+
+    private void clearBindIntent(HttpSession session) {
+        if (session != null) {
+            session.removeAttribute(UserOauthBindingController.SESSION_BIND_INTENT);
+        }
+    }
+
+    private String bindIntentOf(HttpSession session) {
+        if (session == null) {
+            return "login";
+        }
+        Object v = session.getAttribute(UserOauthBindingController.SESSION_BIND_INTENT);
+        return v != null ? "bind(" + v + ")" : "login";
     }
 
     private static String asText(Object v) {

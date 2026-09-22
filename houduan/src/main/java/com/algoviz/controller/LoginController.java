@@ -4,8 +4,11 @@ import com.algoviz.config.AuthInterceptor;
 import com.algoviz.dto.LoginRequest;
 import com.algoviz.dto.LoginResponse;
 import com.algoviz.entity.User;
+import com.algoviz.entity.UserOauth;
+import com.algoviz.mapper.UserOauthMapper;
 import com.algoviz.service.AccountStatusService;
 import com.algoviz.service.EmailService;
+import com.algoviz.service.LoginRiskService;
 import com.algoviz.service.LoginService;
 import com.algoviz.service.UserService;
 import com.algoviz.common.util.PasswordEncoderUtil;
@@ -22,6 +25,7 @@ import jakarta.servlet.http.HttpSession;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -52,6 +56,16 @@ public class LoginController {
     @Autowired
     private AccountStatusService accountStatusService;
 
+    /** 登录风控：IP 维度失败锁定 + login_log + 新设备提醒 */
+    @Autowired
+    private LoginRiskService loginRiskService;
+
+    @Autowired
+    private UserOauthMapper userOauthMapper;
+
+    /** 用户名长度上限（与 user.username VARCHAR(50) 列宽一致，防止超长写入报错） */
+    private static final int MAX_USERNAME = 50;
+
     @PostMapping
     @Operation(summary = "登录", description = "通过验证码登录（兼容老版本接口）")
     public LoginResponse login(@RequestBody LoginRequest request) {
@@ -66,7 +80,9 @@ public class LoginController {
         LoginResponse loginResponse;
 
         if (request.getCaptcha() != null && !request.getCaptcha().isEmpty()) {
-            if (!CaptchaController.verifyCaptchaInSession(request.getCaptcha(), httpRequest)) {
+            // 登录页「账号密码」Tab 专属槽位，避免与「邮箱」Tab 的验证码互相覆盖
+            if (!CaptchaController.verifyCaptchaInSession(request.getCaptcha(), httpRequest, "account")) {
+                loginRiskService.onLoginFailure(null, request.getUsername(), "验证码错误或已过期", httpRequest);
                 loginResponse = new LoginResponse();
                 loginResponse.setSuccess(false);
                 loginResponse.setMessage("验证码错误或已过期");
@@ -75,6 +91,10 @@ public class LoginController {
         }
 
         loginResponse = loginService.loginByAccount(request.getUsername(), request.getPassword());
+        if (!loginResponse.isSuccess()) {
+            // 登录失败：写 login_log + 累加 IP 维度失败次数（超阈值由 IP 风控锁定）
+            loginRiskService.onLoginFailure(null, request.getUsername(), loginResponse.getMessage(), httpRequest);
+        }
         if (loginResponse.isSuccess() && loginResponse.getUserInfo() != null) {
             Integer userId = loginResponse.getUserInfo().getId();
             User user = userService.findById(userId);
@@ -85,13 +105,16 @@ public class LoginController {
                 HttpSession session = httpRequest.getSession(true);
                 session.setAttribute(AuthInterceptor.SESSION_USER, user);
 
-                AuthInterceptor.setCookie(response,
+                AuthInterceptor.setCookie(httpRequest, response,
                         AuthInterceptor.COOKIE_USER_ID,
                         String.valueOf(userId),
                         AuthInterceptor.COOKIE_MAX_AGE_DAYS_4);
 
                 // 登录成功 -> 标记在线(0)
                 userService.updateLoginStatus(userId, 0);
+
+                // 登录风控：清 IP 失败计数 + 写 login_log + 新设备/新网络邮件提醒
+                loginRiskService.onLoginSuccess(user, httpRequest);
 
                 System.out.println();
                 System.out.println("╔══════════════════════════════════════════════════════════╗");
@@ -136,7 +159,8 @@ public class LoginController {
             return result;
         }
 
-        if (!CaptchaController.verifyCaptchaInSession(captcha, httpRequest)) {
+        // 登录页「邮箱」Tab 专属槽位（发送邮箱验证码前校验该 Tab 的图形验证码）
+        if (!CaptchaController.verifyCaptchaInSession(captcha, httpRequest, "email")) {
             result.put("success", false);
             result.put("message", "图形验证码错误或已过期");
             return result;
@@ -249,7 +273,7 @@ public class LoginController {
         HttpSession session = httpRequest.getSession(true);
         session.setAttribute(AuthInterceptor.SESSION_USER, user);
 
-        AuthInterceptor.setCookie(response,
+        AuthInterceptor.setCookie(httpRequest, response,
                 AuthInterceptor.COOKIE_USER_ID,
                 String.valueOf(user.getId()),
                 AuthInterceptor.COOKIE_MAX_AGE_DAYS_4);
@@ -310,7 +334,7 @@ public class LoginController {
                 HttpSession session = request.getSession(true);
                 session.setAttribute(AuthInterceptor.SESSION_USER, user);
 
-                AuthInterceptor.setCookie(response,
+                AuthInterceptor.setCookie(request, response,
                         AuthInterceptor.COOKIE_USER_ID,
                         String.valueOf(userId),
                         AuthInterceptor.COOKIE_MAX_AGE_DAYS_4);
@@ -351,7 +375,7 @@ public class LoginController {
                 HttpSession session = httpRequest.getSession(true);
                 session.setAttribute(AuthInterceptor.SESSION_USER, user);
 
-                AuthInterceptor.setCookie(response,
+                AuthInterceptor.setCookie(httpRequest, response,
                         AuthInterceptor.COOKIE_USER_ID,
                         String.valueOf(userId),
                         AuthInterceptor.COOKIE_MAX_AGE_DAYS_4);
@@ -579,6 +603,8 @@ public class LoginController {
             userInfo.put("gender", user.getGender());
             userInfo.put("avatarUrl", user.getAvatarUrl());
             userInfo.put("hasPassword", user.getPassword() != null && !user.getPassword().isEmpty());
+            // 第三方自动注册账号的用户名可自定义一次（改完即不再是生成态，前端据此决定是否显示编辑入口）
+            userInfo.put("canChangeUsername", canChangeUsername(user));
             userInfo.put("coins", user.getCoins() != null ? user.getCoins() : 0);
             userInfo.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().format(DATETIME_FMT) : null);
             userInfo.put("lastLoginAt", user.getLastLoginAt() != null ? user.getLastLoginAt().format(DATETIME_FMT) : null);
@@ -705,6 +731,124 @@ public class LoginController {
         data.put("gender", gender);
         data.put("avatarUrl", avatarUrl.isEmpty() ? null : avatarUrl);
         result.put("data", data);
+        return result;
+    }
+
+    /**
+     * 判断用户名是否仍为第三方自动注册时的生成态：{provider}_{openId}，
+     * 或用户名冲突重试时的 {provider}_{openId}_{i}（见 OauthLoginServiceImpl）。
+     * 只认「本账号自己的绑定」与「完全等值的生成态用户名」，因此改过名后自然不再命中。
+     */
+    private boolean isAutoGeneratedUsername(User user) {
+        String username = user.getUsername();
+        if (username == null) return false;
+        List<UserOauth> bindings = userOauthMapper.findByUserId(user.getId());
+        if (bindings == null) return false;
+        for (UserOauth binding : bindings) {
+            if (binding.getProvider() == null || binding.getOpenId() == null) continue;
+            String prefix = binding.getProvider() + "_" + binding.getOpenId();
+            if (username.equals(prefix)) return true;
+            // 重试后缀：{prefix}_{数字}
+            if (username.length() > prefix.length() + 1 && username.startsWith(prefix + "_")
+                    && username.substring(prefix.length() + 1).matches("\\d+")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 是否还允许自定义用户名：仅第三方自动注册、且尚未改过名的账号可以改一次。
+     * 改过之后用户名不再等于生成态，本方法自然返回 false（无需额外状态字段）。
+     */
+    private boolean canChangeUsername(User user) {
+        return user != null && user.getId() != null && isAutoGeneratedUsername(user);
+    }
+
+    /**
+     * 个人中心自定义用户名（替换第三方登录随机生成的账号）
+     * 约束：仅第三方自动注册账号可改且只能改一次；非空、<=50（列宽）、无控制字符、全局唯一（含已注销/删除占用）
+     */
+    @PostMapping("/update-username")
+    @Operation(summary = "修改用户名", description = "仅第三方授权自动注册的账号可自定义一次用户名（替换系统生成的账号名）")
+    public Map<String, Object> updateUsername(@RequestBody Map<String, String> body,
+                                              HttpServletRequest request) {
+        Map<String, Object> result = new HashMap<>();
+
+        // 1. 当前登录用户（Session 优先，Cookie 兜底，与 /me、/update-profile 口径一致）
+        HttpSession session = request.getSession(false);
+        User user = null;
+        if (session != null) {
+            user = (User) session.getAttribute(AuthInterceptor.SESSION_USER);
+        }
+        if (user == null) {
+            String uid = AuthInterceptor.getCookieValue(request, AuthInterceptor.COOKIE_USER_ID);
+            if (uid != null) {
+                user = userService.findById(Integer.parseInt(uid));
+            }
+        }
+        if (user == null) {
+            result.put("success", false);
+            result.put("message", "请先登录");
+            return result;
+        }
+
+        // 2. 资格校验：仅第三方自动注册、且尚未改过名的账号
+        if (!canChangeUsername(user)) {
+            result.put("success", false);
+            result.put("message", "当前账号不支持自定义用户名");
+            return result;
+        }
+
+        // 3. 新用户名校验（沿用注册接口口径：非空 + 唯一；另加列宽与控制字符校验）
+        String username = body.get("username") == null ? "" : body.get("username").trim();
+        if (username.isEmpty()) {
+            result.put("success", false);
+            result.put("message", "请输入用户名");
+            return result;
+        }
+        if (username.length() > MAX_USERNAME) {
+            result.put("success", false);
+            result.put("message", "用户名长度不能超过" + MAX_USERNAME + "个字符");
+            return result;
+        }
+        if (username.matches(".*[\\r\\n\\t\\u0000-\\u001F].*")) {
+            result.put("success", false);
+            result.put("message", "用户名含非法字符");
+            return result;
+        }
+        if (username.equals(user.getUsername())) {
+            result.put("success", false);
+            result.put("message", "新用户名与原用户名相同");
+            return result;
+        }
+
+        // 4. 唯一性校验（含已注销/删除账号永久占用，排除本人）
+        User owner = userService.findByUsernameIncludeDeleted(username);
+        if (owner != null && !owner.getId().equals(user.getId())) {
+            result.put("success", false);
+            result.put("message", "用户名已存在");
+            return result;
+        }
+
+        // 5. 更新用户名并刷新 Session（登录态基于用户ID，无需重新登录）
+        try {
+            userService.updateUsername(user.getId(), username);
+        } catch (Exception e) {
+            // 并发下可能撞 uk_user_username 唯一索引
+            logger.warn("修改用户名失败，userId={}, username={}", user.getId(), username, e);
+            result.put("success", false);
+            result.put("message", "用户名已存在");
+            return result;
+        }
+        User fresh = userService.findById(user.getId());
+        if (fresh != null && session != null) {
+            session.setAttribute(AuthInterceptor.SESSION_USER, fresh);
+        }
+
+        result.put("success", true);
+        result.put("message", "用户名修改成功");
+        result.put("username", username);
         return result;
     }
 
