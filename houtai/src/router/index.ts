@@ -246,6 +246,12 @@ const routes: RouteRecordRaw[] = [
             meta: { title: '用户列表' }
           },
           {
+            path: 'ban-appeal',
+            name: 'BanAppeal',
+            component: () => import('@/views/user/BanAppeal.vue'),
+            meta: { title: '封禁申诉' }
+          },
+          {
             path: 'login-record',
             name: 'UserLoginRecord',
             component: () => import('@/views/user/UserLoginRecord.vue'),

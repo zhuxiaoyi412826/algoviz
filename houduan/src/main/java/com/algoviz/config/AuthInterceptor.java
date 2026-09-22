@@ -159,7 +159,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             userService.updateLoginStatus(userId, 0);
         }
         // 刷新 Cookie 的 4 天有效期（滑动过期）
-        setCookie(response, COOKIE_USER_ID, String.valueOf(userId), COOKIE_MAX_AGE_DAYS_4);
+        setCookie(request, response, COOKIE_USER_ID, String.valueOf(userId), COOKIE_MAX_AGE_DAYS_4);
 
         // cmd 控制台醒目：自动登录成功
         System.out.println();
@@ -203,19 +203,43 @@ public class AuthInterceptor implements HandlerInterceptor {
     }
 
     /**
-     * 设置 Cookie（HttpOnly + SameSite=Lax + Secure，防 XSS/CSRF）
-     * 注意：Secure 仅在 HTTPS 下由浏览器发送；本地 HTTP 开发环境该 Cookie 不会被浏览器存储，
-     *      但登录态由服务端 Session 兜底（SESSION_USER），不影响本地调试登录。
+     * 设置 Cookie（HttpOnly + SameSite=Lax，防 XSS/CSRF）
+     *
+     * <p>Secure 按「浏览器实际访问协议」判定，而不是一律写死：
+     * 生产/线上域名仍强制 Secure；本地 HTTP 开发（localhost / 127.0.0.1）不加 Secure，
+     * 否则浏览器会直接丢弃该 Cookie（面试/开发常用 HTTP），
+     * 后端一重启（内存 Session 丢失）就没有任何持久凭证，被迫重新登录。</p>
      */
-    public static void setCookie(HttpServletResponse response, String name, String value, int maxAgeSeconds) {
+    public static void setCookie(HttpServletRequest request, HttpServletResponse response,
+                                String name, String value, int maxAgeSeconds) {
         Cookie cookie = new Cookie(name, value);
         cookie.setMaxAge(maxAgeSeconds);
         cookie.setPath("/");
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(isSecureRequest(request));
         // SameSite=Lax：阻止跨站请求携带本 Cookie（CSRF 防护）
         cookie.setAttribute("SameSite", "Lax");
         response.addCookie(cookie);
+    }
+
+    /**
+     * 判断浏览器侧是否为 HTTPS：优先取 Nginx 反代的 X-Forwarded-Proto，
+     * 其次 request.isSecure()；两者都不是 https 时，仅本机域名才允许降级为非 Secure。
+     */
+    private static boolean isSecureRequest(HttpServletRequest request) {
+        String forwardedProto = request.getHeader("X-Forwarded-Proto");
+        if (forwardedProto != null && forwardedProto.toLowerCase().startsWith("https")) {
+            return true;
+        }
+        if (request.isSecure()) {
+            return true;
+        }
+        String host = request.getServerName();
+        boolean localHttpDev = "localhost".equalsIgnoreCase(host)
+                || "127.0.0.1".equals(host)
+                || "::1".equals(host)
+                || "[::1]".equals(host);
+        return !localHttpDev;
     }
 
     /**

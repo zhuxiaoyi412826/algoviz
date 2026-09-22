@@ -23,6 +23,13 @@ public interface UserMapper {
                       @Param("email") String email,
                       @Param("gender") Integer gender,
                       @Param("avatarUrl") String avatarUrl);
+    /**
+     * 修改用户名（账号密码登录的账号）。资格判定与唯一性校验在业务层完成，
+     * 数据库 uk_user_username 唯一索引兜底并发重名
+     */
+    @Update("UPDATE user SET username = #{username}, updated_at = NOW() " +
+            "WHERE id = #{id} AND is_deleted = 0")
+    int updateUsername(@Param("id") Integer id, @Param("username") String username);
     /** 最后登录时间已拆至 user_visit_stat（XML 实现为 upsert） */
     void updateLastLoginAt(@Param("id") Integer id);
 

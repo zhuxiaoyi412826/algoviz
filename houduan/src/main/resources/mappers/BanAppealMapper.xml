@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algoviz.mapper.BanAppealMapper">
+
+    <resultMap id="BanAppealResultMap" type="com.algoviz.entity.BanAppeal">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="username" property="username" />
+        <result column="email" property="email" />
+        <result column="reason" property="reason" />
+        <result column="status" property="status" />
+        <result column="reply" property="reply" />
+        <result column="handler_id" property="handlerId" />
+        <result column="handler_name" property="handlerName" />
+        <result column="handle_time" property="handleTime" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, user_id, username, email, reason, status, reply,
+        handler_id, handler_name, handle_time, create_time, update_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ban_appeal
+            (user_id, username, email, reason, status, create_time, update_time)
+        VALUES
+            (#{userId}, #{username}, #{email}, #{reason}, #{status},
+             CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    </insert>
+
+    <select id="findById" resultMap="BanAppealResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM ban_appeal
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByPage" resultMap="BanAppealResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM ban_appeal
+        <where>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (username LIKE CONCAT('%', #{keyword}, '%')
+                     OR email LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY
+            CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
+            create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countByConditions" resultType="int">
+        SELECT COUNT(*) FROM ban_appeal
+        <where>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (username LIKE CONCAT('%', #{keyword}, '%')
+                     OR email LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </select>
+
+    <update id="handle">
+        UPDATE ban_appeal SET
+            status = #{status},
+            reply = #{reply},
+            handler_id = #{handlerId},
+            handler_name = #{handlerName},
+            handle_time = CURRENT_TIMESTAMP,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <select id="countPendingByUserId" resultType="int">
+        SELECT COUNT(*) FROM ban_appeal
+        WHERE user_id = #{userId} AND status = 'pending'
+    </select>
+
+</mapper>

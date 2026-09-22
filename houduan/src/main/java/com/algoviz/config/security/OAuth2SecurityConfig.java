@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -12,13 +13,18 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.oauth2.client.CommonOAuth2Provider;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 第三方授权登录（Spring Security OAuth2 Client）配置 —— 与既有鉴权双轨共存 + 优雅降级
@@ -45,6 +51,13 @@ import java.util.List;
  *   OAUTH_GITHUB_CLIENT_ID / OAUTH_GITHUB_CLIENT_SECRET   （GitHub 内置端点）
  *   OAUTH_GITEE_CLIENT_ID  / OAUTH_GITEE_CLIENT_SECRET    （Gitee 需手动补齐端点）
  * </pre>
+ *
+ * <p><b>安全加固（生产登录风控）</b>：</p>
+ * <ul>
+ *   <li>授权请求（state / PKCE code_verifier）改为短时效存储，默认 5 分钟未回调即失效；</li>
+ *   <li>PKCE(S256) 按平台开关（{@code app.oauth-pkce-registrations}），默认只对 GitHub 启用；</li>
+ *   <li>回调入口挂 {@link OAuth2CallbackGuardFilter}，被 IP 风控锁定的来源直接回登录页。</li>
+ * </ul>
  */
 @Configuration
 @EnableWebSecurity
@@ -71,11 +84,28 @@ public class OAuth2SecurityConfig {
     @Value("${app.oauth-redirect-base:http://localhost:80}")
     private String oauthRedirectBase;
 
+    /**
+     * 授权请求（state）在 Session 中的有效期（分钟）——安全加固：把 state 的有效窗口
+     * 从「整个会话」压缩到几分钟，超时回调按失效处理并回登录页提示重新发起。
+     */
+    @Value("${app.oauth-authorization-request-ttl-minutes:5}")
+    private int authorizationRequestTtlMinutes;
+
+    /**
+     * 启用 PKCE(S256) 的平台 registrationId，逗号分隔。
+     * GitHub 支持；Gitee 的 token 端点不接受 code_verifier（未开放 PKCE），故默认只含 github。
+     */
+    @Value("${app.oauth-pkce-registrations:github}")
+    private String pkceRegistrations;
+
     @Autowired
     private OAuth2LoginSuccessHandler oauth2LoginSuccessHandler;
 
     @Autowired
     private OAuth2LoginFailureHandler oauth2LoginFailureHandler;
+
+    @Autowired
+    private OAuth2CallbackGuardFilter oauth2CallbackGuardFilter;
 
     /**
      * 仓库始终存在（允许为空）；过滤链据此决定是否挂接 oauth2Login。
@@ -91,12 +121,16 @@ public class OAuth2SecurityConfig {
     public ConfigurableClientRegistrationRepository clientRegistrationRepository() {
         List<ClientRegistration> registrations = new ArrayList<>();
 
-        // GitHub：Spring 内置 CommonOAuth2Provider，authorize/token/userinfo 端点自动补齐
+        // GitHub：Spring 内置 CommonOAuth2Provider，authorize/token/userinfo 端点自动补齐。
+        // 回调地址与 Gitee 一样固定用 oauthRedirectBase（不能用 {baseUrl}）：
+        // {baseUrl} 会跟随入口请求的 host，用户从 127.0.0.1:5500 进来就得到 127.0.0.1:80 的回调，
+        // 而平台后台登记的是 localhost:80 —— 授权请求存在 127.0.0.1 的 Session 里，
+        // 回调却落到 localhost，Session 对不上就报 authorization_request_not_found（表现为“第一次登录必失败”）。
         if (StringUtils.hasText(githubClientId) && StringUtils.hasText(githubClientSecret)) {
             ClientRegistration github = CommonOAuth2Provider.GITHUB.getBuilder("github")
                     .clientId(githubClientId)
                     .clientSecret(githubClientSecret)
-                    .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+                    .redirectUri(oauthRedirectBase + "/login/oauth2/code/{registrationId}")
                     .scope("read:user", "user:email")
                     .build();
             registrations.add(github);
@@ -154,9 +188,40 @@ public class OAuth2SecurityConfig {
         if (repository != null && !repository.isEmpty()) {
             http.oauth2Login(oauth -> oauth
                     .clientRegistrationRepository(repository)
+                    // 授权请求（state / PKCE code_verifier）短时效存储，5 分钟未回调即失效
+                    .authorizationEndpoint(endpoint -> endpoint
+                            .authorizationRequestRepository(
+                                    new ShortLivedAuthorizationRequestRepository(authorizationRequestTtlMinutes))
+                            .authorizationRequestResolver(
+                                    new PkceAwareAuthorizationRequestResolver(repository, resolvePkceRegistrations())))
                     .successHandler(oauth2LoginSuccessHandler)
                     .failureHandler(oauth2LoginFailureHandler));
+            // 回调入口 IP 风控：命中被锁定的 IP 直接回登录页，不做授权码换取
+            http.addFilterBefore(oauth2CallbackGuardFilter, OAuth2LoginAuthenticationFilter.class);
         }
         return http.build();
+    }
+
+    /**
+     * 避免 OAuth2CallbackGuardFilter 被 Servlet 容器再注册一次（它只应挂在 Spring Security 过滤链上）。
+     */
+    @Bean
+    public FilterRegistrationBean<OAuth2CallbackGuardFilter> oauth2CallbackGuardFilterRegistration(
+            OAuth2CallbackGuardFilter filter) {
+        FilterRegistrationBean<OAuth2CallbackGuardFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    /** 解析启用 PKCE 的平台集合（去空、去重、忽略大小写） */
+    private Set<String> resolvePkceRegistrations() {
+        if (!StringUtils.hasText(pkceRegistrations)) {
+            return new LinkedHashSet<>();
+        }
+        return Arrays.stream(pkceRegistrations.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .map(String::toLowerCase)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 }

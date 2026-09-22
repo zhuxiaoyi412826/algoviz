@@ -4,6 +4,7 @@ import com.algoviz.config.security.ConfigurableClientRegistrationRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,6 +29,10 @@ public class OauthInfoController {
     @Autowired
     private ConfigurableClientRegistrationRepository clientRegistrationRepository;
 
+    /** OAuth 授权/回调基地址（application.yml: app.oauth-redirect-base），前端登录入口按此拼授权地址 */
+    @Value("${app.oauth-redirect-base:}")
+    private String oauthRedirectBase;
+
     @GetMapping("/providers")
     @Operation(summary = "已配置的 OAuth 平台列表", description = "返回 [github, gitee] 中已配置 client 的平台；未配置则返回空数组")
     public Map<String, Object> providers() {
@@ -38,6 +43,10 @@ public class OauthInfoController {
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
         result.put("providers", providers);
+        // 授权入口基地址：必须与回调地址同源，否则授权请求 Session 与回调 Session 不在同一个 host，
+        // 会以 authorization_request_not_found 失败（前端若自行按 window.location.hostname 拼，
+        // 从 127.0.0.1 访问时会得到 127.0.0.1:80，与登记的 localhost:80 回调不匹配）
+        result.put("authorizeBaseUrl", oauthRedirectBase);
         return result;
     }
 }

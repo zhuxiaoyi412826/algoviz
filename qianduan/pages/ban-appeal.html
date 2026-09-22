@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>封禁申诉 - AlgoVize</title>
+    <link rel="icon" type="image/png" href="../images/tubiao.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 0;
+        }
+        .container {
+            width: 100%;
+            max-width: 460px;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .logo {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 28px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #888;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            outline: none;
+            font-family: inherit;
+        }
+        .form-input:focus {
+            border-color: #667eea;
+        }
+        textarea.form-input {
+            resize: vertical;
+            min-height: 110px;
+            line-height: 1.6;
+        }
+        .captcha-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .captcha-row .form-input {
+            flex: 1;
+        }
+        .captcha-img {
+            height: 46px;
+            width: 120px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid #e0e0e0;
+            flex-shrink: 0;
+        }
+        .code-btn {
+            flex-shrink: 0;
+            padding: 12px 14px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            background: white;
+            color: #667eea;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            white-space: nowrap;
+        }
+        .code-btn:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+        }
+        .code-btn:disabled {
+            border-color: #d0d0d0;
+            color: #aaa;
+            cursor: not-allowed;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 6px;
+        }
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            text-align: center;
+            display: none;
+            line-height: 1.5;
+            /* 提示常驻视口顶部：提交按钮在页面下方，若提示留在卡片顶部，滚动后就看不见了 */
+            position: sticky;
+            top: 10px;
+            z-index: 10;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+        }
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            display: block;
+        }
+        .tips {
+            margin-top: 20px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #666;
+            line-height: 1.7;
+        }
+        .tips strong { color: #555; }
+        .tips ul {
+            margin-top: 6px;
+            padding-left: 20px;
+        }
+        .tips li { margin-bottom: 4px; }
+        .counter {
+            margin-top: 6px;
+            font-size: 0.78rem;
+            color: #aaa;
+            text-align: right;
+        }
+        .success-page { text-align: center; }
+        .success-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        .page-title {
+            font-size: 1.2rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .page-desc {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 申诉表单 -->
+        <div class="card" id="appealForm">
+            <div class="header">
+                <div class="logo">📮</div>
+                <h1>账号封禁申诉</h1>
+                <p class="subtitle">请填写被封禁的账号与注册邮箱，验证后提交申诉理由</p>
+            </div>
+
+            <div id="message" class="message"></div>
+
+            <!-- novalidate：关闭浏览器原生校验气泡，改由 JS 统一在 #message 给出明确提示，
+                 否则字段未填全时 submit 事件会被原生校验拦掉，点按钮看起来"没有任何反应" -->
+            <form id="banAppealForm" novalidate onsubmit="return false;">
+                <div class="form-group">
+                    <label class="form-label">被封禁的账号</label>
+                    <input type="text" id="username" class="form-input" placeholder="请输入用户名" maxlength="50" autocomplete="off" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">注册邮箱</label>
+                    <input type="email" id="email" class="form-input" placeholder="须与该账号的注册邮箱一致" maxlength="100" autocomplete="off" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">图形验证码</label>
+                    <div class="captcha-row">
+                        <input type="text" id="captcha" class="form-input" placeholder="请输入图形验证码" maxlength="4" autocomplete="off" required>
+                        <img id="captchaImg" class="captcha-img" src="" alt="验证码" onclick="refreshCaptcha()" title="点击刷新">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">邮箱验证码</label>
+                    <div class="captcha-row">
+                        <input type="text" id="code" class="form-input" placeholder="请输入邮箱收到的 6 位验证码" maxlength="6" autocomplete="off" required>
+                        <button type="button" id="sendCodeBtn" class="code-btn" onclick="sendEmailCode()">发送验证码</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">申诉理由</label>
+                    <textarea id="reason" class="form-input" placeholder="请详细说明情况（至少 10 个字），便于管理员核实" maxlength="1000" required></textarea>
+                    <div class="counter"><span id="reasonCount">0</span> / 1000</div>
+                </div>
+
+                <!-- type=button + onclick：与"发送验证码"按钮保持同一种触发方式，
+                     不依赖表单 submit 事件，避免任何原生校验/事件绑定差异导致点击无响应 -->
+                <button type="button" id="submitBtn" class="submit-btn" onclick="submitAppeal()">提交申诉</button>
+            </form>
+
+            <div class="tips">
+                <strong>💡 说明</strong>
+                <ul>
+                    <li>申诉邮箱必须与该账号的注册邮箱一致，用于确认账号归属</li>
+                    <li>同一账号只允许存在一条待处理申诉，请勿重复提交</li>
+                    <li>管理员处理后会向该邮箱发送结果通知</li>
+                    <li>若账号未绑定可用邮箱，请联系平台管理员处理</li>
+                </ul>
+            </div>
+
+            <a href="login.html" class="back-link">← 返回登录</a>
+        </div>
+
+        <!-- 提交成功 -->
+        <div class="card" id="successPage" style="display: none;">
+            <div class="success-page">
+                <div class="success-icon">✅</div>
+                <h2 class="page-title">申诉已提交</h2>
+                <p class="page-desc">
+                    我们已收到你的申诉，管理员处理后会向<br>
+                    <strong id="successEmail"></strong><br>
+                    发送结果通知，请耐心等待。
+                </p>
+                <a href="login.html" class="submit-btn" style="display: inline-block; text-decoration: none; width: auto; padding: 12px 32px;">返回登录</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取API基础URL（与登录页保持一致：本地 HTTP 80，线上 HTTPS 3000）
+        function getApiBaseUrl() {
+            var protocol = window.location.protocol;
+            var host = window.location.hostname || 'localhost';
+            if (protocol === 'https:') {
+                return 'https://' + host + ':3000';
+            }
+            return 'http://' + host + ':80';
+        }
+        var API_BASE_URL = getApiBaseUrl();
+        // 图形验证码独立槽位：避免与登录页账号/邮箱 Tab 的验证码互相覆盖
+        var CAPTCHA_TYPE = 'banappeal';
+        var countdownTimer = null;
+
+        function $(id) { return document.getElementById(id); }
+
+        function showMessage(text, type) {
+            var box = $('message');
+            if (!text) { box.style.display = 'none'; return; }
+            box.textContent = text;
+            box.className = 'message ' + type;
+            // 提示在卡片顶部，而提交按钮在页面下方，滚动到视口内，避免"点了没反应"的错觉
+            box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+
+        // 刷新图形验证码
+        function refreshCaptcha() {
+            fetch(API_BASE_URL + '/api/captcha/generate?type=' + encodeURIComponent(CAPTCHA_TYPE), {
+                method: 'GET',
+                credentials: 'include'
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.success) { $('captchaImg').src = data.image; }
+            })
+            .catch(function(err) { console.error('获取验证码失败:', err); });
+        }
+
+        // 发送邮箱验证码：需先通过图形验证码，后端会校验账号确实被封禁且邮箱与注册邮箱一致
+        async function sendEmailCode() {
+            var username = $('username').value.trim();
+            var email = $('email').value.trim();
+            var captcha = $('captcha').value.trim();
+
+            showMessage('', '');
+            if (!username) { showMessage('请输入被封禁的账号', 'error'); $('username').focus(); return; }
+            if (!email) { showMessage('请输入注册邮箱', 'error'); $('email').focus(); return; }
+            if (!captcha) { showMessage('请输入图形验证码', 'error'); $('captcha').focus(); return; }
+
+            var btn = $('sendCodeBtn');
+            btn.disabled = true;
+            btn.textContent = '发送中...';
+
+            try {
+                var res = await fetch(API_BASE_URL + '/api/ban-appeal/send-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ username: username, email: email, captcha: captcha })
+                });
+                var result = await res.json();
+
+                if (result.success) {
+                    // 不动图形验证码输入框：提交申诉并不校验它，避免"填好的验证码被清空"的困扰
+                    showMessage('验证码已发送到邮箱，5 分钟内有效', 'success');
+                    startCountdown(60);
+                } else {
+                    // 图形验证码一次性使用，失败后必须换一张，否则重复发送必然报错
+                    var hint = result.message || '发送失败，请重试';
+                    if (hint.indexOf('图形验证码') >= 0) {
+                        $('captcha').value = '';
+                        refreshCaptcha();
+                        hint += '，已为你更换新验证码';
+                    }
+                    showMessage(hint, 'error');
+                    btn.disabled = false;
+                    btn.textContent = '发送验证码';
+                }
+            } catch (e) {
+                showMessage('网络错误，请稍后重试', 'error');
+                refreshCaptcha();
+                btn.disabled = false;
+                btn.textContent = '发送验证码';
+            }
+        }
+
+        function startCountdown(seconds) {
+            var btn = $('sendCodeBtn');
+            var remaining = seconds;
+            btn.disabled = true;
+            btn.textContent = remaining + ' 秒后重发';
+            if (countdownTimer) clearInterval(countdownTimer);
+            countdownTimer = setInterval(function() {
+                remaining--;
+                if (remaining <= 0) {
+                    clearInterval(countdownTimer);
+                    countdownTimer = null;
+                    btn.disabled = false;
+                    btn.textContent = '重新发送';
+                    return;
+                }
+                btn.textContent = remaining + ' 秒后重发';
+            }, 1000);
+        }
+
+        // 提交申诉
+        async function submitAppeal() {
+            var username = $('username').value.trim();
+            var email = $('email').value.trim();
+            var code = $('code').value.trim();
+            var reason = $('reason').value.trim();
+
+            showMessage('', '');
+            // 校验不通过时聚焦到缺失的字段：提示条 + 光标定位双重反馈，避免"点了没反应"的错觉
+            if (!username) { showMessage('请输入被封禁的账号', 'error'); $('username').focus(); return; }
+            if (!email) { showMessage('请输入注册邮箱', 'error'); $('email').focus(); return; }
+            if (!code) { showMessage('请输入邮箱验证码', 'error'); $('code').focus(); return; }
+            if (reason.length < 10) { showMessage('申诉理由至少 10 个字', 'error'); $('reason').focus(); return; }
+
+            var btn = $('submitBtn');
+            btn.disabled = true;
+            btn.textContent = '提交中...';
+
+            try {
+                var res = await fetch(API_BASE_URL + '/api/ban-appeal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ username: username, email: email, code: code, reason: reason })
+                });
+                var result = await res.json();
+
+                if (result.success) {
+                    $('successEmail').textContent = email;
+                    $('appealForm').style.display = 'none';
+                    $('successPage').style.display = 'block';
+                } else {
+                    showMessage(result.message || '提交失败，请重试', 'error');
+                    btn.disabled = false;
+                    btn.textContent = '提交申诉';
+                }
+            } catch (e) {
+                showMessage('网络错误，请稍后重试', 'error');
+                btn.disabled = false;
+                btn.textContent = '提交申诉';
+            }
+        }
+
+        // 绑定事件
+        $('banAppealForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitAppeal();
+        });
+        $('reason').addEventListener('input', function() {
+            $('reasonCount').textContent = this.value.length;
+        });
+
+        refreshCaptcha();
+    </script>
+</body>
+</html>

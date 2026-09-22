@@ -4,6 +4,8 @@ import com.algoviz.config.AuthInterceptor;
 import com.algoviz.common.exception.BusinessException;
 import com.algoviz.controller.UserOauthBindingController;
 import com.algoviz.entity.User;
+import com.algoviz.service.LoginLockService;
+import com.algoviz.service.LoginRiskService;
 import com.algoviz.service.OauthLoginService;
 import com.algoviz.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,6 +52,14 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     @Autowired
     private UserService userService;
+
+    /** 账号维度失败锁定（与密码登录共用阈值与键） */
+    @Autowired
+    private LoginLockService loginLockService;
+
+    /** 登录风控：IP 维度计数、登录日志、新设备提醒 */
+    @Autowired
+    private LoginRiskService loginRiskService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -104,13 +114,28 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             // ---- 登录模式：命中绑定直接登录，未命中自动注册 ----
             User user = oauthLoginService.loginOrRegister(provider, openId, login, nickname, avatar, rawProfile);
 
+            // 账号维度风控：密码登录锁定的账号，不允许用第三方授权绕过（阈值复用 LoginLockService）
+            LoginLockService.LockStatus lockStatus =
+                    loginLockService.checkLock(LoginLockService.LoginLockType.USER, user.getUsername());
+            if (lockStatus.locked) {
+                loginRiskService.onLoginFailure(user.getId(), user.getUsername(),
+                        "账号已锁定（第三方登录）", request);
+                response.sendRedirect(frontendBaseUrl + frontendLoginPath + "?oauth_error=" + urlEncode(
+                        "登录失败次数过多，账号已锁定，剩余 " + loginLockService.formatRemaining(lockStatus.expireAtMs)));
+                return;
+            }
+
             // 与 LoginController 账号密码登录完全一致的登录态建立
             HttpSession loginSession = request.getSession(true);
             loginSession.setAttribute(AuthInterceptor.SESSION_USER, user);
-            AuthInterceptor.setCookie(response, AuthInterceptor.COOKIE_USER_ID,
+            AuthInterceptor.setCookie(request, response, AuthInterceptor.COOKIE_USER_ID,
                     String.valueOf(user.getId()), AuthInterceptor.COOKIE_MAX_AGE_DAYS_4);
             userService.updateLoginStatus(user.getId(), 0);   // 置在线
             userService.updateLastLogin(user.getId());        // 写 user_visit_stat.last_login_at（复用既有口径）
+
+            // 登录成功：清账号失败计数 + 清 IP 失败计数 + 写 login_log + 新设备/新网络提醒
+            loginLockService.reset(LoginLockService.LoginLockType.USER, user.getUsername());
+            loginRiskService.onLoginSuccess(user, request);
 
             log.info("OAuth2 登录成功: provider={}, openId={}, username={}, userId={}",
                     provider, openId, user.getUsername(), user.getId());
@@ -123,7 +148,12 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                     bindIntentOf(session), e.toString());
             String friendly = (e instanceof BusinessException) ? e.getMessage() : "服务异常，请稍后重试或使用其他方式登录";
             // 绑定失败回个人中心；登录失败回登录页
-            String backTo = (session != null && session.getAttribute(UserOauthBindingController.SESSION_BIND_INTENT) != null)
+            boolean bindMode = session != null && session.getAttribute(UserOauthBindingController.SESSION_BIND_INTENT) != null;
+            if (!bindMode) {
+                // 登录模式下的异常同样计入 IP 风控（绑定失败与登录失败无关，不计入）
+                loginRiskService.onLoginFailure(null, provider, friendly, request);
+            }
+            String backTo = bindMode
                     ? frontendBaseUrl + frontendProfilePath + "?oauth_bind_error=" + urlEncode(friendly)
                     : frontendBaseUrl + frontendLoginPath + "?oauth_error=" + urlEncode(friendly);
             clearBindIntent(session);

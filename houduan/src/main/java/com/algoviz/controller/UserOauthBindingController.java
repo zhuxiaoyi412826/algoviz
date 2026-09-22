@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -44,6 +45,14 @@ public class UserOauthBindingController {
 
     @Autowired
     private OauthLoginService oauthLoginService;
+
+    /**
+     * OAuth 授权/回调基地址（application.yml: app.oauth-redirect-base）。
+     * 必须与平台后台登记的回调地址同源：授权端点也走这个 host，
+     * 这样「绑定意图 Session」与回调落在同一个 host 上，绑定才不会被当成登录。
+     */
+    @Value("${app.oauth-redirect-base:}")
+    private String oauthRedirectBase;
 
     /**
      * 查询当前登录用户已绑定的第三方账号列表
@@ -112,7 +121,9 @@ public class UserOauthBindingController {
         session.setAttribute(SESSION_BIND_INTENT, provider);
 
         // Spring Security OAuth2 的授权端点（无需拼接 redirect_uri，框架自动处理）
-        String authUrl = request.getContextPath() + "/oauth2/authorization/" + provider;
+        // 必须返回「绝对地址」并指向后端：前端只拿到 /oauth2/authorization/xxx 时，
+        // window.location 会按当前页面源（如 http://127.0.0.1:5500）解析，直接 404
+        String authUrl = oauthRedirectBase + request.getContextPath() + "/oauth2/authorization/" + provider;
         result.put("success", true);
         result.put("authUrl", authUrl);
         return result;
