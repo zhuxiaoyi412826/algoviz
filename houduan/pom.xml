@@ -125,7 +125,7 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-openfeign</artifactId>
-            <version>4.1.0</version>
+            <version>5.0.4</version>
         </dependency>
 
         <!-- Redis：敏感词库缓存 / 待审核队列 / 去重 -->
